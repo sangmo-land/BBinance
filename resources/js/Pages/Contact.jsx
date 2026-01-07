@@ -21,7 +21,9 @@ export default function Contact({ auth }) {
                                     href="/"
                                     className="flex items-center gap-2"
                                 >
-                                    <ApplicationLogo className="h-20 w-auto fill-current text-[#FF2D20]" />
+                                    <div className="rounded-xl bg-gradient-to-br from-white to-gray-200 p-2 shadow-sm">
+                                        <ApplicationLogo className="h-20 w-auto fill-current text-[#FF2D20]" />
+                                    </div>
                                 </Link>
                             </div>
                             <nav className="-mx-3 flex flex-1 justify-end">
