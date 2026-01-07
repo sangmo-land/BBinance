@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, usePage } from '@inertiajs/react';
+import ChatWidget from "@/Components/ChatWidget";
 
 export default function AppLayout({ children }) {
     const { auth } = usePage().props;
@@ -633,6 +634,7 @@ export default function AppLayout({ children }) {
                     </div>
                 </div>
             </footer>
+            {auth.user && <ChatWidget user={auth.user} />}
         </div>
     );
 }

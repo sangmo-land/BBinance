@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TransferController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\SitemapController;
 use Inertia\Inertia;
 
@@ -17,6 +18,9 @@ Route::get('/sitemap-index.xml', [SitemapController::class, 'sitemapIndex'])->na
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+// Chat endpoints
+    Route::get('/chat/messages', [ChatController::class, 'index'])->name('chat.index');
+    Route::post('/chat/messages', [ChatController::class, 'store'])->name('chat.store');
 
     Route::get('/transfer', [TransferController::class, 'create'])->name('transfer.create');
     Route::post('/transfer', [TransferController::class, 'store'])->name('transfer.store');
