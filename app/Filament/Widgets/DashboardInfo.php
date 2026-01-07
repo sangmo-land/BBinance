@@ -6,6 +6,7 @@ use Filament\Widgets\Widget;
 
 class DashboardInfo extends Widget
 {
+protected static ?int $sort = 1;
     protected static ?string $pollingInterval = null;
 
     protected int | string | array $columnSpan = 'full';
