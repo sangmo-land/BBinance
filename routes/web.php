@@ -22,6 +22,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/chat/messages', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat/messages', [ChatController::class, 'store'])->name('chat.store');
 
+// Chat endpoints (Admin)
+    Route::get('/chat/admin/conversations', [ChatController::class,
+    'adminConversations'])->name('chat.admin.conversations');
+    Route::get('/chat/admin/messages/{userId}', [ChatController::class, 'adminMessages'])->name('chat.admin.messages');
+    Route::post('/chat/admin/messages/{userId}', [ChatController::class, 'adminReply'])->name('chat.admin.reply');
     Route::get('/transfer', [TransferController::class, 'create'])->name('transfer.create');
     Route::post('/transfer', [TransferController::class, 'store'])->name('transfer.store');
 
