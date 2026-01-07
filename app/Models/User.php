@@ -52,4 +52,8 @@ public function canAccessPanel(Panel $panel): bool
             'password' => 'hashed',
         ];
     }
+public function messages()
+{
+return $this->hasMany(Message::class);
+}
 }
