@@ -16,6 +16,9 @@ Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.i
 Route::get('/sitemap-mobile.xml', [SitemapController::class, 'mobile'])->name('sitemap.mobile');
 Route::get('/sitemap-index.xml', [SitemapController::class, 'sitemapIndex'])->name('sitemap.index-file');
 
+Route::get('/contacts', function () {
+return Inertia::render('Contact');
+})->name('contacts');
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 // Chat endpoints
