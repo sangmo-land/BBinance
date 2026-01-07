@@ -492,10 +492,11 @@ export default function Welcome() {
                             <p className="text-gray-600 text-sm">Real-time exchange rates with transparent pricing</p>
                         </div>
 
-                        <div className="text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-2xl mb-4">
-                                <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        <div className="text-center group">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-2xl mb-4 group-hover:bg-purple-200 transition-colors duration-300 relative overflow-hidden">
+                                <div className="absolute inset-0 bg-yellow-400 opacity-0 group-hover:opacity-20 animate-pulse"></div>
+                                <svg className="w-8 h-8 text-purple-600 relative z-10 transform group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" className="drop-shadow-[0_0_8px_rgba(255,255,0,0.5)]" />
                                 </svg>
                             </div>
                             <h3 className="text-lg font-bold text-gray-900 mb-2">Lightning Fast</h3>
