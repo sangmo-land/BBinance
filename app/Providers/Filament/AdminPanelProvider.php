@@ -17,6 +17,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -28,6 +29,13 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+->brandLogo(fn () => new HtmlString('
+            <div
+                style="border-radius: 0.75rem; background: linear-gradient(to bottom right, #ffffff, rgba(255,255,255,0.8), rgba(255,255,255,0.6)); padding: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid rgba(0,0,0,0.05); display: inline-flex; align-items: center;">
+                <img src="' . asset('images/logo.png') . '" alt="' . config('app.name') . '"
+                    style="height: 30px; width: auto; display: block;">
+            </div>
+            '))
             ->colors([
                 'primary' => Color::Amber,
             ])
