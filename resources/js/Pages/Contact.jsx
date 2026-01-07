@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import ApplicationLogo from "@/Components/ApplicationLogo";
 
 export default function Contact({ auth }) {
     return (
@@ -10,50 +11,21 @@ export default function Contact({ auth }) {
                     className="absolute -left-20 top-0 max-w-[877px]"
                     src="https://laravel.com/assets/img/welcome/background.svg"
                 />
-                
+
                 <div className="relative flex min-h-screen flex-col items-center">
                     <div className="relative w-full max-w-2xl px-6 lg:max-w-7xl">
                         {/* Header / Navigation */}
                         <header className="grid grid-cols-2 items-center gap-2 py-10 lg:grid-cols-3">
                             <div className="flex lg:col-start-2 lg:justify-center">
-                             <Link href="/" className="flex items-center gap-2">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#FF2D20] text-white">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
-                                    </svg>
-                                </div>
-                             </Link>
-                            </div>
-                            <nav className="-mx-3 flex flex-1 justify-end">
                                 <Link
                                     href="/"
-                                    className="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
+                                    className="flex items-center gap-2"
                                 >
-                                    Home
+                                    <ApplicationLogo className="h-20 w-auto fill-current text-[#FF2D20]" />
                                 </Link>
-                                {auth.user ? (
-                                    <Link
-                                        href={route('dashboard')}
-                                        className="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                                    >
-                                        Dashboard
-                                    </Link>
-                                ) : (
-                                    <>
-                                        <Link
-                                            href={route('login')}
-                                            className="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                                        >
-                                            Log in
-                                        </Link>
-                                        <Link
-                                            href={route('register')}
-                                            className="rounded-md px-3 py-2 text-black ring-1 ring-transparent transition hover:text-black/70 focus:outline-none focus-visible:ring-[#FF2D20] dark:text-white dark:hover:text-white/80 dark:focus-visible:ring-white"
-                                        >
-                                            Register
-                                        </Link>
-                                    </>
-                                )}
+                            </div>
+                            <nav className="-mx-3 flex flex-1 justify-end">
+                                {/* Links removed as requested */}
                             </nav>
                         </header>
 
@@ -63,7 +35,8 @@ export default function Contact({ auth }) {
                                     Get in Touch
                                 </h1>
                                 <p className="mt-6 text-lg leading-8 text-gray-600 dark:text-gray-300">
-                                    Our dedicated financial experts are here to assist you 24/7.
+                                    Our dedicated financial experts are here to
+                                    assist you 24/7.
                                 </p>
                             </div>
 
@@ -77,18 +50,38 @@ export default function Contact({ auth }) {
                                         <div className="mt-6 flex items-start space-x-4">
                                             <div className="flex-shrink-0">
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-[#FF2D20]">
-                                                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        strokeWidth={1.5}
+                                                        stroke="currentColor"
+                                                        className="w-6 h-6"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"
+                                                        />
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+                                                        />
                                                     </svg>
                                                 </div>
                                             </div>
                                             <div>
-                                                <p className="font-medium text-gray-900 dark:text-white">London Office</p>
+                                                <p className="font-medium text-gray-900 dark:text-white">
+                                                    Paris Office
+                                                </p>
                                                 <p className="mt-2 text-gray-600 dark:text-gray-400">
-                                                    8 Canada Square<br />
-                                                    London, E14 5HQ<br />
-                                                    United Kingdom
+                                                    103 Avenue des
+                                                    Champs-Élysées
+                                                    <br />
+                                                    75008 Paris
+                                                    <br />
+                                                    France
                                                 </p>
                                             </div>
                                         </div>
@@ -101,19 +94,45 @@ export default function Contact({ auth }) {
                                         <div className="mt-8 space-y-6">
                                             <div className="flex items-center space-x-4">
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-[#FF2D20]">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        strokeWidth={1.5}
+                                                        stroke="currentColor"
+                                                        className="w-6 h-6"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+                                                        />
                                                     </svg>
                                                 </div>
-                                                <span className="text-gray-600 dark:text-gray-400">+44 (0) 20 7991 8888</span>
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    +33 1 40 70 12 34
+                                                </span>
                                             </div>
                                             <div className="flex items-center space-x-4">
                                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-[#FF2D20]">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        strokeWidth={1.5}
+                                                        stroke="currentColor"
+                                                        className="w-6 h-6"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                                                        />
                                                     </svg>
                                                 </div>
-                                                <span className="text-gray-600 dark:text-gray-400">client.services@hsbc.com</span>
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    service.client@hsbc.fr
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -123,7 +142,12 @@ export default function Contact({ auth }) {
                                 <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-800">
                                     <form className="space-y-6">
                                         <div>
-                                            <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Full Name</label>
+                                            <label
+                                                htmlFor="name"
+                                                className="block text-sm font-medium leading-6 text-gray-900 dark:text-white"
+                                            >
+                                                Full Name
+                                            </label>
                                             <div className="mt-2">
                                                 <input
                                                     type="text"
@@ -134,9 +158,14 @@ export default function Contact({ auth }) {
                                                 />
                                             </div>
                                         </div>
-                                        
+
                                         <div>
-                                            <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">Email Address</label>
+                                            <label
+                                                htmlFor="email"
+                                                className="block text-sm font-medium leading-6 text-gray-900 dark:text-white"
+                                            >
+                                                Email Address
+                                            </label>
                                             <div className="mt-2">
                                                 <input
                                                     type="email"
@@ -149,7 +178,12 @@ export default function Contact({ auth }) {
                                         </div>
 
                                         <div>
-                                            <label htmlFor="message" className="block text-sm font-medium leading-6 text-gray-900 dark:text-white">How can we help?</label>
+                                            <label
+                                                htmlFor="message"
+                                                className="block text-sm font-medium leading-6 text-gray-900 dark:text-white"
+                                            >
+                                                How can we help?
+                                            </label>
                                             <div className="mt-2">
                                                 <textarea
                                                     id="message"
@@ -173,7 +207,8 @@ export default function Contact({ auth }) {
                         </main>
 
                         <footer className="py-16 text-center text-sm text-black dark:text-white/70">
-                            &copy; {new Date().getFullYear()} HSBC Group. All rights reserved.
+                            &copy; {new Date().getFullYear()} HSBC Group. All
+                            rights reserved.
                         </footer>
                     </div>
                 </div>
