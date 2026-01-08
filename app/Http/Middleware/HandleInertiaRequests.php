@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,10 +30,15 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+$admin = User::where('is_admin', true)->first(['email', 'phone']);
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+            ],
+'adminContact' => [
+            'email' => $admin?->email ?? 'support@bbinance.com',
+            'phone' => $admin?->phone ?? '+1 (555) 123-4567',
             ],
         ];
     }

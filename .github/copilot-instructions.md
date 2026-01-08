@@ -20,11 +20,13 @@
 - **Styling**: Tailwind CSS (Dark Mode enabled)
 - **Admin Panel**: Filament v4
 - **Build Tool**: Vite 7
-- **Database**: SQLite (default configuration)
+- **Database**: MySQL
 
 ## Quick Start
 
 ```bash
+# Ensure MySQL is running and database 'bbinance' exists
+
 # Start backend server
 php artisan serve
 
@@ -45,7 +47,7 @@ php artisan make:filament-user
 ## Important Notes
 
 - Node.js version 22.12+ or 20.19+ is recommended for Vite 7
-- The project uses SQLite by default (database/database.sqlite)
+- The project uses MySQL (configured in .env)
 - Dark mode is enabled by default in Tailwind configuration
 - Authentication is handled by Laravel Breeze (React/Inertia variant)
 - Admin panel is accessible at `/admin` route

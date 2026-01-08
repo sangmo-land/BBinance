@@ -13,6 +13,7 @@ use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
 
+use Illuminate\Support\Facades\Log;
 class RegisteredUserController extends Controller
 {
     /**
@@ -30,22 +31,58 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+Log::info('Registration attempt started', ['email' => $request->email]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        try {
+$request->validate([
+'civility' => 'required|string|max:20',
+'name' => 'required|string|max:255',
+'surname' => 'required|string|max:255',
+'phone' => 'required|string|max:20',
+'spoken_language' => 'required|string|max:255',
+'profession' => 'required|string|max:255',
+'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+'country_of_residence' => 'required|string|max:255',
+'date_of_birth' => 'required|date',
+'nationality' => 'required|string|max:255',
+'identity_card_front' => 'required|image|max:5120', // 5MB max
+'identity_card_back' => 'required|image|max:5120',
+'password' => ['required', 'confirmed', Rules\Password::defaults()],
+]);
 
-        event(new Registered($user));
+Log::info('Validation passed');
 
-        Auth::login($user);
+$identityCardFrontPath = $request->file('identity_card_front')->store('identity_cards', 'public');
+$identityCardBackPath = $request->file('identity_card_back')->store('identity_cards', 'public');
 
-        return redirect(route('dashboard', absolute: false));
+Log::info('Files stored', ['front' => $identityCardFrontPath, 'back' => $identityCardBackPath]);
+$user = User::create([
+'civility' => $request->civility,
+'name' => $request->name,
+'surname' => $request->surname,
+'phone' => $request->phone,
+'spoken_language' => $request->spoken_language,
+'profession' => $request->profession,
+'email' => $request->email,
+'country_of_residence' => $request->country_of_residence,
+'date_of_birth' => $request->date_of_birth,
+'nationality' => $request->nationality,
+'identity_card_front_path' => $identityCardFrontPath,
+'identity_card_back_path' => $identityCardBackPath,
+'password' => Hash::make($request->password),
+]);
+
+Log::info('User created', ['id' => $user->id]);
+event(new Registered($user));
+
+// Auth::login($user);
+
+return redirect(route('login'))->with('status', 'Registration successful! Your account is pending approval by an
+administrator.');
+} catch (\Exception $e) {
+Log::error('Registration failed: ' . $e->getMessage());
+Log::error($e->getTraceAsString());
+throw $e;
+}
     }
 }

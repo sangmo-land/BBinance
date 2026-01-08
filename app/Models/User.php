@@ -24,10 +24,21 @@ public function canAccessPanel(Panel $panel): bool
      * @var list<string>
      */
     protected $fillable = [
+'civility',
         'name',
+'spoken_language',
+        'profession',
+        'surname',
+        'phone',
         'email',
+'country_of_residence',
+'date_of_birth',
+'nationality',
+'identity_card_front_path',
+'identity_card_back_path',
         'password',
 'is_admin',
+'is_approved',
     ];
 
     /**
@@ -50,6 +61,8 @@ public function canAccessPanel(Panel $panel): bool
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+'is_admin' => 'boolean',
+'is_approved' => 'boolean',
         ];
     }
 public function messages()

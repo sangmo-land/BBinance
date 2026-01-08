@@ -2,17 +2,37 @@ import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from "@/Components/PrimaryButton";
+import Modal from "@/Components/Modal";
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import SecondaryButton from "@/Components/SecondaryButton";
 
 export default function Login({ status, canResetPassword }) {
-    const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
-        password: '',
-        remember: false,
-    });
+    const { data, setData, post, processing, errors, reset, clearErrors } =
+        useForm({
+            email: "",
+            password: "",
+            remember: false,
+        });
     
     const [showPassword, setShowPassword] = useState(false);
+    const [showApprovalModal, setShowApprovalModal] = useState(false);
+
+    useEffect(() => {
+        if (
+            status ===
+                "Registration successful! Your account is pending approval by an administrator." ||
+            errors.email ===
+                "Your account is pending approval by an administrator."
+        ) {
+            setShowApprovalModal(true);
+            if (errors.email) clearErrors("email");
+        }
+    }, [status, errors.email]);
+
+    const closeApprovalModal = () => {
+        setShowApprovalModal(false);
+    };
 
     const submit = (e) => {
         e.preventDefault();
@@ -25,6 +45,42 @@ export default function Login({ status, canResetPassword }) {
     return (
         <>
             <Head title="Log On" />
+
+            <Modal show={showApprovalModal} onClose={closeApprovalModal}>
+                <div className="p-6 bg-white dark:bg-zinc-900 text-center">
+                    <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100 dark:bg-yellow-900/30 mb-6">
+                        <svg
+                            className="h-8 w-8 text-yellow-600 dark:text-yellow-500"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                        </svg>
+                    </div>
+
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        Account Pending Approval
+                    </h2>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">
+                        Your account has been created successfully but requires
+                        administrator approval before you can log in. You will
+                        be notified once your account is active.
+                    </p>
+
+                    <div className="flex justify-center">
+                        <SecondaryButton onClick={closeApprovalModal}>
+                            Understood
+                        </SecondaryButton>
+                    </div>
+                </div>
+            </Modal>
 
             <div className="min-h-screen flex w-full bg-slate-50 dark:bg-black text-black/50 dark:text-white/50">
                 {/* Left Side - Brand Panel (Dark/Zinc Theme) */}
@@ -77,6 +133,27 @@ export default function Login({ status, canResetPassword }) {
 
                 {/* Right Side - Form */}
                 <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative dark:bg-black">
+                    {/* Desktop Back Button */}
+                    <Link
+                        href="/"
+                        className="absolute top-8 right-8 hidden lg:flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors"
+                    >
+                        <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                            />
+                        </svg>
+                        Back to Home
+                    </Link>
+
                     {/* Mobile Header */}
                     <div className="lg:hidden absolute top-8 left-0 w-full px-6 flex items-center justify-center">
                         <Link
@@ -249,9 +326,31 @@ export default function Login({ status, canResetPassword }) {
 
                             <div className="pt-2">
                                 <button
-                                    className="w-full bg-[#FF2D20] hover:bg-[#e0281b] text-white font-bold py-3 px-4 rounded-md shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF2D20] focus:ring-offset-2 disabled:opacity-50 dark:ring-offset-black"
+                                    className="w-full bg-[#FF2D20] hover:bg-[#e0281b] text-white font-bold py-3 px-4 rounded-md shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF2D20] focus:ring-offset-2 disabled:opacity-50 dark:ring-offset-black flex items-center justify-center gap-2"
                                     disabled={processing}
                                 >
+                                    {processing && (
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-white"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                        </svg>
+                                    )}
                                     Sign in
                                 </button>
                             </div>

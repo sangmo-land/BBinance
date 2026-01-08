@@ -49,6 +49,14 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+$user = Auth::user();
+        if (!$user->is_approved && !$user->is_admin) {
+        Auth::logout();
+        
+        throw ValidationException::withMessages([
+        'email' => 'Your account is pending approval by an administrator.',
+        ]);
+        }
         RateLimiter::clear($this->throttleKey());
     }
 

@@ -2,18 +2,33 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import Checkbox from "@/Components/Checkbox";
 import { Head, Link, useForm } from '@inertiajs/react';
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { countries, civilities } from "@/Constants/countries";
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
-        name: '',
-        email: '',
-        password: '',
-        password_confirmation: '',
+        civility: civilities[0],
+        name: "",
+        surname: "",
+        spoken_language: "",
+        profession: "",
+        phone: "",
+        email: "",
+        country_of_residence: "",
+        date_of_birth: "",
+        nationality: "",
+        identity_card_front: null,
+        identity_card_back: null,
+        password: "",
+        password_confirmation: "",
     });
-    
+
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    // Refs for file inputs
+    const idFrontInput = useRef(null);
+    const idBackInput = useRef(null);
 
     const submit = (e) => {
         e.preventDefault();
@@ -22,6 +37,71 @@ export default function Register() {
             onFinish: () => reset("password", "password_confirmation"),
         });
     };
+
+    // Helper to render file upload area
+    const FileUploadArea = ({ label, id, error, file, inputRef, onChange }) => (
+        <div className="w-full">
+            <InputLabel value={label} className="mb-1.5" />
+            <div
+                onClick={() => inputRef.current.click()}
+                className={`relative w-full h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors
+                    ${
+                        file
+                            ? "border-[#FF2D20] bg-[#FF2D20]/5"
+                            : "border-zinc-300 dark:border-zinc-700 hover:border-[#FF2D20] dark:hover:border-[#FF2D20] bg-zinc-50 dark:bg-zinc-900/50"
+                    }
+                `}
+            >
+                <input
+                    ref={inputRef}
+                    id={id}
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={onChange}
+                    required={!file}
+                />
+
+                {file ? (
+                    <div className="relative w-full h-full p-2 group">
+                        <img
+                            src={URL.createObjectURL(file)}
+                            alt="Preview"
+                            className="w-full h-full object-contain rounded"
+                        />
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded">
+                            <span className="text-white text-sm font-medium">
+                                Click to change
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-zinc-500 dark:text-zinc-400">
+                        <svg
+                            className="w-8 h-8 mb-2"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                        </svg>
+                        <span className="text-sm font-medium">
+                            Upload Image
+                        </span>
+                        <span className="text-xs mt-1 text-zinc-400">
+                            PNG, JPG up to 5MB
+                        </span>
+                    </div>
+                )}
+            </div>
+            <InputError message={error} className="mt-1" />
+        </div>
+    );
 
     return (
         <>
@@ -78,6 +158,27 @@ export default function Register() {
 
                 {/* Right Side - Form */}
                 <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative dark:bg-black">
+                    {/* Desktop Back Button */}
+                    <Link
+                        href="/"
+                        className="absolute top-8 right-8 hidden lg:flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors"
+                    >
+                        <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                            />
+                        </svg>
+                        Back to Home
+                    </Link>
+
                     {/* Mobile Header */}
                     <div className="lg:hidden absolute top-8 left-0 w-full px-6 flex items-center justify-center">
                         <Link
@@ -118,201 +219,723 @@ export default function Register() {
                             </p>
                         </div>
 
-                        <form onSubmit={submit} className="space-y-5">
-                            <div>
-                                <InputLabel
-                                    htmlFor="name"
-                                    value="Full Name"
-                                    className="mb-1.5"
-                                />
-                                <input
-                                    id="name"
-                                    name="name"
-                                    value={data.name}
-                                    className="block w-full rounded-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
-                                    autoComplete="name"
-                                    onChange={(e) =>
-                                        setData("name", e.target.value)
-                                    }
-                                    required
-                                />
-                                <InputError
-                                    message={errors.name}
-                                    className="mt-1"
-                                />
-                            </div>
-
-                            <div>
-                                <InputLabel
-                                    htmlFor="email"
-                                    value="Email"
-                                    className="mb-1.5"
-                                />
-                                <input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    value={data.email}
-                                    className="block w-full rounded-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
-                                    autoComplete="email"
-                                    onChange={(e) =>
-                                        setData("email", e.target.value)
-                                    }
-                                    required
-                                />
-                                <InputError
-                                    message={errors.email}
-                                    className="mt-1"
-                                />
-                            </div>
-
-                            <div>
-                                <InputLabel
-                                    htmlFor="password"
-                                    value="Password"
-                                    className="mb-1.5"
-                                />
-                                <div className="relative">
-                                    <input
-                                        id="password"
-                                        type={
-                                            showPassword ? "text" : "password"
-                                        }
-                                        name="password"
-                                        value={data.password}
-                                        className="block w-full rounded-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 pr-10"
-                                        autoComplete="new-password"
-                                        onChange={(e) =>
-                                            setData("password", e.target.value)
-                                        }
-                                        required
+                        <form onSubmit={submit} className="space-y-6">
+                            <div className="grid grid-cols-12 gap-x-4 gap-y-6">
+                                {/* Civility */}
+                                <div className="col-span-12 sm:col-span-4">
+                                    <InputLabel
+                                        htmlFor="civility"
+                                        value="Civility"
+                                        className="mb-1.5"
                                     />
-                                    <button
-                                        type="button"
-                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
-                                        onClick={() =>
-                                            setShowPassword(!showPassword)
-                                        }
-                                    >
-                                        {showPassword ? (
+                                    <div className="relative">
+                                        <select
+                                            id="civility"
+                                            name="civility"
+                                            value={data.civility}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 appearance-none"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "civility",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                        >
+                                            {civilities.map((c) => (
+                                                <option key={c} value={c}>
+                                                    {c}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
                                             <svg
-                                                className="h-5 w-5"
+                                                className="h-4 w-4"
                                                 fill="none"
-                                                viewBox="0 0 24 24"
                                                 stroke="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                                                />
+                                                    strokeWidth="2"
+                                                    d="M19 9l-7 7-7-7"
+                                                ></path>
                                             </svg>
-                                        ) : (
-                                            <svg
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                />
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                                />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
-                                <InputError
-                                    message={errors.password}
-                                    className="mt-1"
-                                />
-                            </div>
-
-                            <div>
-                                <InputLabel
-                                    htmlFor="password_confirmation"
-                                    value="Confirm Password"
-                                    className="mb-1.5"
-                                />
-                                <div className="relative">
-                                    <input
-                                        id="password_confirmation"
-                                        type={
-                                            showConfirmPassword
-                                                ? "text"
-                                                : "password"
-                                        }
-                                        name="password_confirmation"
-                                        value={data.password_confirmation}
-                                        className="block w-full rounded-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 pr-10"
-                                        autoComplete="new-password"
-                                        onChange={(e) =>
-                                            setData(
-                                                "password_confirmation",
-                                                e.target.value
-                                            )
-                                        }
-                                        required
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.civility}
+                                        className="mt-1"
                                     />
-                                    <button
-                                        type="button"
-                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
-                                        onClick={() =>
-                                            setShowConfirmPassword(
-                                                !showConfirmPassword
-                                            )
-                                        }
-                                    >
-                                        {showConfirmPassword ? (
-                                            <svg
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                                                />
-                                            </svg>
-                                        ) : (
-                                            <svg
-                                                className="h-5 w-5"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke="currentColor"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                                />
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                                />
-                                            </svg>
-                                        )}
-                                    </button>
                                 </div>
-                                <InputError
-                                    message={errors.password_confirmation}
-                                    className="mt-1"
-                                />
+
+                                {/* Name */}
+                                <div className="col-span-12 sm:col-span-8">
+                                    <InputLabel
+                                        htmlFor="name"
+                                        value="Name"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="name"
+                                            name="name"
+                                            value={data.name}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            autoComplete="given-name"
+                                            onChange={(e) =>
+                                                setData("name", e.target.value)
+                                            }
+                                            required
+                                            placeholder="John"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.name}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Surname */}
+                                <div className="col-span-12">
+                                    <InputLabel
+                                        htmlFor="surname"
+                                        value="Surname"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="surname"
+                                            name="surname"
+                                            value={data.surname}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            autoComplete="family-name"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "surname",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                            placeholder="Doe"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.242 3 3 0 00-4.243 4.242z"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.surname}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Spoken Language */}
+                                <div className="col-span-12 sm:col-span-6">
+                                    <InputLabel
+                                        htmlFor="spoken_language"
+                                        value="Spoken Language"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="spoken_language"
+                                            name="spoken_language"
+                                            value={data.spoken_language}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "spoken_language",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                            placeholder="English"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.spoken_language}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Profession */}
+                                <div className="col-span-12 sm:col-span-6">
+                                    <InputLabel
+                                        htmlFor="profession"
+                                        value="Profession"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="profession"
+                                            name="profession"
+                                            value={data.profession}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "profession",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                            placeholder="Trader"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.profession}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Phone */}
+                                <div className="col-span-12">
+                                    <InputLabel
+                                        htmlFor="phone"
+                                        value="Phone Number"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="phone"
+                                            name="phone"
+                                            value={data.phone}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            autoComplete="tel"
+                                            onChange={(e) =>
+                                                setData("phone", e.target.value)
+                                            }
+                                            required
+                                            placeholder="+1 (555) 000-0000"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.phone}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Email */}
+                                <div className="col-span-12">
+                                    <InputLabel
+                                        htmlFor="email"
+                                        value="Email"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="email"
+                                            type="email"
+                                            name="email"
+                                            value={data.email}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            autoComplete="email"
+                                            onChange={(e) =>
+                                                setData("email", e.target.value)
+                                            }
+                                            required
+                                            placeholder="john@example.com"
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.email}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Country of Residence */}
+                                <div className="col-span-12 sm:col-span-6">
+                                    <InputLabel
+                                        htmlFor="country_of_residence"
+                                        value="Country of Residence"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <select
+                                            id="country_of_residence"
+                                            name="country_of_residence"
+                                            value={data.country_of_residence}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 appearance-none"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "country_of_residence",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                        >
+                                            <option value="">
+                                                Select Country
+                                            </option>
+                                            {countries.map((c) => (
+                                                <option key={c} value={c}>
+                                                    {c}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
+                                            <svg
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="2"
+                                                    d="M19 9l-7 7-7-7"
+                                                ></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.country_of_residence}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Nationality */}
+                                <div className="col-span-12 sm:col-span-6">
+                                    <InputLabel
+                                        htmlFor="nationality"
+                                        value="Nationality"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <select
+                                            id="nationality"
+                                            name="nationality"
+                                            value={data.nationality}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 appearance-none"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "nationality",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                        >
+                                            <option value="">
+                                                Select Nationality
+                                            </option>
+                                            {countries.map((c) => (
+                                                <option key={c} value={c}>
+                                                    {c}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M3 21v-8a2 2 0 012-2h14a2 2 0 012 2v8M12 3v18M3 8l9-5 9 5M3 8v3a2 2 0 002 2h3"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
+                                            <svg
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="2"
+                                                    d="M19 9l-7 7-7-7"
+                                                ></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.nationality}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Date of Birth */}
+                                <div className="col-span-12">
+                                    <InputLabel
+                                        htmlFor="date_of_birth"
+                                        value="Date of Birth"
+                                        className="mb-1.5"
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="date_of_birth"
+                                            type="date"
+                                            name="date_of_birth"
+                                            value={data.date_of_birth}
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            onChange={(e) =>
+                                                setData(
+                                                    "date_of_birth",
+                                                    e.target.value
+                                                )
+                                            }
+                                            required
+                                        />
+                                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                            <svg
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <InputError
+                                        message={errors.date_of_birth}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Identity Cards Section */}
+                                <div className="col-span-12">
+                                    <h3 className="text-lg font-medium text-black dark:text-white mb-4">
+                                        Identity Verification
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <FileUploadArea
+                                            label="Identity Card Front"
+                                            id="identity_card_front"
+                                            error={errors.identity_card_front}
+                                            file={data.identity_card_front}
+                                            inputRef={idFrontInput}
+                                            onChange={(e) =>
+                                                setData(
+                                                    "identity_card_front",
+                                                    e.target.files[0]
+                                                )
+                                            }
+                                        />
+
+                                        <FileUploadArea
+                                            label="Identity Card Back"
+                                            id="identity_card_back"
+                                            error={errors.identity_card_back}
+                                            file={data.identity_card_back}
+                                            inputRef={idBackInput}
+                                            onChange={(e) =>
+                                                setData(
+                                                    "identity_card_back",
+                                                    e.target.files[0]
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Password fields */}
+                                <div className="col-span-12 space-y-5">
+                                    <div>
+                                        <InputLabel
+                                            htmlFor="password"
+                                            value="Password"
+                                            className="mb-1.5"
+                                        />
+                                        <div className="relative">
+                                            <input
+                                                id="password"
+                                                type={
+                                                    showPassword
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                name="password"
+                                                value={data.password}
+                                                className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 pr-10"
+                                                autoComplete="new-password"
+                                                onChange={(e) =>
+                                                    setData(
+                                                        "password",
+                                                        e.target.value
+                                                    )
+                                                }
+                                                required
+                                            />
+                                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                                <svg
+                                                    className="h-5 w-5"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth="1.5"
+                                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+                                                onClick={() =>
+                                                    setShowPassword(
+                                                        !showPassword
+                                                    )
+                                                }
+                                            >
+                                                {showPassword ? (
+                                                    <svg
+                                                        className="h-5 w-5"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                                                        />
+                                                    </svg>
+                                                ) : (
+                                                    <svg
+                                                        className="h-5 w-5"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                        />
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <InputError
+                                            message={errors.password}
+                                            className="mt-1"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <InputLabel
+                                            htmlFor="password_confirmation"
+                                            value="Confirm Password"
+                                            className="mb-1.5"
+                                        />
+                                        <div className="relative">
+                                            <input
+                                                id="password_confirmation"
+                                                type={
+                                                    showConfirmPassword
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                name="password_confirmation"
+                                                value={
+                                                    data.password_confirmation
+                                                }
+                                                className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 pr-10"
+                                                autoComplete="new-password"
+                                                onChange={(e) =>
+                                                    setData(
+                                                        "password_confirmation",
+                                                        e.target.value
+                                                    )
+                                                }
+                                                required
+                                            />
+                                            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
+                                                <svg
+                                                    className="h-5 w-5"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth="1.5"
+                                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                                    />
+                                                </svg>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
+                                                onClick={() =>
+                                                    setShowConfirmPassword(
+                                                        !showConfirmPassword
+                                                    )
+                                                }
+                                            >
+                                                {showConfirmPassword ? (
+                                                    <svg
+                                                        className="h-5 w-5"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                                                        />
+                                                    </svg>
+                                                ) : (
+                                                    <svg
+                                                        className="h-5 w-5"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke="currentColor"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                        />
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <InputError
+                                            message={
+                                                errors.password_confirmation
+                                            }
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <div className="pt-2">
@@ -344,9 +967,31 @@ export default function Register() {
 
                             <div className="pt-2">
                                 <button
-                                    className="w-full bg-[#FF2D20] hover:bg-[#e0281b] text-white font-bold py-3 px-4 rounded-md shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF2D20] focus:ring-offset-2 disabled:opacity-50 dark:ring-offset-black"
+                                    className="w-full bg-[#FF2D20] hover:bg-[#e0281b] text-white font-bold py-3 px-4 rounded-md shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF2D20] focus:ring-offset-2 disabled:opacity-50 dark:ring-offset-black flex items-center justify-center gap-2"
                                     disabled={processing}
                                 >
+                                    {processing && (
+                                        <svg
+                                            className="animate-spin h-5 w-5 text-white"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                        </svg>
+                                    )}
                                     Register
                                 </button>
                             </div>

@@ -16,4 +16,8 @@ class EditExchangeRate extends EditRecord
             DeleteAction::make(),
         ];
     }
+protected function getRedirectUrl(): string
+    {
+        return '/admin/exchange-rates';
+    }
 }

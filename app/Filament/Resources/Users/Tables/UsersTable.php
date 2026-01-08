@@ -18,12 +18,27 @@ class UsersTable
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+TextColumn::make('spoken_language')
+                ->searchable()
+                ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('profession')
+                ->searchable()
+                ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('email')
                     ->searchable()
                     ->sortable(),
                 IconColumn::make('is_admin')
                     ->boolean()
                     ->sortable(),
+IconColumn::make('is_approved')
+->boolean()
+->sortable()
+->action(function ($record, $column) {
+$name = $column->getName();
+$record->update([
+$name => ! $record->$name,
+]);
+}),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable(),
