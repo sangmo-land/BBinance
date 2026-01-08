@@ -19,6 +19,12 @@ Route::get('/sitemap-index.xml', [SitemapController::class, 'sitemapIndex'])->na
 Route::get('/contacts', function () {
 return Inertia::render('Contact');
 })->name('contacts');
+
+// Admin Approval Link (Signed)
+Route::get('/admin/users/{user}/approve', [\App\Http\Controllers\Admin\UserApprovalController::class, 'approve'])
+    ->middleware('signed')
+    ->name('admin.users.approve-link');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 // Chat endpoints

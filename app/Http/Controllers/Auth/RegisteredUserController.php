@@ -14,6 +14,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 use Illuminate\Support\Facades\Log;
+use App\Mail\RegistrationAckNotification;
+use App\Mail\NewUserAdminNotification;
+use Illuminate\Support\Facades\Mail;
+
 class RegisteredUserController extends Controller
 {
     /**
@@ -72,10 +76,29 @@ $user = User::create([
 'password' => Hash::make($request->password),
 ]);
 
-Log::info('User created', ['id' => $user->id]);
-event(new Registered($user));
+        Log::info('User created', ['id' => $user->id]);
+        event(new Registered($user));
 
-// Auth::login($user);
+        // Send User Acknowledgement Email
+        try {
+            Mail::to($user)->send(new RegistrationAckNotification($user));
+        } catch (\Exception $e) {
+            Log::error('Failed to send registration ack email: ' . $e->getMessage());
+        }
+
+        // Send Admin Notification Email
+        // Find admins to notify (e.g., all admins or a specific one)
+        // For efficiency, we might queue this or just send to all users with is_admin = true
+        $admins = User::where('is_admin', true)->get();
+        foreach ($admins as $admin) {
+            try {
+                Mail::to($admin)->send(new NewUserAdminNotification($user));
+            } catch (\Exception $e) {
+                Log::error('Failed to send admin notification email: ' . $e->getMessage());
+            }
+        }
+
+        // Auth::login($user);
 
 return redirect(route('login'))->with('status', 'Registration successful! Your account is pending approval by an
 administrator.');
