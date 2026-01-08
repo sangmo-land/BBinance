@@ -14,11 +14,60 @@ export default function ChatWidget({ user }) {
     const [selectedUser, setSelectedUser] = useState(null);
     const selectedUserRef = useRef(null);
 
+    // Cache helpers
+    const CACHE_KEY = `chat_storage_${user?.id}`;
+
+    const getCachedData = (key) => {
+        try {
+            const store = localStorage.getItem(CACHE_KEY);
+            if (store) {
+                const parsed = JSON.parse(store);
+                // Return cache if it exists and is not expired (optional: add timestamp check)
+                return parsed[key];
+            }
+        } catch (e) {
+            console.error("Cache read error", e);
+        }
+        return null;
+    };
+
+    const setCachedData = (key, data) => {
+        try {
+            const store = localStorage.getItem(CACHE_KEY);
+            const parsed = store ? JSON.parse(store) : {};
+            parsed[key] = data;
+            // Limit to last 100 items if it's a message list to save space
+            if (Array.isArray(data) && data.length > 100) {
+                parsed[key] = data.slice(-100);
+            }
+            localStorage.setItem(CACHE_KEY, JSON.stringify(parsed));
+        } catch (e) {
+            console.error("Cache write error", e);
+        }
+    };
+
     // Keep ref in sync with state for async checks
     useEffect(() => {
         selectedUserRef.current = selectedUser;
-        // Clear messages when switching users to prevent stale data
-        setMessages([]);
+
+        // When user changes, try to load from cache first for instant feedback
+        let cacheKey = null;
+        if (isAdmin && selectedUser) {
+            cacheKey = `msgs_user_${selectedUser.id}`;
+        } else if (!isAdmin) {
+            cacheKey = "msgs_support";
+        }
+
+        if (cacheKey) {
+            const cached = getCachedData(cacheKey);
+            if (cached && Array.isArray(cached)) {
+                setMessages(cached);
+            } else {
+                setMessages([]);
+            }
+        } else {
+            setMessages([]);
+        }
     }, [selectedUser]);
 
     const isAdmin = !!user?.is_admin;
@@ -29,8 +78,8 @@ export default function ChatWidget({ user }) {
 
     const markMessagesAsRead = async (targetUserId = null) => {
         try {
-            await axios.post(route('chat.mark-read'), {
-                user_id: targetUserId
+            await axios.post(route("chat.mark-read"), {
+                user_id: targetUserId,
             });
         } catch (error) {
             console.error("Error marking messages as read:", error);
@@ -50,19 +99,35 @@ export default function ChatWidget({ user }) {
 
         if (!isAdmin) {
             // User mode: Mark all admin messages as read if unread
-            const hasUnreadMessages = messages.some(m => m.is_from_admin && !m.read_at);
+            const hasUnreadMessages = messages.some(
+                (m) => m.is_from_admin && !m.read_at
+            );
             if (hasUnreadMessages) {
                 markMessagesAsRead();
-                 // Optimistic update
-                 setMessages(prev => prev.map(m => m.is_from_admin ? {...m, read_at: new Date().toISOString()} : m));
+                // Optimistic update
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.is_from_admin
+                            ? { ...m, read_at: new Date().toISOString() }
+                            : m
+                    )
+                );
             }
         } else if (isAdmin && selectedUser) {
             // Admin mode: Mark messages from this user as read
-             const hasUnreadMessages = messages.some(m => !m.is_from_admin && !m.read_at);
-             if (hasUnreadMessages) {
-                 markMessagesAsRead(selectedUser.id);
-                 setMessages(prev => prev.map(m => !m.is_from_admin ? {...m, read_at: new Date().toISOString()} : m));
-             }
+            const hasUnreadMessages = messages.some(
+                (m) => !m.is_from_admin && !m.read_at
+            );
+            if (hasUnreadMessages) {
+                markMessagesAsRead(selectedUser.id);
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        !m.is_from_admin
+                            ? { ...m, read_at: new Date().toISOString() }
+                            : m
+                    )
+                );
+            }
         }
     }, [isOpen, selectedUser, messages]);
 
@@ -89,13 +154,20 @@ export default function ChatWidget({ user }) {
     }, [user, isOpen, selectedUser, isAdmin]);
 
     const fetchConversations = async () => {
+        // Load cached conversations on first run (optional, but good for UI)
+        if (conversations.length === 0) {
+            const cachedConvos = getCachedData("conversations");
+            if (cachedConvos) setConversations(cachedConvos);
+        }
+
         try {
             const response = await axios.get(route("chat.admin.conversations"));
             const newConvos = response.data;
             setConversations(newConvos);
-            
+            setCachedData("conversations", newConvos);
+
             // Check for any unread messages across all conversations
-            if (response.data.some(u => u.unread_count > 0)) {
+            if (response.data.some((u) => u.unread_count > 0)) {
                 setHasUnread(true);
             } else {
                 setHasUnread(false);
@@ -108,7 +180,7 @@ export default function ChatWidget({ user }) {
     const fetchMessages = async () => {
         // Capture the user we are intending to fetch for
         const targetUser = selectedUser;
-        
+
         try {
             const url =
                 isAdmin && targetUser
@@ -116,26 +188,37 @@ export default function ChatWidget({ user }) {
                     : route("chat.index");
 
             const response = await axios.get(url);
-            
+
             // Race condition check:
             // If we are admin, ensure the selected user hasn't changed while the request was in flight.
             if (isAdmin) {
                 // If currently selected user (in ref) is different from the one we fetched for (targetUser)
                 // or if we deselected a user (ref is null) but fetched for one
                 if (selectedUserRef.current?.id !== targetUser?.id) {
-                    return; 
+                    return;
                 }
             }
 
             const newMsgs = response.data;
-            
+
             // For regular users, check if there are any unread messages from admin
             if (!isAdmin) {
-                const hasUnreadMsgs = newMsgs.some(m => m.is_from_admin && !m.read_at);
+                const hasUnreadMsgs = newMsgs.some(
+                    (m) => m.is_from_admin && !m.read_at
+                );
                 setHasUnread(hasUnreadMsgs);
             }
 
             setMessages(newMsgs);
+
+            // Update Cache
+            let cacheKey = null;
+            if (isAdmin && targetUser) {
+                cacheKey = `msgs_user_${targetUser.id}`;
+            } else if (!isAdmin) {
+                cacheKey = "msgs_support";
+            }
+            if (cacheKey) setCachedData(cacheKey, newMsgs);
         } catch (error) {
             console.error("Error fetching messages:", error);
         }
