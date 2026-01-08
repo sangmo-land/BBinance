@@ -222,8 +222,10 @@ export default function ChatWidget({ user }) {
 
             setMessages((prev) => {
                 // Merge strategies to prevent optimistic messages from flickering
-                const serverIds = new Set(newMsgs.map(m => m.id));
-                const localMsgs = prev.filter(m => m.isOptimistic && !serverIds.has(m.id));
+                const serverIds = new Set(newMsgs.map((m) => m.id));
+                const localMsgs = prev.filter(
+                    (m) => m.isOptimistic && !serverIds.has(m.id)
+                );
                 return [...newMsgs, ...localMsgs];
             });
 
@@ -258,7 +260,7 @@ export default function ChatWidget({ user }) {
 
         setMessages((prev) => [...prev, optimisticMessage]);
         setNewMessage(""); // Clear input immediately
-        
+
         // Keep focus on input
         setTimeout(() => inputRef.current?.focus(), 0);
 
@@ -271,12 +273,16 @@ export default function ChatWidget({ user }) {
             const response = await axios.post(url, {
                 message: messageBody,
             });
-            
+
             // Replace optimistic message with real message from server
-            // But KEEP isOptimistic=true until the next poll confirms it to avoid flickering 
+            // But KEEP isOptimistic=true until the next poll confirms it to avoid flickering
             // if the poll happens between now and DB commit visibility
-            setMessages((prev) => 
-                prev.map((msg) => msg.id === tempId ? { ...response.data, isOptimistic: true } : msg)
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.id === tempId
+                        ? { ...response.data, isOptimistic: true }
+                        : msg
+                )
             );
         } catch (error) {
             console.error("Error sending message:", error);
