@@ -8,6 +8,7 @@ export default function ChatWidget({ user }) {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
     const [hasUnread, setHasUnread] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     // Admin specific state
     const [conversations, setConversations] = useState([]);
@@ -169,8 +170,12 @@ export default function ChatWidget({ user }) {
             // Check for any unread messages across all conversations
             if (response.data.some((u) => u.unread_count > 0)) {
                 setHasUnread(true);
+                // Calculate total unread count for admin
+                const totalUnread = response.data.reduce((acc, curr) => acc + (curr.unread_count || 0), 0);
+                setUnreadCount(totalUnread);
             } else {
                 setHasUnread(false);
+                setUnreadCount(0);
             }
         } catch (error) {
             console.error("Error fetching conversations:", error);
@@ -203,10 +208,10 @@ export default function ChatWidget({ user }) {
 
             // For regular users, check if there are any unread messages from admin
             if (!isAdmin) {
-                const hasUnreadMsgs = newMsgs.some(
-                    (m) => m.is_from_admin && !m.read_at
-                );
+                const unreadMsgs = newMsgs.filter(m => m.is_from_admin && !m.read_at);
+                const hasUnreadMsgs = unreadMsgs.length > 0;
                 setHasUnread(hasUnreadMsgs);
+                setUnreadCount(unreadMsgs.length);
             }
 
             setMessages(newMsgs);
@@ -556,24 +561,25 @@ export default function ChatWidget({ user }) {
                     </svg>
                 ) : (
                     <div className="relative">
-                        <svg
-                            className="w-7 h-7 text-white"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                            />
+                        {/* Always show Chat Bubble as main icon */}
+                        <svg className={`w-7 h-7 text-white ${hasUnread ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
+
+                        {/* Bell Icon Overlay (Small, top right of chat bubble) */}
                         {hasUnread && (
-                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                            </span>
+                            <div className="absolute -top-3 -right-3">
+                                <div className="relative">
+                                     <svg className="w-5 h-5 text-yellow-400 drop-shadow-md animate-[wiggle_1s_ease-in-out_infinite]" fill="currentColor" viewBox="0 0 24 24">
+                                         <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                     </svg>
+                                    
+                                     {/* Red Count Badge (Top right of the bell) */}
+                                     <span className="absolute -top-2 -right-2 flex items-center justify-center h-4 w-4 bg-red-600 rounded-full text-[9px] font-bold text-white border border-white dark:border-zinc-800 shadow-sm z-10">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
