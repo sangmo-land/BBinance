@@ -31,7 +31,7 @@ class UserApprovedNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Account Approved - BBinance',
+subject: 'Account Approved - HSBC',
         );
     }
 

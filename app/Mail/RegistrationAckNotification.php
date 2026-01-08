@@ -31,7 +31,7 @@ class RegistrationAckNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Welcome to BBinance - Registration Received',
+subject: 'Welcome to HSBC - Registration Received',
         );
     }
 

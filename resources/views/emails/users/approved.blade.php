@@ -7,7 +7,7 @@
     <h1 style="color: #2c3e50;">Congratulations, {{ $user->name }}!</h1>
     
     <div style="background-color: #d4edda; color: #155724; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb; margin: 20px 0;">
-        <strong>Your BBinance account has been approved.</strong>
+<strong>Your HSBC account has been approved.</strong>
     </div>
 
     <p>You can now sign in to your dashboard and start accessing global markets.</p>
@@ -15,7 +15,7 @@
     <p style="margin-top: 30px;">
         <a href="{{ route('login') }}" 
            style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-           Sign In to BBinance
+Sign In to HSBC
         </a>
     </p>
 
