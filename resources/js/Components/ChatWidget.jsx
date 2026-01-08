@@ -12,6 +12,14 @@ export default function ChatWidget({ user }) {
     // Admin specific state
     const [conversations, setConversations] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
+    const selectedUserRef = useRef(null);
+
+    // Keep ref in sync with state for async checks
+    useEffect(() => {
+        selectedUserRef.current = selectedUser;
+        // Clear messages when switching users to prevent stale data
+        setMessages([]);
+    }, [selectedUser]);
 
     const isAdmin = !!user?.is_admin;
 
@@ -98,13 +106,27 @@ export default function ChatWidget({ user }) {
     };
 
     const fetchMessages = async () => {
+        // Capture the user we are intending to fetch for
+        const targetUser = selectedUser;
+        
         try {
             const url =
-                isAdmin && selectedUser
-                    ? route("chat.admin.messages", selectedUser.id)
+                isAdmin && targetUser
+                    ? route("chat.admin.messages", targetUser.id)
                     : route("chat.index");
 
             const response = await axios.get(url);
+            
+            // Race condition check:
+            // If we are admin, ensure the selected user hasn't changed while the request was in flight.
+            if (isAdmin) {
+                // If currently selected user (in ref) is different from the one we fetched for (targetUser)
+                // or if we deselected a user (ref is null) but fetched for one
+                if (selectedUserRef.current?.id !== targetUser?.id) {
+                    return; 
+                }
+            }
+
             const newMsgs = response.data;
             
             // For regular users, check if there are any unread messages from admin
@@ -146,7 +168,7 @@ export default function ChatWidget({ user }) {
 
     // Render Admin Conversation List
     const renderAdminList = () => (
-        <div className="flex-1 h-[400px] overflow-y-auto bg-gray-50 dark:bg-zinc-900/50">
+        <div className="h-96 overflow-y-auto bg-gray-50 dark:bg-zinc-900/50">
             {conversations.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 text-sm">
                     No active conversations
@@ -193,7 +215,7 @@ export default function ChatWidget({ user }) {
         <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
             {/* Chat Window */}
             {isOpen && (
-                <div className="mb-4 w-[350px] sm:w-[380px] bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-zinc-700 overflow-hidden flex flex-col transition-all duration-300 ease-in-out transform origin-bottom-right">
+                <div className="mb-4 w-[350px] sm:w-[380px] max-h-[80vh] bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-zinc-700 overflow-hidden flex flex-col transition-all duration-300 ease-in-out transform origin-bottom-right">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 flex justify-between items-center">
                         <div className="flex items-center space-x-3">
@@ -297,7 +319,7 @@ export default function ChatWidget({ user }) {
                     ) : (
                         <>
                             {/* Messages Area */}
-                            <div className="flex-1 h-[400px] overflow-y-auto p-4 bg-gray-50 dark:bg-zinc-900/50 space-y-4">
+                            <div className="h-96 overflow-y-auto p-4 bg-gray-50 dark:bg-zinc-900/50 space-y-4">
                                 {messages.length === 0 && (
                                     <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-60">
                                         <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-2">
