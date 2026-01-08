@@ -44,17 +44,39 @@ return response()->json($message);
         // Get users who have messages, sorted by most recent message
         $users = User::whereHas('messages')
         ->with(['messages' => function($q) {
-        $q->latest()->limit(1);
+            $q->latest()->limit(1);
+        }])
+        ->withCount(['messages as unread_count' => function ($query) {
+            $query->where('is_from_admin', false)->whereNull('read_at');
         }])
         ->get()
         ->sortByDesc(function($user) {
-        return $user->messages->first()?->created_at;
+            return $user->messages->first()?->created_at;
         })
         ->values();
         
         return response()->json($users);
         }
         
+    public function markRead(Request $request)
+    {
+        $user = Auth::user();
+
+        if ($user->is_admin && $request->user_id) {
+            Message::where('user_id', $request->user_id)
+                ->where('is_from_admin', false)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        } elseif (!$user->is_admin) {
+            Message::where('user_id', $user->id)
+                ->where('is_from_admin', true)
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
+
+        return response()->json(['status' => 'marked as read']);
+    }
+
         public function adminMessages($userId)
         {
         if (!Auth::user()->is_admin) {

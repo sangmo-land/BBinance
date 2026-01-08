@@ -24,6 +24,7 @@ Route::middleware(['auth'])->group(function () {
 // Chat endpoints
     Route::get('/chat/messages', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat/messages', [ChatController::class, 'store'])->name('chat.store');
+    Route::post('/chat/mark-read', [ChatController::class, 'markRead'])->name('chat.mark-read');
 
 // Chat endpoints (Admin)
     Route::get('/chat/admin/conversations', [ChatController::class,

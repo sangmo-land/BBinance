@@ -19,12 +19,44 @@ export default function ChatWidget({ user }) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const markMessagesAsRead = async (targetUserId = null) => {
+        try {
+            await axios.post(route('chat.mark-read'), {
+                user_id: targetUserId
+            });
+        } catch (error) {
+            console.error("Error marking messages as read:", error);
+        }
+    };
+
     useEffect(() => {
         if (isOpen) {
             scrollToBottom();
-            setHasUnread(false);
+            // Don't auto-clear hasUnread here, let the fetch logic handle it based on actual data
         }
     }, [messages, isOpen, selectedUser]);
+
+    // Effect to mark messages as read when viewing them
+    useEffect(() => {
+        if (!isOpen) return;
+
+        if (!isAdmin) {
+            // User mode: Mark all admin messages as read if unread
+            const hasUnreadMessages = messages.some(m => m.is_from_admin && !m.read_at);
+            if (hasUnreadMessages) {
+                markMessagesAsRead();
+                 // Optimistic update
+                 setMessages(prev => prev.map(m => m.is_from_admin ? {...m, read_at: new Date().toISOString()} : m));
+            }
+        } else if (isAdmin && selectedUser) {
+            // Admin mode: Mark messages from this user as read
+             const hasUnreadMessages = messages.some(m => !m.is_from_admin && !m.read_at);
+             if (hasUnreadMessages) {
+                 markMessagesAsRead(selectedUser.id);
+                 setMessages(prev => prev.map(m => !m.is_from_admin ? {...m, read_at: new Date().toISOString()} : m));
+             }
+        }
+    }, [isOpen, selectedUser, messages]);
 
     useEffect(() => {
         if (!user) return;
@@ -53,7 +85,13 @@ export default function ChatWidget({ user }) {
             const response = await axios.get(route("chat.admin.conversations"));
             const newConvos = response.data;
             setConversations(newConvos);
-            // Logic to check for new messages in conversations could go here
+            
+            // Check for any unread messages across all conversations
+            if (response.data.some(u => u.unread_count > 0)) {
+                setHasUnread(true);
+            } else {
+                setHasUnread(false);
+            }
         } catch (error) {
             console.error("Error fetching conversations:", error);
         }
@@ -68,19 +106,14 @@ export default function ChatWidget({ user }) {
 
             const response = await axios.get(url);
             const newMsgs = response.data;
+            
+            // For regular users, check if there are any unread messages from admin
+            if (!isAdmin) {
+                const hasUnreadMsgs = newMsgs.some(m => m.is_from_admin && !m.read_at);
+                setHasUnread(hasUnreadMsgs);
+            }
 
-            setMessages((prev) => {
-                // If we have more messages than before, and window is closed, mark unread
-                // Note: simplified logic.
-                if (
-                    prev.length > 0 &&
-                    newMsgs.length > prev.length &&
-                    !isOpen
-                ) {
-                    setHasUnread(true);
-                }
-                return newMsgs;
-            });
+            setMessages(newMsgs);
         } catch (error) {
             console.error("Error fetching messages:", error);
         }
@@ -126,8 +159,13 @@ export default function ChatWidget({ user }) {
                         className="p-4 border-b border-gray-100 dark:border-zinc-700 hover:bg-white dark:hover:bg-zinc-800 cursor-pointer transition-colors"
                     >
                         <div className="flex justify-between items-start mb-1">
-                            <span className="font-bold text-gray-800 dark:text-gray-200 text-sm">
+                            <span className="font-bold text-gray-800 dark:text-gray-200 text-sm flex items-center gap-2">
                                 {u.name}
+                                {u.unread_count > 0 && (
+                                    <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                                        {u.unread_count}
+                                    </span>
+                                )}
                             </span>
                             <span className="text-xs text-gray-400">
                                 {u.messages &&
