@@ -7,6 +7,7 @@ export default function ChatWidget({ user }) {
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef(null);
+    const inputRef = useRef(null);
     const [hasUnread, setHasUnread] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -219,7 +220,12 @@ export default function ChatWidget({ user }) {
                 setUnreadCount(unreadMsgs.length);
             }
 
-            setMessages(newMsgs);
+            setMessages((prev) => {
+                // Merge strategies to prevent optimistic messages from flickering
+                const serverIds = new Set(newMsgs.map(m => m.id));
+                const localMsgs = prev.filter(m => m.isOptimistic && !serverIds.has(m.id));
+                return [...newMsgs, ...localMsgs];
+            });
 
             // Update Cache
             let cacheKey = null;
@@ -236,9 +242,26 @@ export default function ChatWidget({ user }) {
 
     const sendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || isLoading) return;
+        const messageBody = newMessage.trim();
+        if (!messageBody) return;
 
-        setIsLoading(true);
+        // Optimistic UI Update
+        const tempId = Date.now();
+        const optimisticMessage = {
+            id: tempId,
+            body: messageBody,
+            created_at: new Date().toISOString(),
+            is_from_admin: isAdmin,
+            read_at: null,
+            isOptimistic: true, // Mark as local-only initially
+        };
+
+        setMessages((prev) => [...prev, optimisticMessage]);
+        setNewMessage(""); // Clear input immediately
+        
+        // Keep focus on input
+        setTimeout(() => inputRef.current?.focus(), 0);
+
         try {
             const url =
                 isAdmin && selectedUser
@@ -246,14 +269,20 @@ export default function ChatWidget({ user }) {
                     : route("chat.store");
 
             const response = await axios.post(url, {
-                message: newMessage,
+                message: messageBody,
             });
-            setMessages([...messages, response.data]);
-            setNewMessage("");
+            
+            // Replace optimistic message with real message from server
+            // But KEEP isOptimistic=true until the next poll confirms it to avoid flickering 
+            // if the poll happens between now and DB commit visibility
+            setMessages((prev) => 
+                prev.map((msg) => msg.id === tempId ? { ...response.data, isOptimistic: true } : msg)
+            );
         } catch (error) {
             console.error("Error sending message:", error);
-        } finally {
-            setIsLoading(false);
+            // Rollback optimistic update
+            setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+            setNewMessage(messageBody); // Restore text
         }
     };
 
@@ -500,20 +529,18 @@ export default function ChatWidget({ user }) {
                                     className="relative flex items-center"
                                 >
                                     <input
+                                        ref={inputRef}
                                         type="text"
                                         value={newMessage}
                                         onChange={(e) =>
                                             setNewMessage(e.target.value)
                                         }
                                         placeholder="Type a message..."
-                                        disabled={isLoading}
                                         className="w-full pl-4 pr-12 py-3 rounded-xl border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all dark:text-white dark:placeholder-gray-500"
                                     />
                                     <button
                                         type="submit"
-                                        disabled={
-                                            isLoading || !newMessage.trim()
-                                        }
+                                        disabled={!newMessage.trim()}
                                         className="absolute right-2 p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors"
                                     >
                                         <svg
