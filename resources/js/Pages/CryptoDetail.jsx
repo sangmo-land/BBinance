@@ -13,7 +13,7 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
-export default function CryptoDetail({ account, currency, balances, rateToUsd, walletType, tradingPairs = [] }) {
+export default function CryptoDetail({ account, currency, balances, spotBalances = [], rateToUsd, walletType, tradingPairs = [] }) {
     // Calculate total balance across all types (available, locked, etc) for this currency
     const totalBalance = balances.reduce((sum, b) => sum + Number(b.balance), 0);
     const usdEquivalent = totalBalance * (rateToUsd || 0);
@@ -34,6 +34,13 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
 
     const selectedBuyPair = tradingPairs.find(p => p.id == buyPairId) || tradingPairs[0] || null;
     const estimatedReceive = (selectedBuyPair && buyAmount) ? (parseFloat(buyAmount) / selectedBuyPair.rate) : 0;
+
+    // Calculate Available Balance for Spending
+    // We spend the 'to' currency (Second in pair) to buy the 'from' currency (First in pair)
+    const spendingCurrency = selectedBuyPair ? selectedBuyPair.to : '';
+    const spendingBalanceObj = spotBalances.find(b => b.currency === spendingCurrency);
+    const spendingBalance = spendingBalanceObj ? Number(spendingBalanceObj.balance) : 0;
+    const isInsufficientBalance = spendingCurrency && buyAmount && (parseFloat(buyAmount) > spendingBalance);
 
     const handleActionClick = (name) => {
         if (name === 'Buy') {
@@ -231,7 +238,7 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                             </svg>
                                         </div>
-                                        Buy {currency}
+                                        Buy {selectedBuyPair ? selectedBuyPair.from : currency}
                                     </Dialog.Title>
                                     
                                     <div className="mt-4 space-y-4">
@@ -259,20 +266,34 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
                                                 
                                                 <div className="space-y-3">
                                                     <div>
-                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I want to spend</label>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase">I want to spend</label>
+                                                            <span className={`text-xs font-bold ${isInsufficientBalance ? 'text-red-500' : 'text-gray-500'}`}>
+                                                                Available: {formatNumber(spendingBalance, 2)} {spendingCurrency}
+                                                            </span>
+                                                        </div>
                                                         <div className="relative rounded-md shadow-sm">
                                                             <input
                                                                 type="number"
                                                                 value={buyAmount}
                                                                 onChange={(e) => setBuyAmount(e.target.value)}
-                                                                className="block w-full rounded-xl border-gray-300 pl-4 pr-16 py-3 focus:border-indigo-500 focus:ring-indigo-500 sm:text-lg font-bold"
+                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 focus:ring-indigo-500 sm:text-lg font-bold ${
+                                                                    isInsufficientBalance 
+                                                                    ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500' 
+                                                                    : 'border-gray-300 focus:border-indigo-500'
+                                                                }`}
                                                                 placeholder="0.00"
                                                                 step="any"
                                                             />
                                                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                                                                <span className="text-gray-500 sm:text-sm font-bold">{selectedBuyPair.to}</span>
+                                                                <span className={`${isInsufficientBalance ? 'text-red-500' : 'text-gray-500'} sm:text-sm font-bold`}>{selectedBuyPair.to}</span>
                                                             </div>
                                                         </div>
+                                                        {isInsufficientBalance && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">
+                                                                Insufficient {spendingCurrency} balance in Spot Wallet.
+                                                            </p>
+                                                        )}
                                                     </div>
 
                                                     <div className="flex justify-center">
@@ -300,13 +321,18 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
                                     <div className="mt-6 flex gap-3">
                                         <button
                                             type="button"
-                                            className="flex-1 justify-center rounded-xl border border-transparent bg-green-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors uppercase tracking-wider"
+                                            disabled={isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0}
+                                            className={`flex-1 justify-center rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
+                                                (isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0)
+                                                ? 'bg-gray-300 cursor-not-allowed'
+                                                : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                                            }`}
                                             onClick={() => {
                                                 alert(`Buy logic not implemented yet.\nSpend: ${buyAmount} ${selectedBuyPair?.to}\nReceive: ${formatNumber(estimatedReceive, 8)} ${selectedBuyPair?.from}`);
                                                 setIsBuyModalOpen(false);
                                             }}
                                         >
-                                            Buy {currency}
+                                            Buy {selectedBuyPair ? selectedBuyPair.from : currency}
                                         </button>
                                         <button
                                             type="button"

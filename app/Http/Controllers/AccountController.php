@@ -108,10 +108,14 @@ class AccountController extends Controller
             })
             ->values();
 
+        // Fetch all spot balances for trading validations
+        $spotBalances = $account->balances()->where('wallet_type', 'Spot')->get();
+
         return \Inertia\Inertia::render('CryptoDetail', [
             'account' => $account,
             'currency' => $currency,
             'balances' => $balances,
+            'spotBalances' => $spotBalances,
             'rateToUsd' => $rateToUsd,
             'walletType' => $walletType,
             'tradingPairs' => $tradingPairs
