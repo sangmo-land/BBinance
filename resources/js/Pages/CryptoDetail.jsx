@@ -65,58 +65,31 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
 
     const selectedPair = tradingPairs.find(p => p.id == selectedPairId) || tradingPairs[0] || null;
 
-    // Helper to calculate trade details based on User Intent (Buy vs Sell Page Currency)
+    // Helper to calculate trade details based on Standard Trading Pairs
+    // Pair: Base/Quote (e.g. BTC/USDT)
+    // Rate: Quote per 1 Base (e.g. 50000 USDT per 1 BTC)
     const getTradeDetails = (type) => { // type = 'BUY' or 'SELL'
         if (!selectedPair) return {};
-
-        const isPageBase = selectedPair.from === currency; 
+        
+        // "Buy": Buy Base. Spend Quote.
+        // "Sell": Sell Base. Receive Quote.
         
         if (type === 'BUY') {
-            // Intent: INCREASE Balance of Current Page Currency
-            if (isPageBase) {
-                // Page=BTC. Pair=BTC/USDT. BUY BTC -> Spend USDT.
-                // Standard: Buy Base with Quote.
-                return {
-                    spending: selectedPair.to,
-                    receiving: selectedPair.from, 
-                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                    quotePrice: selectedPair.rate, 
-                    isInverted: false // Input is Spending (Quote). Receive = Input / Rate.
-                };
-            } else {
-                 // Page=USDT. Pair=BTC/USDT. BUY USDT -> Spend BTC.
-                 // Inverted: Sell Base for Quote (Effectively Buying Quote).
-                 return {
-                    spending: selectedPair.from,
-                    receiving: selectedPair.to, 
-                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                    quotePrice: selectedPair.rate, 
-                    isInverted: true // Input is Spending (Base). Receive = Input * Rate.
-                 };
-            }
+            return {
+                spending: selectedPair.to, // Spend Quote (USDT)
+                receiving: selectedPair.from, // Receive Base (BTC)
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
+                quotePrice: selectedPair.rate, 
+                isInverted: false // Input (Quote) / Rate = Output (Base)
+            };
         } else { // SELL
-            // Intent: DECREASE Balance of Current Page Currency
-            if (isPageBase) {
-                // Page=BTC. Pair=BTC/USDT. SELL BTC -> Spend BTC. Receive USDT.
-                // Standard: Sell Base for Quote.
-                return {
-                    spending: selectedPair.from, 
-                    receiving: selectedPair.to,
-                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                    quotePrice: selectedPair.rate,
-                    isInverted: true // Input is Spending (Base). Receive = Input * Rate.
-                };
-            } else {
-                // Page=USDT. Pair=BTC/USDT. SELL USDT -> Spend USDT. Receive BTC.
-                // Inverted: Buy Base with Quote.
-                return {
-                    spending: selectedPair.to, 
-                    receiving: selectedPair.from, 
-                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                    quotePrice: selectedPair.rate,
-                    isInverted: false // Input is Spending (Quote). Receive = Input / Rate.
-                };
-            }
+            return {
+                spending: selectedPair.from, // Spend Base (BTC)
+                receiving: selectedPair.to, // Receive Quote (USDT)
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
+                quotePrice: selectedPair.rate,
+                isInverted: true // Input (Base) * Rate = Output (Quote)
+            };
         }
     };
 
@@ -571,7 +544,27 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I will receive (Net)</label>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase">I will receive (Net)</label>
+                                                        </div>
+                                                        
+                                                        {parseFloat(inputAmount) > 0 && (
+                                                            <div className="mb-2 px-2 py-1 bg-gray-50 rounded text-xs text-gray-500 flex flex-col gap-1">
+                                                                <div className="flex justify-between">
+                                                                    <span>Market Value:</span>
+                                                                    <span className="font-mono">{formatNumber(rawReceive, 8)} {activeDetails.receiving}</span>
+                                                                </div>
+                                                                <div className="flex justify-between text-red-500">
+                                                                    <span>Fee ({tradingFeePercent}%):</span>
+                                                                    <span className="font-mono">-{formatNumber(feeAmount, 8)} {activeDetails.receiving}</span>
+                                                                </div>
+                                                                <div className="border-t border-gray-200 mt-1 pt-1 flex justify-between font-bold text-gray-700">
+                                                                    <span>Net Received:</span>
+                                                                    <span>{formatNumber(estimatedReceive, 8)} {activeDetails.receiving}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <div className="relative rounded-md shadow-sm">
                                                             <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
                                                                 {formatNumber(estimatedReceive, 8)}
@@ -580,9 +573,6 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                 <span className="text-gray-500 sm:text-sm font-bold">{activeDetails.receiving}</span>
                                                             </div>
                                                         </div>
-                                                        <p className="mt-1 text-xs text-gray-400 flex justify-end">
-                                                            Fee ({tradingFeePercent}%): {formatNumber(feeAmount, 8)} {activeDetails.receiving}
-                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -729,7 +719,27 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I will receive (Net)</label>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase">I will receive (Net)</label>
+                                                        </div>
+                                                        
+                                                        {parseFloat(inputAmount) > 0 && (
+                                                            <div className="mb-2 px-2 py-1 bg-gray-50 rounded text-xs text-gray-500 flex flex-col gap-1">
+                                                                <div className="flex justify-between">
+                                                                    <span>Market Value:</span>
+                                                                    <span className="font-mono">{formatNumber(rawReceive, 8)} {activeDetails.receiving}</span>
+                                                                </div>
+                                                                <div className="flex justify-between text-red-500">
+                                                                    <span>Fee ({tradingFeePercent}%):</span>
+                                                                    <span className="font-mono">-{formatNumber(feeAmount, 8)} {activeDetails.receiving}</span>
+                                                                </div>
+                                                                <div className="border-t border-gray-200 mt-1 pt-1 flex justify-between font-bold text-gray-700">
+                                                                    <span>Net Received:</span>
+                                                                    <span>{formatNumber(estimatedReceive, 8)} {activeDetails.receiving}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <div className="relative rounded-md shadow-sm">
                                                             <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
                                                                 {formatNumber(estimatedReceive, 8)}
@@ -738,9 +748,6 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                 <span className="text-gray-500 sm:text-sm font-bold">{activeDetails.receiving}</span>
                                                             </div>
                                                         </div>
-                                                        <p className="mt-1 text-xs text-gray-400 flex justify-end">
-                                                            Fee ({tradingFeePercent}%): {formatNumber(feeAmount, 8)} {activeDetails.receiving}
-                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
