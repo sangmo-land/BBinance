@@ -52,12 +52,14 @@ class DemoDataSeeder extends Seeder
             // Update main currency to USDT as per new spec OR leave as is
             // But we need to seed the balances for the 10 currenices
             $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
-            foreach ($cryptos as $crypto) {
-                $johnCrypto->balances()->create([
-                    'currency' => $crypto,
-                    'balance' => ($crypto === 'BTC') ? 0.5 : (($crypto === 'USDT') ? 1000 : 0),
-                ]);
-            }
+            $wallets = ['spot', 'funding', 'earning'];
+            
+             // We first remove any auto-created balances from User boot if we want to custom seed,
+             // or we just update them. Since boot runs on create, records exist.
+             // Let's update Spot BTC and USDT for John
+            
+            $johnCrypto->balances()->where('wallet_type', 'spot')->where('currency', 'BTC')->update(['balance' => 0.5]);
+            $johnCrypto->balances()->where('wallet_type', 'funding')->where('currency', 'USDT')->update(['balance' => 1000]);
         }
 
 
@@ -73,13 +75,8 @@ class DemoDataSeeder extends Seeder
         
         $janeCrypto = $jane->cryptoAccount;
         if($janeCrypto) {
-             $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
-            foreach ($cryptos as $crypto) {
-                $janeCrypto->balances()->create([
-                    'currency' => $crypto,
-                    'balance' => ($crypto === 'ETH') ? 5.0 : (($crypto === 'SOL') ? 50 : 0),
-                ]);
-            }
+            $janeCrypto->balances()->where('wallet_type', 'spot')->where('currency', 'ETH')->update(['balance' => 5.0]);
+            $janeCrypto->balances()->where('wallet_type', 'earning')->where('currency', 'SOL')->update(['balance' => 50]);
         }
 
 
@@ -93,17 +90,8 @@ class DemoDataSeeder extends Seeder
         $aliceFiat = $alice->fiatAccount;
         if($aliceFiat) $aliceFiat->update(['balance' => 2500.00]);
         // Alice keeps USDT default
-        $aliceCrypto = $alice->cryptoAccount;
-        if($aliceCrypto) {
-             $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
-             foreach ($cryptos as $crypto) {
-                 $aliceCrypto->balances()->create([
-                     'currency' => $crypto,
-                     'balance' => 0,
-                 ]);
-             }
-        }
-
+        // Balances are already created by User observer boot method with 0
+        
         // Create some transactions
         if ($johnFiat) {
             Transaction::create([

@@ -88,13 +88,18 @@ public function canAccessPanel(Panel $panel): bool
                 'balance' => 0,
             ]);
 
-            // Initialize default crypto balances
+            // Initialize default crypto balances for all wallets
             $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
-            foreach ($cryptos as $crypto) {
-                $cryptoAccount->balances()->create([
-                    'currency' => $crypto,
-                    'balance' => 0,
-                ]);
+            $wallets = ['spot', 'funding', 'earning'];
+            
+            foreach ($wallets as $wallet) {
+                foreach ($cryptos as $crypto) {
+                    $cryptoAccount->balances()->create([
+                        'wallet_type' => $wallet,
+                        'currency' => $crypto,
+                        'balance' => 0,
+                    ]);
+                }
             }
         });
     }

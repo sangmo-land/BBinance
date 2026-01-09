@@ -14,11 +14,12 @@ return new class extends Migration
         Schema::create('account_balances', function (Blueprint $table) {
             $table->id();
             $table->foreignId('account_id')->constrained()->onDelete('cascade');
+            $table->string('wallet_type')->default('spot'); // spot, funding, earning
             $table->string('currency', 10);
             $table->decimal('balance', 24, 12)->default(0); // High precision for crypto
             $table->timestamps();
 
-            $table->unique(['account_id', 'currency']);
+            $table->unique(['account_id', 'wallet_type', 'currency']);
         });
     }
 

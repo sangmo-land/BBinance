@@ -75,13 +75,13 @@ class DashboardController extends Controller
         // Accounts: Admin sees all with pagination; users see their own
         if ($user->is_admin) {
             $accounts = Account::query()
-                ->with(['user'])
+                ->with(['user', 'balances'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(9)
                 ->onEachSide(1);
         } else {
             $accounts = Account::where('user_id', $user->id)
-                ->with(['user'])
+                ->with(['user', 'balances'])
                 ->orderBy('created_at', 'desc')
                 ->get();
         }

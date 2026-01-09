@@ -8,6 +8,7 @@ class AccountBalance extends Model
 {
     protected $fillable = [
         'account_id',
+        'wallet_type',
         'currency',
         'balance',
     ];
