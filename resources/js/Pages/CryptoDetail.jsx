@@ -75,47 +75,31 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     const selectedPair = tradingPairs.find(p => p.id == selectedPairId) || tradingPairs[0] || null;
 
     // Helper to calculate trade details
-    // BUY: User Rule: "Buying means buying the crypto in front of the /" (Base).
-    // SELL: User Rule: "When I click sell, I sell the currency from this URL" (Page Currency).
+    // Now that backend guarantees tradingPairs are formated as [from: Other, to: Currency]
+    // Rate is "Amount of Currency (to) per 1 Other (from)"
     const getTradeDetails = (type) => { 
         if (!selectedPair) return {};
         
         if (type === 'BUY') {
-            // Always Buy Base. Spend Quote.
+            // User wants to Buy Page Currency (to).
+            // Spend Other (from).
+            return {
+                spending: selectedPair.from, 
+                receiving: selectedPair.to, 
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
+                quotePrice: selectedPair.rate, 
+                isInverted: true // Spend From -> Get To. (Input * Rate)
+            };
+        } else { 
+            // User wants to Sell Page Currency (to).
+            // Spend Currency (to). Receive Other (from).
             return {
                 spending: selectedPair.to, 
                 receiving: selectedPair.from, 
-                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                quotePrice: selectedPair.rate, 
-                isInverted: false // Input (Quote) / Rate = Output (Base)
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
+                quotePrice: selectedPair.rate,
+                isInverted: false // Spend To -> Get From. (Input / Rate)
             };
-        } else { 
-            // SELL: Spend Page Currency.
-            // If Page Currency is Pair Quote (e.g. USDT in BTC/USDT), we Sell USDT (Spend Quote).
-            // If Page Currency is Pair Base (e.g. BTC in BTC/USDT), we Sell BTC (Spend Base).
-            
-            const isPageQuote = selectedPair.to === currency;
-
-            if (isPageQuote) {
-                // Sell Quote (Spend Quote). Receive Base.
-                // Math is same as Buy Base.
-                return {
-                    spending: selectedPair.to, 
-                    receiving: selectedPair.from, 
-                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                    quotePrice: selectedPair.rate,
-                    isInverted: false // Input (Quote) / Rate = Output (Base)
-                };
-            } else {
-                // Sell Base (Spend Base). Receive Quote.
-                return {
-                    spending: selectedPair.from, 
-                    receiving: selectedPair.to, 
-                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
-                    quotePrice: selectedPair.rate,
-                    isInverted: true // Input (Base) * Rate = Output (Quote)
-                };
-            }
         }
     };
 

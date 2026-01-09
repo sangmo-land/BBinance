@@ -99,13 +99,28 @@ class AccountController extends Controller
             ->whereNotIn('from_currency', ['USD', 'EUR'])
             ->whereNotIn('to_currency', ['USD', 'EUR'])
             ->get()
-            ->map(function ($rateModel) {
-                 return [
-                    'id' => $rateModel->id,
-                    'from' => $rateModel->from_currency,
-                    'to' => $rateModel->to_currency,
-                    'rate' => (float)$rateModel->rate,
-                ];
+            ->map(function ($rateModel) use ($currency) {
+                // Determine if we need to invert the pair to ensure Other/Current format
+                // We want the 'to' currency to be the current page currency ($currency)
+                $isMatchingTarget = $rateModel->to_currency === $currency;
+
+                if ($isMatchingTarget) {
+                    // Already in Other -> Current format
+                    return [
+                        'id' => $rateModel->id,
+                        'from' => $rateModel->from_currency,
+                        'to' => $rateModel->to_currency,
+                        'rate' => (float)$rateModel->rate,
+                    ];
+                } else {
+                    // In Current -> Other format. Invert to Other -> Current
+                    return [
+                        'id' => $rateModel->id,
+                        'from' => $rateModel->to_currency,
+                        'to' => $rateModel->from_currency,
+                        'rate' => 1 / (float)$rateModel->rate, // Invert rate
+                    ];
+                }
             })
             ->filter(fn($p) => $p['rate'] > 0)
             ->values();
