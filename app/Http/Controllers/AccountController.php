@@ -113,6 +113,9 @@ class AccountController extends Controller
         // Fetch all spot balances for trading validations
         $spotBalances = $account->balances()->where('wallet_type', 'Spot')->get();
         
+        // Fetch all balances for this currency (for Transfer modal)
+        $allCurrencyBalances = $account->balances()->where('currency', $currency)->get();
+
         // Fetch Trading Fee
         $tradingFeePercent = (float)(\App\Models\SystemSetting::where('key', 'trading_fee_percent')->value('value') ?? 0.1);
 
@@ -133,6 +136,7 @@ class AccountController extends Controller
             'currency' => $currency,
             'balances' => $balances,
             'spotBalances' => $spotBalances,
+            'allCurrencyBalances' => $allCurrencyBalances,
             'rateToUsd' => $rateToUsd,
             'walletType' => $walletType,
             'tradingPairs' => $tradingPairs,
@@ -316,6 +320,69 @@ class AccountController extends Controller
              ]);
 
              return redirect()->back()->with('success', "Successfully sold " . number_format($amount, 8) . " {$spendingCurrency} for " . number_format($netReceiveAmount, 8) . " {$receivingCurrency}");
+        });
+    }
+
+    public function transferCrypto(Request $request, \App\Models\Account $account)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id && !$user->is_admin) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.00000001',
+            'from_wallet' => 'required|string|in:Spot,Funding,Futures,Options',
+            'to_wallet' => 'required|string|in:Spot,Funding,Futures,Options|different:from_wallet',
+            'currency' => 'required|string',
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $account) {
+            $amount = (float) $validated['amount'];
+            $fromWallet = $validated['from_wallet'];
+            $toWallet = $validated['to_wallet'];
+            $currency = $validated['currency'];
+
+            // 1. Get Source Balance and Lock
+            $sourceBalance = $account->balances()
+                ->where('wallet_type', $fromWallet)
+                ->where('currency', $currency)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$sourceBalance || $sourceBalance->balance < $amount) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'amount' => ["Insufficient balance in {$fromWallet} Wallet."],
+                ]);
+            }
+
+            // 2. Decrement Source
+            $sourceBalance->decrement('balance', $amount);
+
+            // 3. Increment Destination
+            $destBalance = $account->balances()->firstOrCreate(
+                ['wallet_type' => $toWallet, 'currency' => $currency],
+                ['balance' => 0, 'balance_type' => 'crypto'] // Default attributes
+            );
+            $destBalance->increment('balance', $amount);
+
+            // 4. Create Transaction Record
+            \App\Models\Transaction::create([
+                'from_account_id' => $account->id,
+                'to_account_id' => $account->id,
+                'type' => 'Transfer',
+                'from_currency' => $currency,
+                'to_currency' => $currency,
+                'amount' => $amount,
+                'converted_amount' => $amount,
+                'exchange_rate' => 1.0,
+                'status' => 'completed',
+                'description' => "Transferred {$amount} {$currency} from {$fromWallet} to {$toWallet}",
+                'reference_number' => 'TRF-' . strtoupper(uniqid()),
+                'created_by' => $account->user_id,
+            ]);
+
+            return redirect()->back()->with('success', "Successfully transferred " . number_format($amount, 8) . " {$currency} from {$fromWallet} to {$toWallet}");
         });
     }
 

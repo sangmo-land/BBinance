@@ -14,7 +14,7 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
-export default function CryptoDetail({ account, currency, balances, spotBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [] }) {
+export default function CryptoDetail({ account, currency, balances, spotBalances = [], allCurrencyBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [] }) {
     const { flash } = usePage().props;
     const [showNotification, setShowNotification] = useState(false);
 
@@ -55,9 +55,18 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         receiving_currency: ''
     });
 
+    // Form handling for Transfer
+    const { data: transferData, setData: setTransferData, post: postTransfer, processing: processingTransfer, errors: errorsTransfer, reset: resetTransfer } = useForm({
+        amount: '',
+        from_wallet: 'Spot',
+        to_wallet: 'Funding',
+        currency: currency
+    });
+
     // Modal States
     let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     let [isSellModalOpen, setIsSellModalOpen] = useState(false);
+    let [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     
     // Selection States
     let [selectedPairId, setSelectedPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
@@ -152,6 +161,17 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         });
     };
 
+    const handleTransferSubmit = (e) => {
+        e.preventDefault();
+        postTransfer(route('accounts.transfer-crypto', account.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsTransferModalOpen(false);
+                resetTransfer();
+            }
+        });
+    };
+
     const handleActionClick = (name) => {
         if (name === 'Buy') {
             setIsBuyModalOpen(true);
@@ -160,6 +180,10 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         if (name === 'Sell') {
             setIsSellModalOpen(true);
             setInputAmount(''); // Reset
+        }
+        if (name === 'Transfer') {
+            setTransferData('currency', currency); // Ensure currency is set
+            setIsTransferModalOpen(true);
         }
     }
 
@@ -857,6 +881,129 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             Cancel
                                         </button>
                                     </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Transfer Modal */}
+            <Transition appear show={isTransferModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={() => setIsTransferModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                            </svg>
+                                        </div>
+                                        Transfer {currency}
+                                    </Dialog.Title>
+                                    
+                                    <form onSubmit={handleTransferSubmit} className="mt-4 space-y-4">
+                                        <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                                            <div className="flex-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase block mb-1">From</label>
+                                                <select
+                                                    value={transferData.from_wallet}
+                                                    onChange={e => setTransferData('from_wallet', e.target.value)}
+                                                    className="w-full bg-transparent border-none p-0 font-bold text-gray-800 focus:ring-0 text-sm"
+                                                >
+                                                    {['Spot', 'Funding', 'Futures', 'Options'].map(w => (
+                                                        <option key={w} value={w} disabled={w === transferData.to_wallet}>{w}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="text-gray-400">
+                                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 text-right">
+                                                <label className="text-xs font-bold text-gray-500 uppercase block mb-1">To</label>
+                                                <select
+                                                    value={transferData.to_wallet}
+                                                    onChange={e => setTransferData('to_wallet', e.target.value)}
+                                                    className="w-full bg-transparent border-none p-0 font-bold text-gray-800 focus:ring-0 text-sm text-right"
+                                                    dir="rtl"
+                                                >
+                                                    {['Spot', 'Funding', 'Futures', 'Options'].map(w => (
+                                                        <option key={w} value={w} disabled={w === transferData.from_wallet}>{w}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Amount</label>
+                                                <span className="text-xs font-bold text-gray-500">
+                                                    Available: {formatNumber(allCurrencyBalances.find(b => b.wallet_type === transferData.from_wallet)?.balance || 0, 8)} {currency}
+                                                </span>
+                                            </div>
+                                            <div className="relative rounded-md shadow-sm">
+                                                <input
+                                                    type="number"
+                                                    value={transferData.amount}
+                                                    onChange={(e) => setTransferData('amount', e.target.value)}
+                                                    className="block w-full rounded-xl pl-4 pr-16 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold"
+                                                    placeholder="0.00"
+                                                    step="any"
+                                                />
+                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                    <span className="text-gray-500 sm:text-sm font-bold">{currency}</span>
+                                                </div>
+                                            </div>
+                                            {errorsTransfer.amount && (
+                                                <p className="mt-1 text-xs text-red-600 font-bold">{errorsTransfer.amount}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="mt-6 flex gap-3">
+                                            <button
+                                                type="submit"
+                                                disabled={processingTransfer}
+                                                className="flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors uppercase tracking-wider"
+                                            >
+                                                {processingTransfer ? 'Processing...' : 'Confirm Transfer'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={processingTransfer}
+                                                className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                                                onClick={() => setIsTransferModalOpen(false)}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
                                 </Dialog.Panel>
                             </Transition.Child>
                         </div>
