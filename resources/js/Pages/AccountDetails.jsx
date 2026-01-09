@@ -230,23 +230,43 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                          // Helper to get balance by type and currency
                                          const getBal = (curr) => account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === curr && b.balance_type === type)?.balance || 0;
                                          const usdBal = getBal('USD');
-                                         
-                                         // If type is 'available', we currently have logic to calculate implicit EUR?
-                                         // For now, assume pure DB values. 
-                                         // However, previous view was showing everything as "fiat" wallet type with no balance_type distinction (defaulted to 'available').
                                          const eurBal = getBal('EUR');
+
+                                         const borderColor = {
+                                             available: 'border-green-500',
+                                             pending: 'border-yellow-500',
+                                             locked: 'border-red-500',
+                                             withdrawable: 'border-blue-500',
+                                         }[type] || 'border-gray-200';
                                          
+                                         const iconColor = {
+                                             available: 'text-green-500 bg-green-50',
+                                             pending: 'text-yellow-500 bg-yellow-50',
+                                             locked: 'text-red-500 bg-red-50',
+                                             withdrawable: 'text-blue-500 bg-blue-50',
+                                         }[type] || 'text-gray-500 bg-gray-50';
+
                                          return (
-                                             <div key={type} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{type} Balance</h3>
-                                                 <div className="space-y-2">
-                                                     <div className="flex justify-between items-center">
-                                                         <span className="text-sm font-bold text-gray-400">USD</span>
-                                                         <span className="text-lg font-black text-gray-900">{formatNumber(usdBal, 2)}</span>
+                                             <div key={type} className={`bg-white p-5 rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-l-4 ${borderColor}`}>
+                                                 <div className="flex items-center gap-2 mb-4">
+                                                     <div className={`p-1.5 rounded-lg ${iconColor}`}>
+                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                             {type === 'available' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />}
+                                                             {type === 'pending' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />}
+                                                             {type === 'locked' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />}
+                                                             {type === 'withdrawable' && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />}
+                                                         </svg>
                                                      </div>
-                                                     <div className="flex justify-between items-center">
-                                                         <span className="text-sm font-bold text-gray-400">EUR</span>
-                                                         <span className="text-lg font-black text-gray-900">{formatNumber(eurBal, 2)}</span>
+                                                     <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">{type}</h3>
+                                                 </div>
+                                                 <div className="space-y-3">
+                                                     <div className="flex justify-between items-baseline group">
+                                                         <span className="text-sm font-bold text-gray-700">USD</span>
+                                                         <span className="text-xl font-black text-gray-800 tracking-tight">{formatNumber(usdBal, 2)}</span>
+                                                     </div>
+                                                     <div className="flex justify-between items-baseline group">
+                                                         <span className="text-sm font-bold text-gray-700">EUR</span>
+                                                         <span className="text-xl font-black text-gray-800 tracking-tight">{formatNumber(eurBal, 2)}</span>
                                                      </div>
                                                  </div>
                                              </div>
@@ -256,36 +276,46 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                              )}
 
                              {isFiat && (
-                                 <div className="flex flex-wrap justify-center gap-3 mt-6 pt-6 border-t border-gray-200">
-                                     <button className="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-bold py-2.5 px-5 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200">
-                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                                         </svg>
+                                 <div className="flex flex-wrap justify-center gap-4 mt-8 pt-8 border-t border-gray-100">
+                                     <button className="group flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-bold py-3 px-6 rounded-2xl shadow-lg shadow-yellow-200 hover:shadow-yellow-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300">
+                                         <div className="bg-yellow-500/20 p-1 rounded-lg transition-transform group-hover:rotate-12">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                            </svg>
+                                         </div>
                                          Deposit
                                      </button>
                                      <button 
                                          onClick={() => setShowWithdrawModal(true)}
-                                         className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200">
-                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                                         </svg>
+                                         className="group flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
+                                     >
+                                         <div className="bg-gray-100 p-1 rounded-lg text-gray-500 group-hover:text-gray-700 transition-transform group-hover:-rotate-12">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                            </svg>
+                                         </div>
                                          Withdraw
                                      </button>
                                      <button 
                                          onClick={() => setShowConvertModal(true)}
-                                         className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200"
+                                         className="group flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
                                      >
-                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                         </svg>
+                                         <div className="bg-purple-100 text-purple-600 p-1 rounded-lg transition-transform group-hover:scale-110">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                            </svg>
+                                         </div>
                                          Convert
                                      </button>
                                      <button 
                                          onClick={() => setShowTransferModal(true)}
-                                         className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200">
-                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                         </svg>
+                                         className="group flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
+                                     >
+                                         <div className="bg-blue-100 text-blue-600 p-1 rounded-lg transition-transform group-hover:translate-x-1">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                            </svg>
+                                         </div>
                                          Transfer
                                      </button>
                                  </div>
