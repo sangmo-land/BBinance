@@ -191,7 +191,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                 <h1 className="text-3xl font-black text-gray-900">
                                     {isFiat ? 'Fiat Account' : 'Crypto Wallets'}
                                 </h1>
-                                <p className="text-lg text-gray-500 mt-1">{account.account_number} • {account.currency}</p>
+                                <p className="text-lg text-gray-500 mt-1">{account.currency}</p>
                             </div>
                             <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 font-medium">
                                 &larr; Back to Dashboard
@@ -225,7 +225,51 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     </div>
                                  </div>
                              ) : (
-                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <>
+                                <div className="mb-8 p-6 md:p-8 bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl shadow-xl text-white relative overflow-hidden ring-4 ring-indigo-50 border border-indigo-500/10 active:scale-[0.99] transition-transform duration-200">
+                                    {/* Background Blobs */}
+                                    <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 rounded-full bg-blue-500/30 blur-3xl animate-pulse"></div>
+                                    <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-56 h-56 rounded-full bg-indigo-500/30 blur-3xl"></div>
+                                    
+                                    <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
+                                        <div className="text-center md:text-left">
+                                            <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                                                <div className="p-1.5 bg-blue-400/30 rounded-lg backdrop-blur-sm border border-white/10 shadow-lg">
+                                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                                <h2 className="text-blue-100 font-bold text-xs uppercase tracking-[0.2em] drop-shadow-sm">Total Fiat Value</h2>
+                                            </div>
+                                            
+                                            <div className="flex flex-col md:flex-row items-center md:items-baseline gap-2 group">
+                                                 <span className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl group-hover:scale-105 transition-transform duration-300">
+                                                   {formatNumber(totalUsdBalance, 2)}
+                                                 </span>
+                                                 <span className="text-xl font-bold text-blue-200">USD</span>
+                                            </div>
+                                            
+                                            <div className="mt-4 inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner hover:bg-white/20 transition-all duration-300 cursor-default">
+                                               <span className="text-2xl text-blue-300 font-light">≈</span>
+                                               <div className="flex items-baseline gap-1">
+                                                    <span className="text-lg font-bold text-white">€{formatNumber(totalUsdBalance * (rates?.EUR || 0.92), 2)}</span>
+                                                    <span className="text-xs font-bold text-blue-200 uppercase">EUR</span>
+                                               </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="hidden md:block">
+                                           <div className="p-5 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/10 flex flex-col items-center">
+                                               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white mb-2 shadow-lg ring-2 ring-white/20">
+                                                   <span className="font-bold text-lg">{account.currency?.substring(0,1)}</span>
+                                               </div>
+                                               <p className="text-blue-200 text-xs font-bold uppercase mb-0.5">Account Holder</p>
+                                               <p className="text-white font-bold text-lg tracking-wide drop-shadow-md">{account.account_number}</p>
+                                           </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                      {['available', 'pending', 'locked', 'withdrawable'].map(type => {
                                          // Helper to get balance by type and currency
                                          const getBal = (curr) => account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === curr && b.balance_type === type)?.balance || 0;
@@ -273,6 +317,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                          );
                                      })}
                                  </div>
+                                 </>
                              )}
 
                              {isFiat && (
