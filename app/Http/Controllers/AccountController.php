@@ -90,17 +90,33 @@ class AccountController extends Controller
         }
 
         // Fetch Trading Pairs (Rates involving this currency)
+        // Normalize so the current currency is always the "Quote" (to_currency)
         $tradingPairs = \App\Models\ExchangeRate::where('from_currency', $currency)
             ->orWhere('to_currency', $currency)
             ->get()
-            ->map(function ($rate) {
+            ->map(function ($rateModel) use ($currency) {
+                // If the current currency is the "Quote" (Target), use rate as is
+                if ($rateModel->to_currency === $currency) {
+                     return [
+                        'id' => $rateModel->id,
+                        'from' => $rateModel->from_currency,
+                        'to' => $rateModel->to_currency,
+                        'rate' => (float)$rateModel->rate,
+                    ];
+                }
+
+                // If the current currency is "Base" (Source), invert the pair
+                // e.g. USDT/TRY -> TRY/USDT with inverted rate
+                $val = (float)$rateModel->rate;
                 return [
-                    'id' => $rate->id,
-                    'from' => $rate->from_currency,
-                    'to' => $rate->to_currency,
-                    'rate' => (float)$rate->rate,
+                    'id' => $rateModel->id,
+                    'from' => $rateModel->to_currency,
+                    'to' => $rateModel->from_currency, // This will be $currency
+                    'rate' => $val > 0 ? 1 / $val : 0,
                 ];
-            });
+            })
+            ->filter(fn($p) => $p['rate'] > 0)
+            ->values();
 
         return \Inertia\Inertia::render('CryptoDetail', [
             'account' => $account,
