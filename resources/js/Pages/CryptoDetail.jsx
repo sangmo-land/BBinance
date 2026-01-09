@@ -12,10 +12,19 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
-export default function CryptoDetail({ account, currency, balances, rateToUsd, walletType }) {
+export default function CryptoDetail({ account, currency, balances, rateToUsd, walletType, tradingPairs = [] }) {
     // Calculate total balance across all types (available, locked, etc) for this currency
     const totalBalance = balances.reduce((sum, b) => sum + Number(b.balance), 0);
     const usdEquivalent = totalBalance * (rateToUsd || 0);
+    
+    // Sort pairs to prioritize ones where this currency is the Quote (e.g. BTC/USDT if we are on USDT page)
+    const sortedPairs = [...tradingPairs].sort((a, b) => {
+        // Simple heuristic: specific common pairs first, or just alphabetical
+        return (a.from + a.to).localeCompare(b.from + b.to);
+    });
+    
+    const topPairs = sortedPairs.slice(0, 6);
+    const otherPairs = sortedPairs.slice(6);
 
     return (
         <AppLayout>
@@ -98,6 +107,73 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
                                  </button>
                              ))}
                         </div>
+                        
+                        {/* Trade Section */}
+                        {(topPairs.length > 0) && (
+                            <div className="mb-10">
+                                <h3 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                                    </svg>
+                                    Trade
+                                </h3>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                    {topPairs.map((pair) => (
+                                        <div key={pair.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer hover:border-gray-200">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex -space-x-1">
+                                                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 border border-white z-10">
+                                                            {pair.from.substring(0, 1)}
+                                                        </div>
+                                                        <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-[10px] font-bold text-gray-400 border border-white">
+                                                            {pair.to.substring(0, 1)}
+                                                        </div>
+                                                    </div>
+                                                    <span className="font-bold text-gray-700 text-lg group-hover:text-amber-600 transition-colors">
+                                                        {pair.from}/{pair.to}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs font-bold px-2 py-1 bg-gray-50 text-gray-400 rounded-lg group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
+                                                    Spot
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-2xl font-black text-gray-900 tracking-tight">
+                                                    {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)}
+                                                </span>
+                                                <span className="text-xs text-gray-400 font-medium mt-1">
+                                                    1 {pair.from} = {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)} {pair.to}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {otherPairs.length > 0 && (
+                                    <div className="relative">
+                                        <select 
+                                            className="w-full appearance-none bg-gray-50 border border-gray-200 text-gray-700 py-3 px-4 pr-8 rounded-xl leading-tight focus:outline-none focus:bg-white focus:border-amber-500 font-bold transition-colors cursor-pointer"
+                                            onChange={(e) => {
+                                                // Handle navigation or display in future
+                                                console.log("Selected pair:", e.target.value);
+                                            }}
+                                        >
+                                            <option value="">More trading pairs for {currency}...</option>
+                                            {otherPairs.map(pair => (
+                                                <option key={pair.id} value={pair.id}>
+                                                    {pair.from}/{pair.to}  •  {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                            <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                     </div>
                 </div>

@@ -89,12 +89,26 @@ class AccountController extends Controller
              }
         }
 
+        // Fetch Trading Pairs (Rates involving this currency)
+        $tradingPairs = \App\Models\ExchangeRate::where('from_currency', $currency)
+            ->orWhere('to_currency', $currency)
+            ->get()
+            ->map(function ($rate) {
+                return [
+                    'id' => $rate->id,
+                    'from' => $rate->from_currency,
+                    'to' => $rate->to_currency,
+                    'rate' => (float)$rate->rate,
+                ];
+            });
+
         return \Inertia\Inertia::render('CryptoDetail', [
             'account' => $account,
             'currency' => $currency,
             'balances' => $balances,
             'rateToUsd' => $rateToUsd,
-            'walletType' => $walletType
+            'walletType' => $walletType,
+            'tradingPairs' => $tradingPairs
         ]);
     }
 
