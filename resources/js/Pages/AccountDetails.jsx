@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import Modal from '@/Components/Modal';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 function formatNumber(value, fractionDigits = 8) {
   const n = Number(value);
@@ -35,6 +35,23 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
     const [showConvertModal, setShowConvertModal] = useState(false);
     const [conversionMode, setConversionMode] = useState('menu'); // menu, fiat, crypto
+    
+    // Toast Notification State
+    const { flash } = usePage().props;
+    const [toast, setToast] = useState(null);
+
+    useEffect(() => {
+        if (flash?.success) {
+            setToast({ type: 'success', message: flash.success });
+            const timer = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+        if (flash?.error) {
+            setToast({ type: 'error', message: flash.error || 'An error occurred.' });
+            const timer = setTimeout(() => setToast(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         from_currency: 'EUR',
@@ -80,6 +97,38 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                 title={`Account Details - ${account.account_number}`}
                 description="View detailed account information and wallet balances."
             />
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className={`fixed top-24 right-4 z-[60] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 animate-fade-in-down ${
+                    toast.type === 'success' ? 'bg-white border-l-4 border-green-500' : 'bg-white border-l-4 border-red-500'
+                }`}>
+                    {toast.type === 'success' ? (
+                         <div className="bg-green-100 p-2 rounded-full">
+                            <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                         </div>
+                    ) : (
+                         <div className="bg-red-100 p-2 rounded-full">
+                            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                         </div>
+                    )}
+                    <div>
+                        <h4 className={`font-bold text-sm ${toast.type === 'success' ? 'text-green-800' : 'text-red-800'}`}>
+                            {toast.type === 'success' ? 'Success' : 'Error'}
+                        </h4>
+                        <p className="text-sm text-gray-600">{toast.message}</p>
+                    </div>
+                    <button onClick={() => setToast(null)} className="ml-4 text-gray-400 hover:text-gray-600">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            )}
             
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -417,7 +466,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                 const price = cryptoPrice / (fromRate || 1);
                                 return (
                                     <p className="text-sm font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-100">
-                                        Market Rate: 1 {data.to_currency} ≈ {formatNumber(price, 2)} {data.from_currency}
+                                        Platform Rate: 1 {data.to_currency} ≈ {formatNumber(price, 2)} {data.from_currency}
                                     </p>
                                 );
                             })()}
@@ -523,13 +572,29 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                  >
                                      Cancel
                                  </button>
-                                 <button 
-                                    type="submit"
-                                    disabled={processing}
-                                    className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-200 transition-all disabled:opacity-50 disabled:shadow-none"
-                                 >
-                                     {processing ? 'Processing...' : 'Buy Crypto'}
-                                 </button>
+                                 {(() => {
+                                     const bal = account.balances?.find(b => b.currency === data.from_currency && b.wallet_type === 'fiat')?.balance || 0;
+                                     const amt = Number(data.amount) || 0;
+                                     const isDisabled = processing || amt <= 0 || amt > bal;
+                                     
+                                     return (
+                                         <button 
+                                            type="submit"
+                                            disabled={isDisabled}
+                                            className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                                         >
+                                             {processing ? (
+                                                <>
+                                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Processing...
+                                                </>
+                                             ) : 'Buy Crypto'}
+                                         </button>
+                                     );
+                                 })()}
                              </div>
                         </form>
                     </div>

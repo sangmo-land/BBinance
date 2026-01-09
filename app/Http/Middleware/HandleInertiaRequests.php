@@ -30,15 +30,19 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-$admin = User::where('is_admin', true)->first(['email', 'phone']);
+        $admin = User::where('is_admin', true)->first(['email', 'phone']);
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
             ],
-'adminContact' => [
-            'email' => $admin?->email ?? 'support@bbinance.com',
-            'phone' => $admin?->phone ?? '+1 (555) 123-4567',
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'), // Or 'errors' bag if using validate()
+            ],
+            'adminContact' => [
+                'email' => $admin?->email ?? 'support@bbinance.com',
+                'phone' => $admin?->phone ?? '+1 (555) 123-4567',
             ],
         ];
     }
