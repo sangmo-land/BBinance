@@ -307,7 +307,11 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                             <div className="text-right">
                                                 <div className="text-base font-mono font-bold text-gray-900">{formatNumber(balance.balance, 8)}</div>
                                                 <div className="text-xs font-medium text-gray-500">
-                                                    ≈ ${formatNumber(getUsdEquivalent(balance.currency, balance.balance), 2)} USD
+                                                    {balance.currency === 'USD' ? (
+                                                        rates?.EUR ? `≈ €${formatNumber(balance.balance / rates.EUR, 2)} EUR` : `≈ €${formatNumber(balance.balance * 0.92, 2)} EUR`
+                                                    ) : (
+                                                        `≈ $${formatNumber(getUsdEquivalent(balance.currency, balance.balance), 2)} USD`
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
