@@ -39,62 +39,164 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     const topPairs = sortedPairs.slice(0, 6);
     const otherPairs = sortedPairs.slice(6);
 
-    // Form handling
-    const { data, setData, post, processing, errors, reset } = useForm({
+    // Form handling for Buy
+    const { data: buyData, setData: setBuyData, post: postBuy, processing: processingBuy, errors: errorsBuy, reset: resetBuy } = useForm({
         pair_id: '',
         amount: '',
         spending_currency: '',
         receiving_currency: ''
     });
 
-    // Buy Modal State
-    let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
-    let [buyPairId, setBuyPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
-    let [buyAmount, setBuyAmount] = useState('');
+    // Form handling for Sell
+    const { data: sellData, setData: setSellData, post: postSell, processing: processingSell, errors: errorsSell, reset: resetSell } = useForm({
+        pair_id: '',
+        amount: '',
+        spending_currency: '',
+        receiving_currency: ''
+    });
 
-    const selectedBuyPair = tradingPairs.find(p => p.id == buyPairId) || tradingPairs[0] || null;
+    // Modal States
+    let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+    let [isSellModalOpen, setIsSellModalOpen] = useState(false);
     
+    // Selection States
+    let [selectedPairId, setSelectedPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
+    let [inputAmount, setInputAmount] = useState('');
+
+    const selectedPair = tradingPairs.find(p => p.id == selectedPairId) || tradingPairs[0] || null;
+
+    // Helper to calculate trade details based on User Intent (Buy vs Sell Page Currency)
+    const getTradeDetails = (type) => { // type = 'BUY' or 'SELL'
+        if (!selectedPair) return {};
+
+        const isPageBase = selectedPair.from === currency; 
+        
+        if (type === 'BUY') {
+            // Intent: INCREASE Balance of Current Page Currency
+            if (isPageBase) {
+                // Page=BTC. Pair=BTC/USDT. BUY BTC -> Spend USDT.
+                // Standard: Buy Base with Quote.
+                return {
+                    spending: selectedPair.to,
+                    receiving: selectedPair.from, 
+                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
+                    quotePrice: selectedPair.rate, 
+                    isInverted: false // Input is Spending (Quote). Receive = Input / Rate.
+                };
+            } else {
+                 // Page=USDT. Pair=BTC/USDT. BUY USDT -> Spend BTC.
+                 // Inverted: Sell Base for Quote (Effectively Buying Quote).
+                 return {
+                    spending: selectedPair.from,
+                    receiving: selectedPair.to, 
+                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
+                    quotePrice: selectedPair.rate, 
+                    isInverted: true // Input is Spending (Base). Receive = Input * Rate.
+                 };
+            }
+        } else { // SELL
+            // Intent: DECREASE Balance of Current Page Currency
+            if (isPageBase) {
+                // Page=BTC. Pair=BTC/USDT. SELL BTC -> Spend BTC. Receive USDT.
+                // Standard: Sell Base for Quote.
+                return {
+                    spending: selectedPair.from, 
+                    receiving: selectedPair.to,
+                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
+                    quotePrice: selectedPair.rate,
+                    isInverted: true // Input is Spending (Base). Receive = Input * Rate.
+                };
+            } else {
+                // Page=USDT. Pair=BTC/USDT. SELL USDT -> Spend USDT. Receive BTC.
+                // Inverted: Buy Base with Quote.
+                return {
+                    spending: selectedPair.to, 
+                    receiving: selectedPair.from, 
+                    rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, 2)} ${selectedPair.to}`,
+                    quotePrice: selectedPair.rate,
+                    isInverted: false // Input is Spending (Quote). Receive = Input / Rate.
+                };
+            }
+        }
+    };
+
+    const tradeDetailsBuy = getTradeDetails('BUY');
+    const tradeDetailsSell = getTradeDetails('SELL');
+    
+    // Determine which calculation to use based on open modal
+    const activeDetails = isBuyModalOpen ? tradeDetailsBuy : (isSellModalOpen ? tradeDetailsSell : {});
+
     // Sync form data
     React.useEffect(() => {
-        if (selectedBuyPair) {
-            setData(prev => ({
-                ...prev,
-                pair_id: selectedBuyPair.id,
-                amount: buyAmount,
-                spending_currency: selectedBuyPair.to,
-                receiving_currency: selectedBuyPair.from
-            }));
+        if (selectedPair && (isBuyModalOpen || isSellModalOpen)) {
+            const details = isBuyModalOpen ? tradeDetailsBuy : tradeDetailsSell;
+            const payload = {
+                pair_id: selectedPair.id,
+                amount: inputAmount,
+                spending_currency: details.spending,
+                receiving_currency: details.receiving
+            };
+            
+            if (isBuyModalOpen) setBuyData(payload);
+            if (isSellModalOpen) setSellData(payload);
         }
-    }, [buyAmount, buyPairId, selectedBuyPair]);
+    }, [inputAmount, selectedPairId, isBuyModalOpen, isSellModalOpen]);
 
     const handleBuySubmit = () => {
-        post(route('accounts.buy-crypto', account.id), {
+        postBuy(route('accounts.buy-crypto', account.id), {
             preserveScroll: true,
             onSuccess: () => {
                 setIsBuyModalOpen(false);
-                setBuyAmount('');
-                setBuyPairId(tradingPairs.length > 0 ? tradingPairs[0].id : null);
+                setInputAmount('');
+            }
+        });
+    };
+    
+    const handleSellSubmit = () => {
+        postSell(route('accounts.sell-crypto', account.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsSellModalOpen(false);
+                setInputAmount('');
             }
         });
     };
 
-    // Fee Calculation using local state for immediate feedback
-    const rawReceive = (selectedBuyPair && buyAmount) ? (parseFloat(buyAmount) / selectedBuyPair.rate) : 0;
+    const handleActionClick = (name) => {
+        if (name === 'Buy') {
+            setIsBuyModalOpen(true);
+            setInputAmount(''); // Reset
+        }
+        if (name === 'Sell') {
+            setIsSellModalOpen(true);
+            setInputAmount(''); // Reset
+        }
+    }
+
+    // Calculation Logic
+    let rawReceive = 0;
+    if (activeDetails.spending && inputAmount && selectedPair) {
+         if (activeDetails.isInverted) {
+             // Spending Base. Receive Quote.
+             rawReceive = parseFloat(inputAmount) * selectedPair.rate;
+         } else {
+             // Spending Quote. Receive Base.
+             rawReceive = parseFloat(inputAmount) / selectedPair.rate;
+         }
+    }
+
     const feeAmount = rawReceive * (tradingFeePercent / 100);
     const estimatedReceive = rawReceive - feeAmount;
 
     // Calculate Available Balance for Spending
-    // We spend the 'to' currency (Second in pair) to buy the 'from' currency (First in pair)
-    const spendingCurrency = selectedBuyPair ? selectedBuyPair.to : '';
+    // We spend the 'spending' currency from activeDetails
+    const spendingCurrency = activeDetails.spending || '';
     const spendingBalanceObj = spotBalances.find(b => b.currency === spendingCurrency);
     const spendingBalance = spendingBalanceObj ? Number(spendingBalanceObj.balance) : 0;
-    const isInsufficientBalance = spendingCurrency && buyAmount && (parseFloat(buyAmount) > spendingBalance);
-
-    const handleActionClick = (name) => {
-        if (name === 'Buy') {
-            setIsBuyModalOpen(true);
-        }
-    }
+    const isInsufficientBalance = spendingCurrency && inputAmount && (parseFloat(inputAmount) > spendingBalance);
+    
+    // Processing state
+    const isProcessing = processingBuy || processingSell;
 
     return (
         <AppLayout>
@@ -404,15 +506,15 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                             </svg>
                                         </div>
-                                        Buy {selectedBuyPair ? selectedBuyPair.from : currency}
+                                        Buy {activeDetails.receiving}
                                     </Dialog.Title>
                                     
                                     <div className="mt-4 space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Select Trading Pair</label>
                                             <select
-                                                value={buyPairId || ''}
-                                                onChange={(e) => setBuyPairId(e.target.value)}
+                                                value={selectedPairId || ''}
+                                                onChange={(e) => setSelectedPairId(e.target.value)}
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 font-bold text-gray-800"
                                             >
                                                 {tradingPairs.map((pair) => (
@@ -423,11 +525,11 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             </select>
                                         </div>
 
-                                        {selectedBuyPair && (
+                                        {selectedPair && (
                                             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
                                                 <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
-                                                    <span>Market Price</span>
-                                                    <span className="font-mono">1 {selectedBuyPair.from} = {formatNumber(selectedBuyPair.rate, selectedBuyPair.rate < 1 ? 6 : 2)} {selectedBuyPair.to}</span>
+                                                    <span>Rate Info</span>
+                                                    <span className="font-mono">{activeDetails.rateLabel}</span>
                                                 </div>
                                                 
                                                 <div className="space-y-3">
@@ -441,8 +543,8 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                         <div className="relative rounded-md shadow-sm">
                                                             <input
                                                                 type="number"
-                                                                value={buyAmount}
-                                                                onChange={(e) => setBuyAmount(e.target.value)}
+                                                                value={inputAmount}
+                                                                onChange={(e) => setInputAmount(e.target.value)}
                                                                 className={`block w-full rounded-xl pl-4 pr-16 py-3 focus:ring-indigo-500 sm:text-lg font-bold ${
                                                                     isInsufficientBalance 
                                                                     ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500' 
@@ -452,7 +554,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                 step="any"
                                                             />
                                                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                                                                <span className={`${isInsufficientBalance ? 'text-red-500' : 'text-gray-500'} sm:text-sm font-bold`}>{selectedBuyPair.to}</span>
+                                                                <span className={`${isInsufficientBalance ? 'text-red-500' : 'text-gray-500'} sm:text-sm font-bold`}>{activeDetails.spending}</span>
                                                             </div>
                                                         </div>
                                                         {isInsufficientBalance && (
@@ -475,11 +577,11 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                 {formatNumber(estimatedReceive, 8)}
                                                             </div>
                                                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                                                                <span className="text-gray-500 sm:text-sm font-bold">{selectedBuyPair.from}</span>
+                                                                <span className="text-gray-500 sm:text-sm font-bold">{activeDetails.receiving}</span>
                                                             </div>
                                                         </div>
                                                         <p className="mt-1 text-xs text-gray-400 flex justify-end">
-                                                            Fee ({tradingFeePercent}%): {formatNumber(feeAmount, 8)} {selectedBuyPair.from}
+                                                            Fee ({tradingFeePercent}%): {formatNumber(feeAmount, 8)} {activeDetails.receiving}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -490,15 +592,15 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     <div className="mt-6 flex gap-3">
                                         <button
                                             type="button"
-                                            disabled={isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0 || processing}
+                                            disabled={isInsufficientBalance || !inputAmount || parseFloat(inputAmount) <= 0 || isProcessing}
                                             className={`flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
-                                                (isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0 || processing)
+                                                (isInsufficientBalance || !inputAmount || parseFloat(inputAmount) <= 0 || isProcessing)
                                                 ? 'bg-gray-300 cursor-not-allowed'
                                                 : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                             }`}
                                             onClick={handleBuySubmit}
                                         >
-                                            {processing ? (
+                                            {isProcessing ? (
                                                 <>
                                                     <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -507,14 +609,172 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     Processing...
                                                 </>
                                             ) : (
-                                                `Buy ${selectedBuyPair ? selectedBuyPair.from : currency}`
+                                                `Buy ${activeDetails.receiving}`
                                             )}
                                         </button>
                                         <button
                                             type="button"
-                                            disabled={processing}
+                                            disabled={isProcessing}
                                             className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                                             onClick={() => setIsBuyModalOpen(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Sell Modal */}
+            <Transition appear show={isSellModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={() => setIsSellModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                            </svg>
+                                        </div>
+                                        Sell {activeDetails.spending}
+                                    </Dialog.Title>
+                                    
+                                    <div className="mt-4 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Select Trading Pair</label>
+                                            <select
+                                                value={selectedPairId || ''}
+                                                onChange={(e) => setSelectedPairId(e.target.value)}
+                                                className="w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 py-3 font-bold text-gray-800"
+                                            >
+                                                {tradingPairs.map((pair) => (
+                                                    <option key={pair.id} value={pair.id}>
+                                                        {pair.from}/{pair.to} (Rate: {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {selectedPair && (
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                                    <span>Rate Info</span>
+                                                    <span className="font-mono">{activeDetails.rateLabel}</span>
+                                                </div>
+                                                
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase">I want to Sell (Spend)</label>
+                                                            <span className={`text-xs font-bold ${isInsufficientBalance ? 'text-red-500' : 'text-gray-500'}`}>
+                                                                Available: {formatNumber(spendingBalance, 2)} {spendingCurrency}
+                                                            </span>
+                                                        </div>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={inputAmount}
+                                                                onChange={(e) => setInputAmount(e.target.value)}
+                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 focus:ring-red-500 sm:text-lg font-bold ${
+                                                                    isInsufficientBalance 
+                                                                    ? 'border-red-300 text-red-900 placeholder-red-300 focus:border-red-500' 
+                                                                    : 'border-gray-300 focus:border-red-500'
+                                                                }`}
+                                                                placeholder="0.00"
+                                                                step="any"
+                                                            />
+                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className={`${isInsufficientBalance ? 'text-red-500' : 'text-gray-500'} sm:text-sm font-bold`}>{activeDetails.spending}</span>
+                                                            </div>
+                                                        </div>
+                                                        {isInsufficientBalance && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">
+                                                                Insufficient {spendingCurrency} balance.
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="flex justify-center">
+                                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                                        </svg>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I will receive (Net)</label>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
+                                                                {formatNumber(estimatedReceive, 8)}
+                                                            </div>
+                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className="text-gray-500 sm:text-sm font-bold">{activeDetails.receiving}</span>
+                                                            </div>
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-gray-400 flex justify-end">
+                                                            Fee ({tradingFeePercent}%): {formatNumber(feeAmount, 8)} {activeDetails.receiving}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 flex gap-3">
+                                        <button
+                                            type="button"
+                                            disabled={isInsufficientBalance || !inputAmount || parseFloat(inputAmount) <= 0 || isProcessing}
+                                            className={`flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
+                                                (isInsufficientBalance || !inputAmount || parseFloat(inputAmount) <= 0 || isProcessing)
+                                                ? 'bg-gray-300 cursor-not-allowed'
+                                                : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                                            }`}
+                                            onClick={handleSellSubmit}
+                                        >
+                                            {isProcessing ? (
+                                                <>
+                                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Processing...
+                                                </>
+                                            ) : (
+                                                `Sell ${activeDetails.spending}`
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            disabled={isProcessing}
+                                            className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                                            onClick={() => setIsSellModalOpen(false)}
                                         >
                                             Cancel
                                         </button>

@@ -91,8 +91,7 @@ class AccountController extends Controller
 
         // Fetch Trading Pairs (Rates involving this currency)
         // Exclude Fiat pairs (USD, EUR) as trading happens in Spot wallet with Stablecoins/Crypto
-        // Requirement: Pair formatted as TARGET/CURRENT. 
-        // We are Buying the TARGET (from), Paying with CURRENT (to).
+        // Return standard pair keys (Base/Quote)
         $tradingPairs = \App\Models\ExchangeRate::where(function ($q) use ($currency) {
                 $q->where('from_currency', $currency)
                   ->orWhere('to_currency', $currency);
@@ -100,26 +99,12 @@ class AccountController extends Controller
             ->whereNotIn('from_currency', ['USD', 'EUR'])
             ->whereNotIn('to_currency', ['USD', 'EUR'])
             ->get()
-            ->map(function ($rateModel) use ($currency) {
-                // If Current is already Quote (to), keep as is.
-                // e.g. BTC/USDT. Page=USDT. Result: BTC/USDT. Buy BTC with USDT.
-                if ($rateModel->to_currency === $currency) {
-                     return [
-                        'id' => $rateModel->id,
-                        'from' => $rateModel->from_currency,
-                        'to' => $rateModel->to_currency,
-                        'rate' => (float)$rateModel->rate,
-                    ];
-                }
-
-                // If Current is Base (from), Invert.
-                // e.g. BTC/USDT. Page=BTC. Result: USDT/BTC. Buy USDT with BTC.
-                $val = (float)$rateModel->rate;
-                return [
+            ->map(function ($rateModel) {
+                 return [
                     'id' => $rateModel->id,
-                    'from' => $rateModel->to_currency,
-                    'to' => $rateModel->from_currency, // = $currency
-                    'rate' => $val > 0 ? 1 / $val : 0,
+                    'from' => $rateModel->from_currency,
+                    'to' => $rateModel->to_currency,
+                    'rate' => (float)$rateModel->rate,
                 ];
             })
             ->filter(fn($p) => $p['rate'] > 0)
@@ -243,6 +228,95 @@ class AccountController extends Controller
              ]);
 
              return redirect()->back()->with('success', "Successfully bought " . number_format($netReceiveAmount, 8) . " {$receivingCurrency}");
+        });
+    }
+
+    public function sellCrypto(Request $request, \App\Models\Account $account)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id && !$user->is_admin) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'pair_id' => 'required|exists:exchange_rates,id',
+            'amount' => 'required|numeric|min:0.00000001',
+            'spending_currency' => 'required|string',
+            'receiving_currency' => 'required|string',
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $account) {
+             $pair = \App\Models\ExchangeRate::findOrFail($validated['pair_id']);
+             $amount = (float) $validated['amount'];
+             $spendingCurrency = $validated['spending_currency'];
+             $receivingCurrency = $validated['receiving_currency'];
+
+             // 1. Calculate Raw Receive Amount
+             // If spending Quote (to_currency) -> Divide by Rate
+             // If spending Base (from_currency) -> Multiply by Rate
+             $rawReceiveAmount = 0;
+             if ($spendingCurrency === $pair->to_currency) {
+                 $rawReceiveAmount = $amount / (float)$pair->rate;
+             } elseif ($spendingCurrency === $pair->from_currency) {
+                 $rawReceiveAmount = $amount * (float)$pair->rate;
+             } else {
+                 throw new \Exception('Invalid pair for this currency');
+             }
+
+             // 2. Calculate Fee
+             $feePercent = (float)(\App\Models\SystemSetting::where('key', 'trading_fee_percent')->value('value') ?? 0.1);
+             $feeAmount = $rawReceiveAmount * ($feePercent / 100);
+             $netReceiveAmount = $rawReceiveAmount - $feeAmount;
+
+             // 3. Check & Deduct Balance
+             $spendBalance = $account->balances()
+                 ->where('wallet_type', 'Spot')
+                 ->where('currency', $spendingCurrency)
+                 ->lockForUpdate() // Lock row
+                 ->first();
+
+             if (!$spendBalance || $spendBalance->balance < $amount) {
+                 throw \Illuminate\Validation\ValidationException::withMessages([
+                     'amount' => ["Insufficient {$spendingCurrency} balance in Spot Wallet."],
+                 ]);
+             }
+
+             $spendBalance->decrement('balance', $amount);
+
+             // 4. Add Receive Balance
+             $receiveBalance = $account->balances()
+                 ->where('wallet_type', 'Spot')
+                 ->where('currency', $receivingCurrency)
+                 ->first();
+            
+             if ($receiveBalance) {
+                 $receiveBalance->increment('balance', $netReceiveAmount);
+             } else {
+                 $account->balances()->create([
+                     'wallet_type' => 'Spot',
+                     'currency' => $receivingCurrency,
+                     'balance' => $netReceiveAmount,
+                     'balance_type' => 'crypto' // Assuming default
+                 ]);
+             }
+
+             // 5. Create Transaction Record
+             \App\Models\Transaction::create([
+                 'from_account_id' => $account->id,
+                 'to_account_id' => $account->id,
+                 'type' => 'Spot Trade',
+                 'from_currency' => $spendingCurrency,
+                 'to_currency' => $receivingCurrency,
+                 'amount' => $amount,
+                 'exchange_rate' => $rawReceiveAmount > 0 ? ($amount / $rawReceiveAmount) : 0, // Effective Rate
+                 'converted_amount' => $netReceiveAmount,
+                 'status' => 'completed',
+                 'description' => "Sold {$spendingCurrency} for {$receivingCurrency} (Fee: {$feePercent}%)",
+                 'reference_number' => 'TRD-' . strtoupper(uniqid()),
+                 'created_by' => $account->user_id,
+             ]);
+
+             return redirect()->back()->with('success', "Successfully sold {$amount} {$spendingCurrency}");
         });
     }
 
