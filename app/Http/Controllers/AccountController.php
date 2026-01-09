@@ -41,10 +41,17 @@ class AccountController extends Controller
         $feeSetting = \App\Models\SystemSetting::where('key', 'crypto_conversion_fee_percent')->first();
         $feePercent = $feeSetting ? (float)$feeSetting->value : 1.0;
 
+        $transactions = \App\Models\Transaction::where('from_account_id', $account->id)
+            ->orWhere('to_account_id', $account->id)
+            ->latest()
+            ->take(10)
+            ->get();
+
         return \Inertia\Inertia::render('AccountDetails', [
             'account' => $account,
             'rates' => $exchangeRates,
             'cryptoConversionFeePercent' => $feePercent,
+            'transactions' => $transactions,
         ]);
     }
 
@@ -111,7 +118,7 @@ class AccountController extends Controller
         
         $toAmount = $amount * $conversionRate;
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($account, $fromBalance, $toCurrency, $amount, $toAmount) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($account, $fromBalance, $toCurrency, $fromCurrency, $amount, $toAmount, $conversionRate) {
             $fromBalance->decrement('balance', $amount);
             
             $toBalance = $account->balances()->firstOrCreate(
@@ -120,6 +127,22 @@ class AccountController extends Controller
             );
             
            $toBalance->increment('balance', $toAmount);
+
+           // Record Transaction
+           \App\Models\Transaction::create([
+               'from_account_id' => $account->id,
+               'to_account_id' => $account->id, // Same account for internal fiat conversion
+               'type' => 'conversion',
+               'from_currency' => $fromCurrency,
+               'to_currency' => $toCurrency,
+               'amount' => $amount,
+               'exchange_rate' => $conversionRate,
+               'converted_amount' => $toAmount,
+               'status' => 'completed',
+               'description' => "Converted {$amount} {$fromCurrency} to {$toAmount} {$toCurrency}",
+               'reference_number' => \Illuminate\Support\Str::uuid(),
+               'created_by' => auth()->id(),
+           ]);
         });
 
         return back()->with('success', 'Conversion successful.');
@@ -222,7 +245,7 @@ class AccountController extends Controller
              return back()->withErrors(['error' => 'Crypto account not found.']);
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($fromBalance, $amount, $cryptoAccount, $toCurrency, $cryptoAmount) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($account, $fromBalance, $amount, $cryptoAccount, $toCurrency, $cryptoAmount, $fiatToUsdRate, $cryptoPriceUsd, $feePercent, $feeAmount, $fromCurrency) {
              // Deduct Fiat
              $fromBalance->decrement('balance', $amount);
 
@@ -232,6 +255,22 @@ class AccountController extends Controller
                  ['balance' => 0]
              );
              $spotBalance->increment('balance', $cryptoAmount);
+
+             // Record Transaction
+             \App\Models\Transaction::create([
+                 'from_account_id' => $account->id,
+                 'to_account_id' => $cryptoAccount->id,
+                 'type' => 'conversion',
+                 'from_currency' => $fromCurrency,
+                 'to_currency' => $toCurrency,
+                 'amount' => $amount,
+                 'exchange_rate' => $cryptoPriceUsd, // Note: This is simplified. Ideally we store the cross-rate.
+                 'converted_amount' => $cryptoAmount,
+                 'status' => 'completed',
+                 'description' => "Converted {$amount} {$fromCurrency} to {$cryptoAmount} {$toCurrency} (Fee: {$feePercent}%, {$feeAmount} {$fromCurrency})",
+                 'reference_number' => \Illuminate\Support\Str::uuid(),
+                 'created_by' => auth()->id(),
+             ]);
         });
 
         return back()->with('success', 'Conversion to crypto successful.');

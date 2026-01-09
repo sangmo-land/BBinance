@@ -29,7 +29,7 @@ const currencyNames = {
     GBP: 'British Pound',
 };
 
-export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1 }) {
+export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1, transactions = [] }) {
     const isFiat = account.account_type === 'fiat';
     const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
@@ -277,6 +277,71 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                 )}
                             </ul>
                         </div>
+
+                        {/* Transaction History Section */}
+                        {isFiat && (
+                            <div className="mt-8">
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Transactions</h3>
+                                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                     <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Converted To</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {transactions && transactions.length > 0 ? (
+                                                    transactions.map((tx) => (
+                                                        <tr key={tx.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                                                    ${tx.type === 'deposit' ? 'bg-green-100 text-green-800' : ''}
+                                                                    ${tx.type === 'withdrawal' ? 'bg-red-100 text-red-800' : ''}
+                                                                    ${tx.type === 'conversion' ? 'bg-blue-100 text-blue-800' : ''}
+                                                                    ${tx.type === 'transfer' ? 'bg-purple-100 text-purple-800' : ''}
+                                                                `}>
+                                                                    {tx.type}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                                                                {formatNumber(tx.amount, 2)} {tx.from_currency}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {tx.converted_amount 
+                                                                    ? `${formatNumber(tx.converted_amount, 8)} ${tx.to_currency}`
+                                                                    : '-'
+                                                                }
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                                                    ${tx.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
+                                                                `}>
+                                                                    {tx.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {new Date(tx.created_at).toLocaleDateString()} {new Date(tx.created_at).toLocaleTimeString()}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                ) : (
+                                                    <tr>
+                                                        <td colSpan="5" className="px-6 py-10 text-center text-gray-500">
+                                                            No transactions found.
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                     </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
