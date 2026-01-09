@@ -28,8 +28,24 @@ const currencyNames = {
     GBP: 'British Pound',
 };
 
-export default function AccountDetails({ account }) {
+export default function AccountDetails({ account, rates }) {
     const [activeTab, setActiveTab] = useState('spot');
+    const [displayCurrency, setDisplayCurrency] = useState('BTC');
+
+    const getUsdEquivalent = (currency, balance) => {
+        if (!rates || !rates[currency]) return 0;
+        return balance * rates[currency];
+    };
+
+    // Calculate total USD balance for the active tab
+    const totalUsdBalance = (account.balances || [])
+        .filter(b => b.wallet_type === activeTab)
+        .reduce((sum, b) => sum + getUsdEquivalent(b.currency, b.balance), 0);
+    
+    // Convert total USD to selected display currency
+    const totalDisplayBalance = totalUsdBalance / (rates[displayCurrency] || 1);
+
+    const availableCurrencies = Object.keys(currencyNames).filter(c => ['USD', 'EUR', 'GBP'].indexOf(c) === -1); // Filter purely for crypto view preference if desired, or keep all.
 
     return (
         <AppLayout>
@@ -54,10 +70,30 @@ export default function AccountDetails({ account }) {
                         </div>
 
                         <div className="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-100">
-                             <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Total Estimated Balance</h2>
-                             <p className="text-4xl font-black text-gray-900">
-                                {formatNumber(account.balance, 2)} <span className="text-2xl text-gray-500 ml-2">{account.currency}</span>
-                             </p>
+                             <div className="flex justify-between items-start">
+                                <div>
+                                     <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                        Total Estimated Balance ({activeTab} Wallet)
+                                     </h2>
+                                     <div className="flex items-baseline gap-2">
+                                         <p className="text-4xl font-black text-gray-900">
+                                            {formatNumber(totalDisplayBalance, 8)}
+                                         </p>
+                                         <select 
+                                            value={displayCurrency}
+                                            onChange={(e) => setDisplayCurrency(e.target.value)}
+                                            className="ml-2 text-lg font-bold text-gray-600 bg-transparent border-0 border-b-2 border-gray-300 focus:border-blue-500 focus:ring-0 py-0 pl-0 pr-8 cursor-pointer hover:text-blue-600 transition-colors"
+                                         >
+                                            {Object.keys(currencyNames).map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                         </select>
+                                     </div>
+                                     <p className="text-sm text-gray-500 font-medium mt-1">
+                                        ≈ ${formatNumber(totalUsdBalance, 2)} USD
+                                     </p>
+                                </div>
+                             </div>
                         </div>
 
                         <div className="border-b border-gray-200 mb-6">
@@ -100,6 +136,9 @@ export default function AccountDetails({ account }) {
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-base font-mono font-bold text-gray-900">{formatNumber(balance.balance, 8)}</div>
+                                                <div className="text-xs font-medium text-gray-500">
+                                                    ≈ ${formatNumber(getUsdEquivalent(balance.currency, balance.balance), 2)} USD
+                                                </div>
                                             </div>
                                         </div>
                                     </li>

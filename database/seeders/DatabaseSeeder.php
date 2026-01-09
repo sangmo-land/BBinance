@@ -54,6 +54,7 @@ class DatabaseSeeder extends Seeder
         }
         
         $this->call([
+            ExchangeRateSeeder::class,
             DemoDataSeeder::class,
         ]);
     }

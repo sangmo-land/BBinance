@@ -17,8 +17,30 @@ class AccountController extends Controller
 
         $account->load('balances');
 
+        // Fetch exchange rates for USD equivalent
+        // We need rates relative to USD.
+        // The ExchangeRate model stores pairs canonically.
+        // We get all pairs involving USD.
+        $exchangeRates = \App\Models\ExchangeRate::where('to_currency', 'USD')
+            ->orWhere('from_currency', 'USD')
+            ->get()
+            ->mapWithKeys(function ($rate) {
+                if ($rate->to_currency === 'USD') {
+                    // Pair is COIN/USD. Rate is Price of COIN in USD.
+                    return [$rate->from_currency => (float) $rate->rate];
+                } else {
+                    // Pair is USD/COIN. Rate is Price of USD in COIN.
+                    // We want Price of COIN in USD = 1 / Rate.
+                    return [$rate->to_currency => 1 / (float) $rate->rate];
+                }
+            });
+        
+        // Add USD itself
+        $exchangeRates['USD'] = 1.0;
+
         return \Inertia\Inertia::render('AccountDetails', [
             'account' => $account,
+            'rates' => $exchangeRates,
         ]);
     }
 }

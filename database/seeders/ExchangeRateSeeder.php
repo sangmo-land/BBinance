@@ -14,15 +14,22 @@ class ExchangeRateSeeder extends Seeder
     public function run(): void
     {
         // Define base rates (all relative to USD = 1.0)
+        // Rate = How much of Currency X you get for 1 USD.
         $baseRates = [
             'USD' => 1.0,
             'EUR' => 0.92,
             'GBP' => 0.79,
             'JPY' => 149.50,
-            'BTC' => 0.000024,
-            'ETH' => 0.00042,
-            'SOL' => 0.0095,
-            'USDT' => 1.0,
+            'BTC' => 0.000016, // Bitcoin (~$60k)
+            'ETH' => 0.00033,  // Ethereum (~$3k)
+            'USDT' => 1.0,     // Tether
+            'BNB' => 0.0016,   // BNB (~$600)
+            'SOL' => 0.0066,   // Solana (~$150)
+            'XRP' => 1.66,     // XRP (~$0.60)
+            'USDC' => 1.0,     // USDC
+            'ADA' => 2.0,      // Cardano (~$0.50)
+            'AVAX' => 0.025,   // Avalanche (~$40)
+            'DOGE' => 10.0,    // Dogecoin (~$0.10)
         ];
 
         // Generate canonical currency pair combinations (store only one direction)
