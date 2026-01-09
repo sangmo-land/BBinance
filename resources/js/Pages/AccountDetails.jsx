@@ -520,8 +520,8 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
 
                             {isFiat && (
                                 <div className="flex flex-wrap justify-center gap-4 mt-8 pt-8 border-t border-gray-100">
-                                    <button className="group flex items-center gap-2 bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-bold py-3 px-6 rounded-2xl shadow-lg shadow-yellow-200 hover:shadow-yellow-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300">
-                                        <div className="bg-yellow-500/20 p-1 rounded-lg transition-transform group-hover:rotate-12">
+                                    <button className="group flex items-center gap-2 bg-gradient-to-br from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-white font-bold py-3 px-6 rounded-2xl shadow-lg shadow-amber-200/50 hover:shadow-amber-300/50 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300 ring-2 ring-white/20">
+                                        <div className="bg-white/20 p-1 rounded-lg transition-transform group-hover:rotate-12 backdrop-blur-sm">
                                             <svg
                                                 className="w-5 h-5"
                                                 fill="none"
@@ -542,7 +542,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                         onClick={() =>
                                             setShowWithdrawModal(true)
                                         }
-                                        className="group flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
+                                        className="group flex items-center gap-2 bg-gradient-to-br from-gray-100 to-gray-200 hover:from-white hover:to-gray-100 text-gray-900 font-bold py-3 px-6 rounded-2xl border border-gray-300 shadow-sm hover:shadow-xl hover:border-gray-400 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
                                     >
                                         <div className="bg-gray-100 p-1 rounded-lg text-gray-500 group-hover:text-gray-700 transition-transform group-hover:-rotate-12">
                                             <svg
@@ -565,7 +565,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                         onClick={() =>
                                             setShowConvertModal(true)
                                         }
-                                        className="group flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
+                                        className="group flex items-center gap-2 bg-gradient-to-br from-purple-100 to-fuchsia-100 hover:from-white hover:to-purple-50 text-purple-900 font-bold py-3 px-6 rounded-2xl border border-purple-200 shadow-sm hover:shadow-xl hover:border-purple-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
                                     >
                                         <div className="bg-purple-100 text-purple-600 p-1 rounded-lg transition-transform group-hover:scale-110">
                                             <svg
@@ -588,7 +588,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                         onClick={() =>
                                             setShowTransferModal(true)
                                         }
-                                        className="group flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-bold py-3 px-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
+                                        className="group flex items-center gap-2 bg-gradient-to-br from-blue-100 to-indigo-100 hover:from-white hover:to-blue-50 text-blue-900 font-bold py-3 px-6 rounded-2xl border border-blue-200 shadow-sm hover:shadow-xl hover:border-blue-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 transition-all duration-300"
                                     >
                                         <div className="bg-blue-100 text-blue-600 p-1 rounded-lg transition-transform group-hover:translate-x-1">
                                             <svg
