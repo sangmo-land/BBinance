@@ -27,11 +27,10 @@ class AccountForm
                 Select::make('account_type')
                     ->required()
                     ->options([
-                        'standard' => 'Standard',
-                        'savings' => 'Savings',
+                        'fiat' => 'Fiat',
                         'crypto' => 'Crypto',
                     ])
-                    ->default('standard'),
+                    ->default('fiat'),
                 Select::make('currency')
                     ->required()
                     ->options([

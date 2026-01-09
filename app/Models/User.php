@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Account;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -65,8 +66,42 @@ public function canAccessPanel(Panel $panel): bool
 'is_approved' => 'boolean',
         ];
     }
-public function messages()
-{
-return $this->hasMany(Message::class);
-}
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::created(function ($user) {
+            $user->accounts()->create([
+                'account_type' => 'fiat',
+                'currency' => 'USD',
+                'balance' => 0,
+            ]);
+
+            $user->accounts()->create([
+                'account_type' => 'crypto',
+                'currency' => 'USDT',
+                'balance' => 0,
+            ]);
+        });
+    }
+
+    public function accounts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Account::class);
+    }
+
+    public function fiatAccount(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Account::class)->where('account_type', 'fiat');
+    }
+
+    public function cryptoAccount(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Account::class)->where('account_type', 'crypto');
+    }
 }

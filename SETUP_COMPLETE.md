@@ -27,13 +27,13 @@ The development server is currently running at: **http://127.0.0.1:8000**
 #### Regular Users (For Testing Transfers)
 ```
 User 1: john@example.com / password
-- Accounts: USD ($5,000), EUR (€3,000), BTC (0.5 BTC)
+- Accounts: Fiat USD ($5,000), Crypto BTC (0.5 BTC)
 
 User 2: jane@example.com / password
-- Accounts: USD ($10,000), ETH (5 ETH)
+- Accounts: Fiat USD ($10,000), Crypto ETH (5 ETH)
 
 User 3: alice@example.com / password
-- Accounts: USD ($2,500), GBP (£1,500)
+- Accounts: Fiat USD ($2,500), Crypto USDT (0)
 
 Admin: admin@bbinance.com / password
 ```

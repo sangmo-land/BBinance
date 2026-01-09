@@ -52,5 +52,9 @@ class DatabaseSeeder extends Seeder
                 'metadata' => ['demo' => true],
             ]);
         }
+        
+        $this->call([
+            DemoDataSeeder::class,
+        ]);
     }
 }
