@@ -15,7 +15,7 @@ class AccountController extends Controller
             abort(403);
         }
 
-        $account->load('balances');
+        $account->load(['balances', 'user']);
 
         // Fetch exchange rates for USD equivalent
         // We need rates relative to USD.
