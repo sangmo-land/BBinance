@@ -35,6 +35,9 @@ Route::middleware(['auth'])->group(function () {
     'adminConversations'])->name('chat.admin.conversations');
     Route::get('/chat/admin/messages/{userId}', [ChatController::class, 'adminMessages'])->name('chat.admin.messages');
     Route::post('/chat/admin/messages/{userId}', [ChatController::class, 'adminReply'])->name('chat.admin.reply');
+    
+    Route::get('/accounts/{account}', [\App\Http\Controllers\AccountController::class, 'show'])->name('accounts.show');
+    
     Route::get('/transfer', [TransferController::class, 'create'])->name('transfer.create');
     Route::post('/transfer', [TransferController::class, 'store'])->name('transfer.store');
 

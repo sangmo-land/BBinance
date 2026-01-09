@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
-import Modal from '@/Components/Modal';
 
 function asNumber(value) {
   const parsed = Number(value);
@@ -27,9 +26,6 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
   const { auth } = usePage().props;
   const accountsList = Array.isArray(accounts) ? accounts : (accounts?.data ?? []);
   const paginationLinks = Array.isArray(accounts) ? null : accounts?.links;
-
-  const [selectedAccount, setSelectedAccount] = useState(null);
-  const [activeTab, setActiveTab] = useState('spot');
 
   const totalUsd = stats?.totalBalance?.usd ?? 0;
   const totalEur = stats?.totalBalance?.eur ?? 0;
@@ -179,7 +175,7 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                   className={`group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-2xl hover:border-blue-200 transition-all transform hover:-translate-y-1 ${account.account_type === 'crypto' ? 'cursor-pointer' : ''}`}
                   onClick={() => {
                     if (account.account_type === 'crypto') {
-                      setSelectedAccount(account);
+                      window.open(`/accounts/${account.id}`, '_blank');
                     }
                   }}
                 >
@@ -212,7 +208,7 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                       <span className="text-lg font-bold text-gray-600 ml-2">{account.currency}</span>
                     </p>
                     {account.account_type === 'crypto' && (
-                        <p className="text-xs text-blue-600 mt-2 font-bold">Click to view wallets</p>
+                        <p className="text-xs text-blue-600 mt-2 font-bold">Click to view wallets &rarr;</p>
                     )}
                   </div>
 
@@ -230,84 +226,6 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
               ))}
             </div>
           )}
-
-          <Modal show={selectedAccount !== null} onClose={() => setSelectedAccount(null)} maxWidth="2xl">
-              {selectedAccount && (
-                  <div className="p-6">
-                      <div className="flex justify-between items-center mb-6">
-                          <div>
-                              <h3 className="text-2xl font-black text-gray-900">
-                                  Crypto Wallets
-                              </h3>
-                              <p className="text-sm text-gray-500">{selectedAccount.account_number}</p>
-                          </div>
-                         <button onClick={() => setSelectedAccount(null)} className="text-gray-400 hover:text-gray-500">
-                            <span className="sr-only">Close</span>
-                             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                             </svg>
-                         </button>
-                      </div>
-
-                      <div className="border-b border-gray-200 mb-6">
-                          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                              {['spot', 'funding', 'earning'].map((tab) => (
-                                  <button
-                                      key={tab}
-                                      onClick={() => setActiveTab(tab)}
-                                      className={`${
-                                          activeTab === tab
-                                              ? 'border-blue-500 text-blue-600'
-                                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                      } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize`}
-                                  >
-                                      {tab} Wallet
-                                  </button>
-                              ))}
-                          </nav>
-                      </div>
-
-                      <div className="overflow-hidden bg-white rounded-xl border border-gray-200">
-                          <ul className="divide-y divide-gray-200">
-                              {(selectedAccount.balances || [])
-                                  .filter(b => b.wallet_type === activeTab)
-                                  .map((balance, idx) => (
-                                  <li key={`${balance.currency}-${idx}`} className="p-4 hover:bg-gray-50 transition-colors">
-                                      <div className="flex items-center justify-between">
-                                          <div className="flex items-center">
-                                              <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-600 font-bold text-xs">
-                                                  {balance.currency.substring(0, 3)}
-                                              </div>
-                                              <div className="ml-4">
-                                                  <div className="text-sm font-medium text-gray-900">{balance.currency}</div>
-                                              </div>
-                                          </div>
-                                          <div className="text-right">
-                                              <div className="text-sm font-bold text-gray-900">{formatNumber(balance.balance, 8)}</div>
-                                          </div>
-                                      </div>
-                                  </li>
-                              ))}
-                              {(selectedAccount.balances || []).filter(b => b.wallet_type === activeTab).length === 0 && (
-                                  <li className="p-6 text-center text-gray-500 text-sm">
-                                      No balances found in this wallet.
-                                  </li>
-                              )}
-                          </ul>
-                      </div>
-                      
-                      <div className="mt-6 flex justify-end">
-                           <button
-                              type="button"
-                              className="inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                              onClick={() => setSelectedAccount(null)}
-                            >
-                              Close
-                            </button>
-                      </div>
-                  </div>
-              )}
-          </Modal>
 
           {paginationLinks && (
             <div className="mt-8 flex flex-wrap gap-2 justify-center">
