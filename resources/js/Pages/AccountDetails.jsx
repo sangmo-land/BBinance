@@ -61,7 +61,8 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
             onSuccess: () => {
                 resetTransfer();
                 setShowTransferModal(false);
-                // Toast handled by flash effect or we can set it explicitly here if needed
+                setToast({ type: 'success', message: 'Transfer successful.' });
+                setTimeout(() => setToast(null), 4000);
             }
         });
     };
@@ -812,13 +813,32 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                             >
                                 Cancel
                             </button>
-                            <button 
-                                type="submit"
-                                disabled={transferProcessing}
-                                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
-                            >
-                                {transferProcessing ? 'Processing...': 'Confirm Transfer'}
-                            </button>
+                            {(() => {
+                                // Dynamic Validation
+                                const fromType = transferData.direction === 'available_to_withdrawable' ? 'available' : 'withdrawable';
+                                const balanceRecord = account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === transferData.currency && b.balance_type === fromType);
+                                const availableBalance = Number(balanceRecord?.balance || 0);
+                                const currentAmount = Number(transferData.amount);
+                                const isInvalid = currentAmount <= 0 || currentAmount > availableBalance || transferProcessing;
+
+                                return (
+                                    <button 
+                                        type="submit"
+                                        disabled={isInvalid}
+                                        className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                                    >
+                                        {transferProcessing ? (
+                                            <>
+                                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Processing...
+                                            </>
+                                        ) : 'Confirm Transfer'}
+                                    </button>
+                                );
+                            })()}
                         </div>
                     </form>
                 </div>
