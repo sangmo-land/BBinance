@@ -12,6 +12,22 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
+const currencyNames = {
+    BTC: 'Bitcoin',
+    ETH: 'Ethereum',
+    USDT: 'Tether US',
+    BNB: 'BNB',
+    SOL: 'Solana',
+    XRP: 'XRP',
+    USDC: 'USDC',
+    ADA: 'Cardano',
+    AVAX: 'Avalanche',
+    DOGE: 'Dogecoin',
+    USD: 'US Dollar',
+    EUR: 'Euro',
+    GBP: 'British Pound',
+};
+
 export default function AccountDetails({ account }) {
     const [activeTab, setActiveTab] = useState('spot');
 
@@ -79,6 +95,7 @@ export default function AccountDetails({ account }) {
                                                 </div>
                                                 <div className="ml-4">
                                                     <div className="text-base font-bold text-gray-900">{balance.currency}</div>
+                                                    <div className="text-sm text-gray-500 font-medium">{currencyNames[balance.currency] || balance.currency}</div>
                                                 </div>
                                             </div>
                                             <div className="text-right">
