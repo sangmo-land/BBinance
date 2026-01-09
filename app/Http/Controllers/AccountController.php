@@ -129,7 +129,8 @@ class AccountController extends Controller
                   ->orWhere('to_currency', $currency);
             })
             ->orderBy('created_at', 'desc')
-            ->paginate(5);
+            ->paginate(5)
+            ->withQueryString();
 
         return \Inertia\Inertia::render('CryptoDetail', [
             'account' => $account,
