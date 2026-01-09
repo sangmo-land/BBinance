@@ -291,9 +291,24 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     <ul className="divide-y divide-gray-50">
                                         {transactions.map((tx) => {
                                             const isInflow = tx.to_currency === currency;
+                                            const isTrade = tx.type === 'Spot Trade';
+                                            
+                                            // Calculate details for Trade Log
+                                            // Gross Received = Amount Spent / Exchange Rate (if rate is defined as Spent/Received)
+                                            // Wait, exchange_rate in DB is stored as: Spent / GrossReceived.
+                                            // So GrossReceived = Spent / Rate.
+                                            // Let's verify. in Controller: 'exchange_rate' => $amount / $rawReceiveAmount
+                                            // Validated.
+                                            let grossReceived = 0;
+                                            let feeAmount = 0;
+                                            if (isTrade && tx.exchange_rate > 0) {
+                                                grossReceived = Number(tx.amount) / Number(tx.exchange_rate);
+                                                feeAmount = grossReceived - Number(tx.converted_amount);
+                                            }
+
                                             return (
                                                 <li key={tx.id} className="p-4 hover:bg-gray-50 transition-colors">
-                                                    <div className="flex justify-between items-center">
+                                                    <div className="flex justify-between items-center z-10 relative">
                                                         <div className="flex items-center gap-3">
                                                             <div className={`p-2 rounded-full ${isInflow ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,6 +334,28 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                             </p>
                                                         </div>
                                                     </div>
+
+                                                    {/* Expanded Details for Spot Trades */}
+                                                    {isTrade && (
+                                                        <div className="mt-3 ml-12 bg-gray-50/80 rounded-xl p-3 border border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                                            <div>
+                                                                <span className="block text-gray-400 font-bold uppercase tracking-wider text-[10px]">Spent</span>
+                                                                <span className="font-bold text-gray-700">{formatNumber(tx.amount, 8)} {tx.from_currency}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400 font-bold uppercase tracking-wider text-[10px]">Exec. Price</span>
+                                                                <span className="font-bold text-gray-700">1 {tx.to_currency} ≈ {formatNumber(tx.exchange_rate, 2)} {tx.from_currency}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400 font-bold uppercase tracking-wider text-[10px]">Gross Received</span>
+                                                                <span className="font-bold text-gray-700">{formatNumber(grossReceived, 8)} {tx.to_currency}</span>
+                                                            </div>
+                                                            <div>
+                                                                <span className="block text-gray-400 font-bold uppercase tracking-wider text-[10px]">Fee Deducted</span>
+                                                                <span className="font-bold text-red-500">-{formatNumber(feeAmount, 8)} {tx.to_currency}</span>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </li>
                                             );
                                         })}
