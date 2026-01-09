@@ -264,7 +264,13 @@ export default function AccountDetails({ account, rates }) {
                             </svg>
                         </button>
                         
-                        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-md transition-all group">
+                        <button 
+                            onClick={() => {
+                                setConversionMode('crypto');
+                                setData({ ...data, from_currency: 'USD', to_currency: 'USDT', amount: '' });
+                            }}
+                            className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-md transition-all group"
+                        >
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-100 transition-colors">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,6 +392,122 @@ export default function AccountDetails({ account, rates }) {
                                     className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:shadow-none"
                                  >
                                      {processing ? 'Converting...' : 'Convert Now'}
+                                 </button>
+                             </div>
+                        </form>
+                    </div>
+                )}
+
+                {conversionMode === 'crypto' && (
+                    <div className="p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Convert to Crypto</h2>
+                            <button onClick={() => setConversionMode('menu')} className="text-sm font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                                Back
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            post(`/accounts/${account.id}/convert-to-crypto`, {
+                                onSuccess: () => setShowConvertModal(false),
+                            });
+                        }}>
+                             <div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-200">
+                                <div className="flex justify-between mb-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">From (Fiat)</label>
+                                    <p className="text-xs font-bold text-gray-500">
+                                        Available: {formatNumber( (account.balances?.find(b => b.currency === data.from_currency && b.wallet_type === 'fiat')?.balance) || 0, 2)} {data.from_currency}
+                                    </p>
+                                </div>
+                                <div className="flex gap-4">
+                                     <div className="flex-1">
+                                         <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            value={data.amount}
+                                            onChange={e => setData('amount', e.target.value)}
+                                            className="w-full text-2xl font-black bg-transparent border-0 focus:ring-0 p-0 text-gray-900 placeholder-gray-300"
+                                            placeholder="0.00"
+                                            autoFocus
+                                         />
+                                     </div>
+                                     <div className="flex-shrink-0">
+                                         <select 
+                                            value={data.from_currency}
+                                            onChange={(e) => setData('from_currency', e.target.value)}
+                                            className="font-bold text-lg bg-white border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 cursor-pointer shadow-sm"
+                                         >
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                         </select>
+                                     </div>
+                                </div>
+                             </div>
+
+                             <div className="flex justify-center -my-9 relative z-10 pointer-events-none">
+                                 <div className="p-2 bg-white border border-gray-200 rounded-full shadow-md text-gray-500">
+                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                     </svg>
+                                 </div>
+                             </div>
+
+                             <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200 mt-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">To (Spot Wallet)</label>
+                                <div className="flex gap-4 items-center">
+                                     <div className="flex-1 text-2xl font-black text-gray-900 truncate">
+                                         {(() => {
+                                             const amt = Number(data.amount) || 0;
+                                             if (amt === 0) return '0.00000000';
+                                             
+                                             const fromRate = rates && rates[data.from_currency] ? rates[data.from_currency] : 0; 
+                                             const cryptoPrice = rates && rates[data.to_currency] ? rates[data.to_currency] : 1;
+                                             
+                                             // USD Value = amt * fromRate
+                                             // Crypto Amt = USD Value / CryptoPrice
+                                             const res = (amt * fromRate) / cryptoPrice;
+                                             return formatNumber(res, 8);
+                                         })()}
+                                     </div>
+                                     <div className="flex-shrink-0">
+                                         <select 
+                                            value={data.to_currency}
+                                            onChange={(e) => setData('to_currency', e.target.value)}
+                                            className="font-bold text-lg bg-white border border-gray-200 rounded-lg focus:border-purple-500 focus:ring-0 cursor-pointer shadow-sm w-32"
+                                         >
+                                            {/* Show USDT first, then others */}
+                                            <option value="USDT">USDT</option>
+                                            {Object.keys(currencyNames)
+                                                .filter(c => ['USD', 'EUR', 'GBP', 'USDT'].indexOf(c) === -1)
+                                                .map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                         </select>
+                                     </div>
+                                </div>
+                             </div>
+
+                             {errors.amount && <p className="text-red-500 text-sm font-medium mb-4">{errors.amount}</p>}
+                             {errors.error && <p className="text-red-500 text-sm font-medium mb-4">{errors.error}</p>}
+
+                             <div className="flex gap-3">
+                                 <button 
+                                    type="button"
+                                    onClick={() => setShowConvertModal(false)}
+                                    className="flex-1 px-4 py-3 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                                 >
+                                     Cancel
+                                 </button>
+                                 <button 
+                                    type="submit"
+                                    disabled={processing}
+                                    className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-200 transition-all disabled:opacity-50 disabled:shadow-none"
+                                 >
+                                     {processing ? 'Processing...' : 'Buy Crypto'}
                                  </button>
                              </div>
                         </form>
