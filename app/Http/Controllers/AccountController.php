@@ -332,8 +332,8 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.00000001',
-            'from_wallet' => 'required|string|in:Spot,Funding,Futures,Options',
-            'to_wallet' => 'required|string|in:Spot,Funding,Futures,Options|different:from_wallet',
+            'from_wallet' => 'required|string|in:Spot,Funding,Earn',
+            'to_wallet' => 'required|string|in:Spot,Funding,Earn|different:from_wallet',
             'currency' => 'required|string',
         ]);
 

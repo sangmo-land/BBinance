@@ -936,7 +936,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     onChange={e => setTransferData('from_wallet', e.target.value)}
                                                     className="w-full bg-transparent border-none p-0 font-bold text-gray-800 focus:ring-0 text-sm"
                                                 >
-                                                    {['Spot', 'Funding', 'Futures', 'Options'].map(w => (
+                                                    {['Spot', 'Funding', 'Earn'].map(w => (
                                                         <option key={w} value={w} disabled={w === transferData.to_wallet}>{w}</option>
                                                     ))}
                                                 </select>
@@ -954,7 +954,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     className="w-full bg-transparent border-none p-0 font-bold text-gray-800 focus:ring-0 text-sm text-right"
                                                     dir="rtl"
                                                 >
-                                                    {['Spot', 'Funding', 'Futures', 'Options'].map(w => (
+                                                    {['Spot', 'Funding', 'Earn'].map(w => (
                                                         <option key={w} value={w} disabled={w === transferData.from_wallet}>{w}</option>
                                                     ))}
                                                 </select>
@@ -965,7 +965,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             <div className="flex justify-between items-center mb-1">
                                                 <label className="text-xs font-bold text-gray-500 uppercase">Amount</label>
                                                 <span className="text-xs font-bold text-gray-500">
-                                                    Available: {formatNumber(allCurrencyBalances.find(b => b.wallet_type === transferData.from_wallet)?.balance || 0, 8)} {currency}
+                                                    Available ({transferData.from_wallet}): {formatNumber(allCurrencyBalances.find(b => b.wallet_type === transferData.from_wallet)?.balance || 0, 8)} {currency}
                                                 </span>
                                             </div>
                                             <div className="relative rounded-md shadow-sm">
