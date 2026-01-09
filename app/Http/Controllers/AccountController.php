@@ -38,9 +38,13 @@ class AccountController extends Controller
         // Add USD itself
         $exchangeRates['USD'] = 1.0;
 
+        $feeSetting = \App\Models\SystemSetting::where('key', 'crypto_conversion_fee_percent')->first();
+        $feePercent = $feeSetting ? (float)$feeSetting->value : 1.0;
+
         return \Inertia\Inertia::render('AccountDetails', [
             'account' => $account,
             'rates' => $exchangeRates,
+            'cryptoConversionFeePercent' => $feePercent,
         ]);
     }
 
@@ -199,10 +203,18 @@ class AccountController extends Controller
              // If not found, we might want to return an error, but let's try to pass for now.
         }
 
-        // Calculate Crypto Amount
-        // (Fiat Amount * FiatToUsd) / CryptoPriceUsd
-        $usdAmount = $amount * $fiatToUsdRate;
-        $cryptoAmount = $usdAmount / $cryptoPriceUsd;
+        // Get Fee
+        $feeSetting = \App\Models\SystemSetting::where('key', 'crypto_conversion_fee_percent')->first();
+        $feePercent = $feeSetting ? (float)$feeSetting->value : 1.0;
+        
+        // Calculate Fee Amount (in Source Currency)
+        $feeAmount = $amount * ($feePercent / 100);
+        $netAmount = $amount - $feeAmount;
+
+        // Calculate Crypto Amount based on Net Amount
+        // (Net Fiat Amount * FiatToUsd) / CryptoPriceUsd
+        $netUsdAmount = $netAmount * $fiatToUsdRate;
+        $cryptoAmount = $netUsdAmount / $cryptoPriceUsd;
 
         $cryptoAccount = $user->cryptoAccount;
         if (!$cryptoAccount) {

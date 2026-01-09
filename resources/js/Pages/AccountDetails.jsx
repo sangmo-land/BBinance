@@ -29,7 +29,7 @@ const currencyNames = {
     GBP: 'British Pound',
 };
 
-export default function AccountDetails({ account, rates }) {
+export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1 }) {
     const isFiat = account.account_type === 'fiat';
     const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
@@ -409,6 +409,22 @@ export default function AccountDetails({ account, rates }) {
                                 Back
                             </button>
                         </div>
+
+                        <div className="flex items-center justify-between mb-4">
+                            {(() => {
+                                const fromRate = rates?.[data.from_currency] || 0;
+                                const cryptoPrice = rates?.[data.to_currency] || 1;
+                                const price = cryptoPrice / (fromRate || 1);
+                                return (
+                                    <p className="text-sm font-bold text-red-600 bg-red-50 px-3 py-1 rounded-lg border border-red-100">
+                                        Market Rate: 1 {data.to_currency} ≈ {formatNumber(price, 2)} {data.from_currency}
+                                    </p>
+                                );
+                            })()}
+                             <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                Fee: {cryptoConversionFeePercent}%
+                            </span>
+                        </div>
                         
                         <form onSubmit={(e) => {
                             e.preventDefault();
@@ -467,9 +483,9 @@ export default function AccountDetails({ account, rates }) {
                                              const fromRate = rates && rates[data.from_currency] ? rates[data.from_currency] : 0; 
                                              const cryptoPrice = rates && rates[data.to_currency] ? rates[data.to_currency] : 1;
                                              
-                                             // USD Value = amt * fromRate
-                                             // Crypto Amt = USD Value / CryptoPrice
-                                             const res = (amt * fromRate) / cryptoPrice;
+                                             // USD Value = amt * (1 - Fee) * fromRate
+                                             const feeMultiplier = 1 - (cryptoConversionFeePercent / 100);
+                                             const res = (amt * feeMultiplier * fromRate) / cryptoPrice;
                                              return formatNumber(res, 8);
                                          })()}
                                      </div>
@@ -488,6 +504,11 @@ export default function AccountDetails({ account, rates }) {
                                             ))}
                                          </select>
                                      </div>
+                                </div>
+                                <div className="text-right mt-1">
+                                    <span className="text-xs text-gray-400">
+                                        Fee: {formatNumber(Number(data.amount || 0) * (cryptoConversionFeePercent/100), 2)} {data.from_currency}
+                                    </span>
                                 </div>
                              </div>
 
