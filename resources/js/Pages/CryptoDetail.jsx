@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, Fragment } from 'react';
+import { Dialog, Transition } from '@headlessui/react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import { Head, Link } from '@inertiajs/react';
@@ -25,6 +26,20 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
     
     const topPairs = sortedPairs.slice(0, 6);
     const otherPairs = sortedPairs.slice(6);
+
+    // Buy Modal State
+    let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
+    let [buyPairId, setBuyPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
+    let [buyAmount, setBuyAmount] = useState('');
+
+    const selectedBuyPair = tradingPairs.find(p => p.id == buyPairId) || tradingPairs[0] || null;
+    const estimatedReceive = (selectedBuyPair && buyAmount) ? (parseFloat(buyAmount) / selectedBuyPair.rate) : 0;
+
+    const handleActionClick = (name) => {
+        if (name === 'Buy') {
+            setIsBuyModalOpen(true);
+        }
+    }
 
     return (
         <AppLayout>
@@ -96,6 +111,7 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
                              ].map((action) => (
                                  <button
                                      key={action.name}
+                                     onClick={() => handleActionClick(action.name)}
                                      className="group flex flex-col items-center gap-2"
                                  >
                                      <div className={`w-12 h-12 rounded-full bg-white border border-gray-100 shadow-md flex items-center justify-center group-hover:shadow-lg group-hover:-translate-y-1 transition-all duration-300 ring-4 ring-transparent group-hover:ring-gray-50 ${action.color}`}>
@@ -178,6 +194,134 @@ export default function CryptoDetail({ account, currency, balances, rateToUsd, w
                     </div>
                 </div>
             </div>
+
+            {/* Buy Modal */}
+            <Transition appear show={isBuyModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={() => setIsBuyModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                            </svg>
+                                        </div>
+                                        Buy {currency}
+                                    </Dialog.Title>
+                                    
+                                    <div className="mt-4 space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Select Trading Pair</label>
+                                            <select
+                                                value={buyPairId || ''}
+                                                onChange={(e) => setBuyPairId(e.target.value)}
+                                                className="w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 font-bold text-gray-800"
+                                            >
+                                                {tradingPairs.map((pair) => (
+                                                    <option key={pair.id} value={pair.id}>
+                                                        {pair.from}/{pair.to} (Rate: {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {selectedBuyPair && (
+                                            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                                <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                                    <span>Market Price</span>
+                                                    <span className="font-mono">1 {selectedBuyPair.from} = {formatNumber(selectedBuyPair.rate, selectedBuyPair.rate < 1 ? 6 : 2)} {selectedBuyPair.to}</span>
+                                                </div>
+                                                
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I want to spend</label>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={buyAmount}
+                                                                onChange={(e) => setBuyAmount(e.target.value)}
+                                                                className="block w-full rounded-xl border-gray-300 pl-4 pr-16 py-3 focus:border-indigo-500 focus:ring-indigo-500 sm:text-lg font-bold"
+                                                                placeholder="0.00"
+                                                                step="any"
+                                                            />
+                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className="text-gray-500 sm:text-sm font-bold">{selectedBuyPair.to}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex justify-center">
+                                                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                                        </svg>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I will receive (approx)</label>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
+                                                                {formatNumber(estimatedReceive, 8)}
+                                                            </div>
+                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className="text-gray-500 sm:text-sm font-bold">{selectedBuyPair.from}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-6 flex gap-3">
+                                        <button
+                                            type="button"
+                                            className="flex-1 justify-center rounded-xl border border-transparent bg-green-600 px-4 py-3 text-sm font-bold text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors uppercase tracking-wider"
+                                            onClick={() => {
+                                                alert(`Buy logic not implemented yet.\nSpend: ${buyAmount} ${selectedBuyPair?.to}\nReceive: ${formatNumber(estimatedReceive, 8)} ${selectedBuyPair?.from}`);
+                                                setIsBuyModalOpen(false);
+                                            }}
+                                        >
+                                            Buy {currency}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                                            onClick={() => setIsBuyModalOpen(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
         </AppLayout>
     );
 }
