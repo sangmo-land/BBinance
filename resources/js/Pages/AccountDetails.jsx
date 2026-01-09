@@ -34,14 +34,17 @@ export default function AccountDetails({ account, rates }) {
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
 
     const getUsdEquivalent = (currency, balance) => {
-        if (currency === 'USD') return balance;
+        const amount = Number(balance) || 0;
+        if (currency === "USD") return amount;
         if (!rates || !rates[currency]) return 0;
-        return balance * rates[currency];
+        return amount * rates[currency];
     };
 
     // Calculate total USD balance for the active tab
     const totalUsdBalance = (account.balances || [])
-        .filter(b => b.wallet_type === activeTab)
+        .filter((b) =>
+            isFiat ? b.wallet_type === "fiat" : b.wallet_type === activeTab
+        )
         .reduce((sum, b) => sum + getUsdEquivalent(b.currency, b.balance), 0);
     
     // Convert total USD to selected display currency
