@@ -383,7 +383,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     <ul className="divide-y divide-gray-50">
                                         {transactions.map((tx) => {
                                             const isInflow = tx.to_currency === currency;
-                                            const isTrade = tx.type === 'Spot Trade';
+                                            const isTrade = ['Spot Trade', 'Buy Crypto', 'Sell Crypto'].includes(tx.type);
                                             
                                             // Calculate details for Trade Log
                                             // Gross Received = Amount Spent / Exchange Rate (if rate is defined as Spent/Received)

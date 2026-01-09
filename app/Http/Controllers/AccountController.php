@@ -215,7 +215,7 @@ class AccountController extends Controller
              \App\Models\Transaction::create([
                  'from_account_id' => $account->id,
                  'to_account_id' => $account->id,
-                 'type' => 'Spot Trade',
+                 'type' => 'Buy Crypto',
                  'from_currency' => $spendingCurrency,
                  'to_currency' => $receivingCurrency,
                  'amount' => $amount,
@@ -304,7 +304,7 @@ class AccountController extends Controller
              \App\Models\Transaction::create([
                  'from_account_id' => $account->id,
                  'to_account_id' => $account->id,
-                 'type' => 'Spot Trade',
+                 'type' => 'Sell Crypto',
                  'from_currency' => $spendingCurrency,
                  'to_currency' => $receivingCurrency,
                  'amount' => $amount,
