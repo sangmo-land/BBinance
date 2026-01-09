@@ -58,8 +58,53 @@ class TransactionService
     public function addFunds(Account $account, float $amount, string $description = 'Admin credit', ?int $userId = null): Transaction
     {
         return DB::transaction(function () use ($account, $amount, $description, $userId) {
-            // Add to account balance
+            // Add to account balance (legacy/primary)
             $account->increment('balance', $amount);
+
+            // Also update the detailed AccountBalance if applicable
+            // Ensure we update the 'available' balance for this currency
+            if ($account->account_type === 'fiat' || $account->account_type === 'crypto') {
+                 $balanceRecord = \App\Models\AccountBalance::firstOrCreate(
+                    [
+                        'account_id' => $account->id,
+                        'wallet_type' => $account->account_type, // e.g. 'fiat' or 'crypto' (mapped to 'spot' usually?) 
+                        // Be careful: if account_type is 'crypto', usually wallet_type is 'spot'.
+                        // Let's assume for now 1:1 mapping or use 'spot' if crypto.
+                        'currency' => $account->currency,
+                        'balance_type' => 'available' // explicitly target available
+                    ],
+                    ['balance' => 0]
+                 );
+                 
+                 // If the Account is crypto, maybe map account_type to wallet_type
+                 // But AccountController uses 'spot' for crypto wallet_type. 
+                 // Let's handle 'fiat' safely first.
+                 
+                 if ($account->account_type === 'fiat') {
+                     $balanceRecord = \App\Models\AccountBalance::firstOrCreate(
+                        [
+                            'account_id' => $account->id,
+                            'wallet_type' => 'fiat',
+                            'currency' => $account->currency,
+                            'balance_type' => 'available'
+                        ],
+                        ['balance' => 0]
+                     );
+                     $balanceRecord->increment('balance', $amount);
+                 } elseif ($account->account_type === 'crypto') { // Assuming 'crypto' matches 'spot'
+                      $balanceRecord = \App\Models\AccountBalance::firstOrCreate(
+                        [
+                            'account_id' => $account->id,
+                            'wallet_type' => 'spot',
+                            'currency' => $account->currency,
+                             // ensure balance_type is used if schema supports it, which it does now
+                            'balance_type' => 'available'
+                        ],
+                        ['balance' => 0]
+                     );
+                     $balanceRecord->increment('balance', $amount);
+                 }
+            }
 
             // Create transaction record
             return Transaction::create([

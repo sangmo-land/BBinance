@@ -76,10 +76,11 @@ class AccountController extends Controller
         $toCurrency = $request->to_currency;
         $amount = (float) $request->amount;
 
-        // Get Source Balance
+        // Get Source Balance (Always use 'available' type for transactions)
         $fromBalance = $account->balances()
             ->where('currency', $fromCurrency)
             ->where('wallet_type', 'fiat')
+            ->where('balance_type', 'available')
             ->first();
         
         if (!$fromBalance || $fromBalance->balance < $amount) {
@@ -122,7 +123,7 @@ class AccountController extends Controller
             $fromBalance->decrement('balance', $amount);
             
             $toBalance = $account->balances()->firstOrCreate(
-                ['wallet_type' => 'fiat', 'currency' => $toCurrency],
+                ['wallet_type' => 'fiat', 'currency' => $toCurrency, 'balance_type' => 'available'],
                 ['balance' => 0]
             );
             
@@ -169,10 +170,11 @@ class AccountController extends Controller
         $toCurrency = $request->to_currency;
         $amount = (float) $request->amount;
 
-        // Check Balance
+        // Check Balance (Available only)
         $fromBalance = $account->balances()
             ->where('currency', $fromCurrency)
             ->where('wallet_type', 'fiat')
+            ->where('balance_type', 'available')
             ->first();
 
         if (!$fromBalance || $fromBalance->balance < $amount) {
@@ -251,7 +253,7 @@ class AccountController extends Controller
 
              // Add Crypto to Spot
              $spotBalance = $cryptoAccount->balances()->firstOrCreate(
-                 ['wallet_type' => 'spot', 'currency' => $toCurrency],
+                 ['wallet_type' => 'spot', 'currency' => $toCurrency, 'balance_type' => 'available'],
                  ['balance' => 0]
              );
              $spotBalance->increment('balance', $cryptoAmount);

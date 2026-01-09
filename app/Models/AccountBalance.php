@@ -11,6 +11,7 @@ class AccountBalance extends Model
         'wallet_type',
         'currency',
         'balance',
+        'balance_type',
     ];
 
     protected $casts = [

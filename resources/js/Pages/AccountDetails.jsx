@@ -146,16 +146,16 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                         </div>
 
                         <div className="bg-gray-50 rounded-xl p-6 mb-8 border border-gray-100">
-                             <div className="flex justify-between items-start">
-                                <div>
-                                     <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
-                                        Total Estimated Balance {isFiat ? '' : `(${activeTab} Wallet)`}
-                                     </h2>
-                                     <div className="flex items-baseline gap-2">
-                                         <p className="text-4xl font-black text-gray-900">
-                                            {isFiat ? '$' : ''}{formatNumber(totalDisplayBalance, isFiat ? 2 : 8)}
-                                         </p>
-                                         {!isFiat && (
+                             {!isFiat ? (
+                                 <div className="flex justify-between items-start">
+                                    <div>
+                                         <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                            Total Estimated Balance ({activeTab} Wallet)
+                                         </h2>
+                                         <div className="flex items-baseline gap-2">
+                                             <p className="text-4xl font-black text-gray-900">
+                                                {formatNumber(totalDisplayBalance, 8)}
+                                             </p>
                                              <select 
                                                 value={displayCurrency}
                                                 onChange={(e) => setDisplayCurrency(e.target.value)}
@@ -165,24 +165,42 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                     <option key={c} value={c}>{c}</option>
                                                 ))}
                                              </select>
-                                         )}
-                                          {isFiat && (
-                                              <span className="text-xl text-gray-500 font-bold ml-1">USD</span>
-                                          )}
-                                     </div>
-                                     <p className="text-sm text-gray-500 font-medium mt-1">
-                                        {isFiat ? (
-                                            <>
-                                                ≈ €{formatNumber(totalUsdBalance / (rates?.EUR || 1), 2)} EUR
-                                            </>
-                                        ) : (
-                                            <>
-                                                ≈ ${formatNumber(totalUsdBalance, 2)} USD
-                                            </>
-                                        )}
-                                     </p>
-                                </div>
-                             </div>
+                                         </div>
+                                         <p className="text-sm text-gray-500 font-medium mt-1">
+                                            ≈ ${formatNumber(totalUsdBalance, 2)} USD
+                                         </p>
+                                    </div>
+                                 </div>
+                             ) : (
+                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                     {['available', 'pending', 'locked', 'withdrawable'].map(type => {
+                                         // Helper to get balance by type and currency
+                                         const getBal = (curr) => account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === curr && b.balance_type === type)?.balance || 0;
+                                         const usdBal = getBal('USD');
+                                         
+                                         // If type is 'available', we currently have logic to calculate implicit EUR?
+                                         // For now, assume pure DB values. 
+                                         // However, previous view was showing everything as "fiat" wallet type with no balance_type distinction (defaulted to 'available').
+                                         const eurBal = getBal('EUR');
+                                         
+                                         return (
+                                             <div key={type} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">{type} Balance</h3>
+                                                 <div className="space-y-2">
+                                                     <div className="flex justify-between items-center">
+                                                         <span className="text-sm font-bold text-gray-400">USD</span>
+                                                         <span className="text-lg font-black text-gray-900">{formatNumber(usdBal, 2)}</span>
+                                                     </div>
+                                                     <div className="flex justify-between items-center">
+                                                         <span className="text-sm font-bold text-gray-400">EUR</span>
+                                                         <span className="text-lg font-black text-gray-900">{formatNumber(eurBal, 2)}</span>
+                                                     </div>
+                                                 </div>
+                                             </div>
+                                         );
+                                     })}
+                                 </div>
+                             )}
 
                              {isFiat && (
                                  <div className="flex flex-wrap justify-center gap-3 mt-6 pt-6 border-t border-gray-200">
