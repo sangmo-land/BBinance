@@ -290,7 +290,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                             </div>
                             <ul className="divide-y divide-gray-200">
                                 {(account.balances || [])
-                                    .filter(b => b.wallet_type === activeTab)
+                                    .filter(b => b.wallet_type === activeTab && (b.balance_type === 'available' || b.balance_type === undefined))
                                     .map((balance, idx) => (
                                     <li key={`${balance.currency}-${idx}`} className="p-4 hover:bg-blue-50 transition-colors">
                                         <div className="flex items-center justify-between">
@@ -312,7 +312,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                         </div>
                                     </li>
                                 ))}
-                                {(account.balances || []).filter(b => b.wallet_type === activeTab).length === 0 && (
+                                {(account.balances || []).filter(b => b.wallet_type === activeTab && (b.balance_type === 'available' || b.balance_type === undefined)).length === 0 && (
                                     <li className="p-12 text-center text-gray-500">
                                         <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
