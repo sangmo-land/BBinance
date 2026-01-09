@@ -81,24 +81,26 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         if (!selectedPair) return {};
         
         if (type === 'BUY') {
-            // User wants to Buy Page Currency (to).
-            // Spend Other (from).
-            return {
-                spending: selectedPair.from, 
-                receiving: selectedPair.to, 
-                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
-                quotePrice: selectedPair.rate, 
-                isInverted: true // Spend From -> Get To. (Input * Rate)
-            };
-        } else { 
-            // User wants to Sell Page Currency (to).
-            // Spend Currency (to). Receive Other (from).
+            // BUY Action: "Buy the First Crypto (from) using Currency (to)"
+            // Example: Pair USDT/ETH. "Buy USDT". 
+            // We Spend ETH (to). We Receive USDT (from).
             return {
                 spending: selectedPair.to, 
                 receiving: selectedPair.from, 
                 rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
+                quotePrice: selectedPair.rate, 
+                isInverted: false // Input (Spend To) / Rate = Output (Get From)
+            };
+        } else { 
+            // SELL Action: "Sell the First Crypto (from) for Currency (to)"
+            // Example: Pair USDT/ETH. "Sell USDT".
+            // We Spend USDT (from). We Receive ETH (to).
+            return {
+                spending: selectedPair.from, 
+                receiving: selectedPair.to, 
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
                 quotePrice: selectedPair.rate,
-                isInverted: false // Spend To -> Get From. (Input / Rate)
+                isInverted: true // Input (Spend From) * Rate = Output (Get To)
             };
         }
     };
