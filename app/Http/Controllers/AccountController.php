@@ -316,7 +316,7 @@ class AccountController extends Controller
                  'created_by' => $account->user_id,
              ]);
 
-             return redirect()->back()->with('success', "Successfully sold {$amount} {$spendingCurrency}");
+             return redirect()->back()->with('success', "Successfully sold " . number_format($amount, 8) . " {$spendingCurrency} for " . number_format($netReceiveAmount, 8) . " {$receivingCurrency}");
         });
     }
 
