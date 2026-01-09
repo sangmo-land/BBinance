@@ -340,4 +340,53 @@ class AccountController extends Controller
 
         return back()->with('success', 'Transfer successful.');
     }
+
+    /**
+     * Withdraw Funds
+     */
+    public function withdraw(Request $request, \App\Models\Account $account)
+    {
+        $request->validate([
+            'currency' => 'required|in:USD,EUR',
+            'amount' => 'required|numeric|min:0.01',
+            // Add bank detail validation if needed later
+        ]);
+
+        if ($account->user_id !== $request->user()->id) abort(403);
+        if ($account->account_type !== 'fiat') return back()->withErrors(['error' => 'Only for fiat accounts.']);
+
+        $currency = $request->currency;
+        $amount = (float) $request->amount;
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($account, $currency, $amount) {
+            // Check Withdrawable Balance
+            $balanceRecord = $account->balances()->where([
+                'wallet_type' => 'fiat',
+                'currency' => $currency,
+                'balance_type' => 'withdrawable'
+            ])->first();
+
+            if (!$balanceRecord || $balanceRecord->balance < $amount) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Insufficient withdrawable balance. Please transfer funds to Withdrawable first.']);
+            }
+
+            // Deduct Balance
+            $balanceRecord->decrement('balance', $amount);
+
+            // Create Transaction Record
+            \App\Models\Transaction::create([
+                'from_account_id' => $account->id,
+                'to_account_id' => null, // External
+                'type' => 'withdrawal',
+                'from_currency' => $currency,
+                'amount' => $amount,
+                'status' => 'completed', // Or 'pending' if manual approval needed. User asked to "remove from system", implying completed deduction.
+                'description' => "Withdrawal of {$amount} {$currency} to external account",
+                'reference_number' => \Illuminate\Support\Str::uuid(),
+                'created_by' => auth()->id(),
+            ]);
+        });
+
+        return back()->with('success', 'Withdrawal successful.');
+    }
 }

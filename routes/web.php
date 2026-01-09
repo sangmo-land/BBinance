@@ -40,7 +40,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/accounts/{account}/convert-fiat', [\App\Http\Controllers\AccountController::class, 'convertFiat'])->name('accounts.convert-fiat');
     Route::post('/accounts/{account}/convert-to-crypto', [\App\Http\Controllers\AccountController::class, 'convertToCrypto'])->name('accounts.convert-to-crypto');
     Route::post('/accounts/{account}/transfer-internal', [\App\Http\Controllers\AccountController::class, 'transferInternal'])->name('accounts.transfer-internal');
-    
+    Route::post('/accounts/{account}/withdraw', [\App\Http\Controllers\AccountController::class, 'withdraw'])->name('accounts.withdraw');
+
     Route::get('/transfer', [TransferController::class, 'create'])->name('transfer.create');
     Route::post('/transfer', [TransferController::class, 'store'])->name('transfer.store');
 

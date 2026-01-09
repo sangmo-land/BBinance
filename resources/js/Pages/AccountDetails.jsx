@@ -35,11 +35,37 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
     const [showConvertModal, setShowConvertModal] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false); // New Transfer Modal
+    const [showWithdrawModal, setShowWithdrawModal] = useState(false); // New Withdraw Modal
     const [conversionMode, setConversionMode] = useState('menu'); // menu, fiat, crypto
     
     // Toast Notification State
     const { flash } = usePage().props;
     const [toast, setToast] = useState(null);
+
+    // Withdraw Form
+    const { 
+        data: withdrawData, 
+        setData: setWithdrawData, 
+        post: postWithdraw, 
+        processing: withdrawProcessing, 
+        errors: withdrawErrors, 
+        reset: resetWithdraw 
+    } = useForm({
+        currency: 'USD',
+        amount: ''
+    });
+
+    const handleWithdraw = (e) => {
+        e.preventDefault();
+        postWithdraw(route('accounts.withdraw', account.id), {
+            onSuccess: () => {
+                resetWithdraw();
+                setShowWithdrawModal(false);
+                setToast({ type: 'success', message: 'Withdrawal successful.' });
+                setTimeout(() => setToast(null), 4000);
+            }
+        });
+    };
 
     // Transfer Form
     const { 
@@ -237,7 +263,9 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                          </svg>
                                          Deposit
                                      </button>
-                                     <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200">
+                                     <button 
+                                         onClick={() => setShowWithdrawModal(true)}
+                                         className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200">
                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
                                          </svg>
@@ -843,6 +871,113 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     </button>
                                 );
                             })()}
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+
+            {/* Withdraw Modal */}
+            <Modal show={showWithdrawModal} onClose={() => setShowWithdrawModal(false)}>
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Withdraw Funds</h2>
+                        <button onClick={() => setShowWithdrawModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleWithdraw}>
+                        <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 mb-6 flex items-start gap-3">
+                            <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <h4 className="font-bold text-yellow-800 text-sm">Withdrawable Balance Only</h4>
+                                <p className="text-xs text-yellow-700 mt-1">You can only withdraw funds that are in your "Withdrawable" balance. If your funds are in "Available", please transfer them first.</p>
+                            </div>
+                        </div>
+
+                        {/* Currency & Amount */}
+                        <div className="mb-6">
+                             <label className="block text-sm font-bold text-gray-700 mb-2">Withdraw Asset</label>
+                             <div className="flex gap-4">
+                                 <div className="w-1/3">
+                                     <select
+                                         value={withdrawData.currency}
+                                         onChange={e => setWithdrawData('currency', e.target.value)}
+                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
+                                     >
+                                         <option value="USD">USD</option>
+                                         <option value="EUR">EUR</option>
+                                     </select>
+                                 </div>
+                                 <div className="flex-1 relative">
+                                     <input
+                                         type="number"
+                                         step="0.01"
+                                         placeholder="0.00"
+                                         value={withdrawData.amount}
+                                         onChange={e => setWithdrawData('amount', e.target.value)}
+                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500 pr-20"
+                                     />
+                                     <button 
+                                         type="button"
+                                         onClick={() => {
+                                             const bal = account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === withdrawData.currency && b.balance_type === 'withdrawable')?.balance || 0;
+                                             setWithdrawData('amount', bal);
+                                         }}
+                                         className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-blue-600 uppercase hover:text-blue-700"
+                                     >
+                                         Max
+                                     </button>
+                                 </div>
+                             </div>
+                             <div className="mt-2 text-right text-xs text-gray-500 font-medium">
+                                 Withdrawable: {(() => {
+                                     const bal = account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === withdrawData.currency && b.balance_type === 'withdrawable')?.balance || 0;
+                                     return formatNumber(bal, 2) + ' ' + withdrawData.currency;
+                                 })()}
+                             </div>
+                        </div>
+
+                        {withdrawErrors.amount && <p className="text-red-500 text-sm font-medium mb-4">{withdrawErrors.amount}</p>}
+                        {withdrawErrors.error && <p className="text-red-500 text-sm font-medium mb-4">{withdrawErrors.error}</p>}
+
+                        <div className="flex gap-3">
+                            <button 
+                                type="button"
+                                onClick={() => setShowWithdrawModal(false)}
+                                className="flex-1 px-4 py-3 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                             {(() => {
+                                 // Dynamic Validation
+                                 const balanceRecord = account.balances?.find(b => b.wallet_type === 'fiat' && b.currency === withdrawData.currency && b.balance_type === 'withdrawable');
+                                 const withdrawableBalance = Number(balanceRecord?.balance || 0);
+                                 const currentAmount = Number(withdrawData.amount);
+                                 const isInvalid = currentAmount <= 0 || currentAmount > withdrawableBalance || withdrawProcessing;
+ 
+                                 return (
+                                     <button 
+                                         type="submit"
+                                         disabled={isInvalid}
+                                         className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg shadow-red-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                                     >
+                                         {withdrawProcessing ? (
+                                             <>
+                                                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                 </svg>
+                                                 Processing...
+                                             </>
+                                         ) : 'Confirm Withdrawal'}
+                                     </button>
+                                 );
+                             })()}
                         </div>
                     </form>
                 </div>
