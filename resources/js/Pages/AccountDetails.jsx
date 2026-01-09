@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
+import Modal from '@/Components/Modal';
 import { Head, Link } from '@inertiajs/react';
 
 function formatNumber(value, fractionDigits = 8) {
@@ -32,6 +33,7 @@ export default function AccountDetails({ account, rates }) {
     const isFiat = account.account_type === 'fiat';
     const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
+    const [showConvertModal, setShowConvertModal] = useState(false);
 
     const getUsdEquivalent = (currency, balance) => {
         const amount = Number(balance) || 0;
@@ -129,7 +131,10 @@ export default function AccountDetails({ account, rates }) {
                                          </svg>
                                          Withdraw
                                      </button>
-                                     <button className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200">
+                                     <button 
+                                         onClick={() => setShowConvertModal(true)}
+                                         className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 px-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-95 transition-all duration-200"
+                                     >
                                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                                          </svg>
@@ -208,6 +213,55 @@ export default function AccountDetails({ account, rates }) {
                     </div>
                 </div>
             </div>
+
+            <Modal show={showConvertModal} onClose={() => setShowConvertModal(false)}>
+                <div className="p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-6">Select Conversion Type</h2>
+                    <div className="grid gap-4">
+                        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all group">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-gray-900">Fiat Conversion</h3>
+                                    <p className="text-sm text-gray-500">Convert between USD and EUR instantly</p>
+                                </div>
+                            </div>
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                        
+                        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-purple-500 hover:shadow-md transition-all group">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-100 transition-colors">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-gray-900">Convert to Crypto</h3>
+                                    <p className="text-sm text-gray-500">Buy crypto using your fiat balance</p>
+                                </div>
+                            </div>
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                        <button 
+                            onClick={() => setShowConvertModal(false)}
+                            className="text-gray-500 hover:text-gray-700 font-medium px-4 py-2"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </AppLayout>
     );
 }
