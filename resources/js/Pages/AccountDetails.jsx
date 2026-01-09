@@ -654,9 +654,12 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     .map((balance, idx) => (
                                         <li
                                             key={`${balance.currency}-${idx}`}
-                                            className="p-4 hover:bg-blue-50 transition-colors"
+                                            className="hover:bg-blue-50 transition-colors"
                                         >
-                                            <div className="flex items-center justify-between">
+                                            <Link 
+                                                href={route('accounts.crypto-detail', [account.id, balance.currency]) + `?wallet=${activeTab}`}
+                                                className="flex items-center justify-between p-4 block w-full h-full"
+                                            >
                                                 <div className="flex items-center">
                                                     <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs ring-2 ring-white shadow-sm">
                                                         {balance.currency.substring(
@@ -665,7 +668,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                         )}
                                                     </div>
                                                     <div className="ml-4">
-                                                        <div className="text-base font-bold text-gray-900">
+                                                        <div className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                                                             {balance.currency}
                                                         </div>
                                                         <div className="text-sm text-gray-500 font-medium">
@@ -706,7 +709,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                               )} USD`}
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </Link>
                                         </li>
                                     ))}
                                 {(account.balances || []).filter(

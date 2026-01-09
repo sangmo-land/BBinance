@@ -55,6 +55,49 @@ class AccountController extends Controller
         ]);
     }
 
+    public function showCryptoDetail(Request $request, \App\Models\Account $account, string $currency)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id && !$user->is_admin) {
+            abort(403);
+        }
+
+        $account->load('user');
+
+        $walletType = $request->query('wallet');
+
+        $query = $account->balances()->where('currency', $currency);
+        
+        if ($walletType) {
+            $query->where('wallet_type', $walletType);
+        }
+
+        $balances = $query->get();
+
+        $rateToUsd = 0;
+        if ($currency === 'USD') {
+            $rateToUsd = 1.0;
+        } else {
+             $rateModel = \App\Models\ExchangeRate::where(function($q) use ($currency) {
+                 $q->where('from_currency', $currency)->where('to_currency', 'USD');
+             })->orWhere(function($q) use ($currency) {
+                 $q->where('from_currency', 'USD')->where('to_currency', $currency);
+             })->first();
+
+             if ($rateModel) {
+                 $rateToUsd = $rateModel->to_currency === 'USD' ? (float)$rateModel->rate : 1 / (float)$rateModel->rate;
+             }
+        }
+
+        return \Inertia\Inertia::render('CryptoDetail', [
+            'account' => $account,
+            'currency' => $currency,
+            'balances' => $balances,
+            'rateToUsd' => $rateToUsd,
+            'walletType' => $walletType
+        ]);
+    }
+
     public function convertFiat(Request $request, \App\Models\Account $account)
     {
         $request->validate([
