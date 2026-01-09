@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import Modal from '@/Components/Modal';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 function formatNumber(value, fractionDigits = 8) {
   const n = Number(value);
@@ -34,6 +34,24 @@ export default function AccountDetails({ account, rates }) {
     const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
     const [showConvertModal, setShowConvertModal] = useState(false);
+    const [conversionMode, setConversionMode] = useState('menu'); // menu, fiat, crypto
+
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+        from_currency: 'EUR',
+        to_currency: 'USD',
+        amount: '',
+    });
+
+    useEffect(() => {
+        if (!showConvertModal) {
+            const timer = setTimeout(() => {
+                setConversionMode('menu');
+                reset();
+                clearErrors();
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [showConvertModal]);
 
     const getUsdEquivalent = (currency, balance) => {
         const amount = Number(balance) || 0;
@@ -215,10 +233,21 @@ export default function AccountDetails({ account, rates }) {
             </div>
 
             <Modal show={showConvertModal} onClose={() => setShowConvertModal(false)}>
+                {conversionMode === 'menu' && (
                 <div className="p-6">
-                    <h2 className="text-xl font-bold text-gray-900 mb-6">Select Conversion Type</h2>
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Select Conversion Type</h2>
+                        <button onClick={() => setShowConvertModal(false)} className="text-gray-400 hover:text-gray-500">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                     <div className="grid gap-4">
-                        <button className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all group">
+                        <button 
+                            onClick={() => setConversionMode('fiat')}
+                            className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all group"
+                        >
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,7 +256,7 @@ export default function AccountDetails({ account, rates }) {
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-bold text-gray-900">Fiat Conversion</h3>
-                                    <p className="text-sm text-gray-500">Convert between USD and EUR instantly</p>
+                                    <p className="text-sm text-gray-500">Convert between USD and EUR</p>
                                 </div>
                             </div>
                             <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,15 +281,116 @@ export default function AccountDetails({ account, rates }) {
                             </svg>
                         </button>
                     </div>
-                    <div className="mt-6 flex justify-end">
-                        <button 
-                            onClick={() => setShowConvertModal(false)}
-                            className="text-gray-500 hover:text-gray-700 font-medium px-4 py-2"
-                        >
-                            Cancel
-                        </button>
-                    </div>
                 </div>
+                )}
+
+                {conversionMode === 'fiat' && (
+                    <div className="p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Fiat Conversion</h2>
+                            <button onClick={() => setConversionMode('menu')} className="text-sm font-bold text-gray-500 hover:text-gray-800 flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                                Back
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            post(`/accounts/${account.id}/convert-fiat`, {
+                                onSuccess: () => setShowConvertModal(false),
+                            });
+                        }}>
+                             <div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-200">
+                                <div className="flex justify-between mb-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">From Account</label>
+                                    <p className="text-xs font-bold text-gray-500">
+                                        Available: {formatNumber( (account.balances?.find(b => b.currency === data.from_currency && b.wallet_type === 'fiat')?.balance) || 0, 2)} {data.from_currency}
+                                    </p>
+                                </div>
+                                <div className="flex gap-4">
+                                     <div className="flex-1">
+                                         <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            value={data.amount}
+                                            onChange={e => setData('amount', e.target.value)}
+                                            className="w-full text-2xl font-black bg-transparent border-0 focus:ring-0 p-0 text-gray-900 placeholder-gray-300"
+                                            placeholder="0.00"
+                                            autoFocus
+                                         />
+                                     </div>
+                                     <div className="flex-shrink-0">
+                                         <select 
+                                            value={data.from_currency}
+                                            onChange={(e) => {
+                                                const newFrom = e.target.value;
+                                                const newTo = newFrom === 'USD' ? 'EUR' : 'USD';
+                                                setData({ ...data, from_currency: newFrom, to_currency: newTo });
+                                            }}
+                                            className="font-bold text-lg bg-white border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 cursor-pointer shadow-sm"
+                                         >
+                                            <option value="USD">USD</option>
+                                            <option value="EUR">EUR</option>
+                                         </select>
+                                     </div>
+                                </div>
+                             </div>
+
+                             <div className="flex justify-center -my-9 relative z-10 pointer-events-none">
+                                 <button 
+                                    type="button"
+                                    onClick={() => setData({ ...data, from_currency: data.to_currency, to_currency: data.from_currency })}
+                                    className="p-2 bg-white border border-gray-200 rounded-full shadow-md text-gray-500 hover:text-blue-600 pointer-events-auto transition-transform hover:rotate-180"
+                                 >
+                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                     </svg>
+                                 </button>
+                             </div>
+
+                             <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200 mt-4">
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">To Account (Estimate)</label>
+                                <div className="flex gap-4 items-center">
+                                     <div className="flex-1 text-2xl font-black text-gray-900">
+                                         {(() => {
+                                             const amt = Number(data.amount) || 0;
+                                             if (amt === 0) return '0.00';
+                                             const fromRate = rates && rates[data.from_currency] ? rates[data.from_currency] : 0; 
+                                             const toRate = rates && rates[data.to_currency] ? rates[data.to_currency] : 1; 
+                                             const res = (amt * fromRate) / toRate;
+                                             return formatNumber(res, 2);
+                                         })()}
+                                     </div>
+                                     <div className="text-lg font-bold text-gray-500">
+                                         {data.to_currency}
+                                     </div>
+                                </div>
+                             </div>
+
+                             {errors.amount && <p className="text-red-500 text-sm font-medium mb-4">{errors.amount}</p>}
+                             {errors.error && <p className="text-red-500 text-sm font-medium mb-4">{errors.error}</p>}
+
+                             <div className="flex gap-3">
+                                 <button 
+                                    type="button"
+                                    onClick={() => setShowConvertModal(false)}
+                                    className="flex-1 px-4 py-3 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                                 >
+                                     Cancel
+                                 </button>
+                                 <button 
+                                    type="submit"
+                                    disabled={processing}
+                                    className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all disabled:opacity-50 disabled:shadow-none"
+                                 >
+                                     {processing ? 'Converting...' : 'Convert Now'}
+                                 </button>
+                             </div>
+                        </form>
+                    </div>
+                )}
             </Modal>
         </AppLayout>
     );

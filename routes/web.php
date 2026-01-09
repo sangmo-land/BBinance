@@ -37,6 +37,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/chat/admin/messages/{userId}', [ChatController::class, 'adminReply'])->name('chat.admin.reply');
     
     Route::get('/accounts/{account}', [\App\Http\Controllers\AccountController::class, 'show'])->name('accounts.show');
+    Route::post('/accounts/{account}/convert-fiat', [\App\Http\Controllers\AccountController::class, 'convertFiat'])->name('accounts.convert-fiat');
     
     Route::get('/transfer', [TransferController::class, 'create'])->name('transfer.create');
     Route::post('/transfer', [TransferController::class, 'store'])->name('transfer.store');
