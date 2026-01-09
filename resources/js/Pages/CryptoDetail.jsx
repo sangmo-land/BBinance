@@ -14,7 +14,7 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
-export default function CryptoDetail({ account, currency, balances, spotBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1 }) {
+export default function CryptoDetail({ account, currency, balances, spotBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [] }) {
     const { flash } = usePage().props;
     const [showNotification, setShowNotification] = useState(false);
 
@@ -275,6 +275,55 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Recent Transactions Section */}
+                        {(transactions.length > 0) && (
+                            <div className="mb-0">
+                                <h3 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Recent Transactions
+                                </h3>
+                                <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                                    <ul className="divide-y divide-gray-50">
+                                        {transactions.map((tx) => {
+                                            const isInflow = tx.to_currency === currency;
+                                            return (
+                                                <li key={tx.id} className="p-4 hover:bg-gray-50 transition-colors">
+                                                    <div className="flex justify-between items-center">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`p-2 rounded-full ${isInflow ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    {isInflow 
+                                                                        ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                                                        : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                                                    }
+                                                                </svg>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-gray-800">{tx.type} {isInflow ? 'Received' : 'Sent'}</p>
+                                                                <p className="text-xs text-gray-400">
+                                                                    {new Date(tx.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`text-sm font-bold ${isInflow ? 'text-green-600' : 'text-gray-900'}`}>
+                                                                {isInflow ? '+' : '-'}{formatNumber(isInflow ? tx.converted_amount : tx.amount, 8)} {isInflow ? tx.to_currency : tx.from_currency}
+                                                            </p>
+                                                            <p className="text-xs text-gray-400 font-medium">
+                                                                {tx.status}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
                             </div>
                         )}
 

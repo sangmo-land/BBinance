@@ -131,6 +131,19 @@ class AccountController extends Controller
         // Fetch Trading Fee
         $tradingFeePercent = (float)(\App\Models\SystemSetting::where('key', 'trading_fee_percent')->value('value') ?? 0.1);
 
+        // Fetch recent transactions for this currency
+        $transactions = \App\Models\Transaction::where(function($q) use ($account) {
+                $q->where('from_account_id', $account->id)
+                  ->orWhere('to_account_id', $account->id);
+            })
+            ->where(function($q) use ($currency) {
+                $q->where('from_currency', $currency)
+                  ->orWhere('to_currency', $currency);
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get();
+
         return \Inertia\Inertia::render('CryptoDetail', [
             'account' => $account,
             'currency' => $currency,
@@ -140,6 +153,7 @@ class AccountController extends Controller
             'walletType' => $walletType,
             'tradingPairs' => $tradingPairs,
             'tradingFeePercent' => $tradingFeePercent,
+            'transactions' => $transactions,
         ]);
     }
 
