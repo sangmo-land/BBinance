@@ -371,7 +371,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                         )}
 
                         {/* Recent Transactions Section */}
-                        {(transactions.length > 0) && (
+                        {transactions && transactions.data && transactions.data.length > 0 && (
                             <div className="mb-0">
                                 <h3 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
                                     <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,7 +381,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                 </h3>
                                 <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                                     <ul className="divide-y divide-gray-50">
-                                        {transactions.map((tx) => {
+                                        {transactions.data.map((tx) => {
                                             const isInflow = tx.to_currency === currency;
                                             const isTrade = ['Spot Trade', 'Buy Crypto', 'Sell Crypto'].includes(tx.type);
                                             
@@ -452,6 +452,60 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             );
                                         })}
                                     </ul>
+                                    
+                                    {/* Pagination */}
+                                    {transactions.links && transactions.links.length > 3 && (
+                                        <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 sm:px-6">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1 flex justify-between sm:hidden">
+                                                    {transactions.prev_page_url && (
+                                                        <Link href={transactions.prev_page_url} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                                            Previous
+                                                        </Link>
+                                                    )}
+                                                    {transactions.next_page_url && (
+                                                        <Link href={transactions.next_page_url} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                                            Next
+                                                        </Link>
+                                                    )}
+                                                </div>
+                                                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                                    <div>
+                                                        <p className="text-sm text-gray-700">
+                                                            Showing <span className="font-medium">{transactions.from}</span> to <span className="font-medium">{transactions.to}</span> of <span className="font-medium">{transactions.total}</span> results
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                                            {transactions.links.map((link, k) => {
+                                                                // Use a span for links without URLs (ellipsis, current page, disabled)
+                                                                // Use Link only when a URL exists
+                                                                const Component = link.url ? Link : 'span';
+                                                                
+                                                                return (
+                                                                    <Component
+                                                                        key={k}
+                                                                        href={link.url || undefined}
+                                                                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                                                                            link.active
+                                                                                ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                                                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                                                                        } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''} ${
+                                                                            k === 0 ? 'rounded-l-md' : ''
+                                                                        } ${
+                                                                            k === transactions.links.length - 1 ? 'rounded-r-md' : ''
+                                                                        }`}
+                                                                    >
+                                                                        <span dangerouslySetInnerHTML={{ __html: link.label }}></span>
+                                                                    </Component>
+                                                                );
+                                                            })}
+                                                        </nav>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
