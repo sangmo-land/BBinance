@@ -9,13 +9,15 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions;
+use Filament\Actions\EditAction;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
 
 class SystemSettingResource extends Resource
 {
     protected static ?string $model = SystemSetting::class;
 
-    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-cog';
+    protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-cog-6-tooth';
     
     protected static string | \UnitEnum | null $navigationGroup = 'Settings';
 
@@ -58,11 +60,11 @@ class SystemSettingResource extends Resource
                 //
             ])
             ->actions([
-                Actions\EditAction::make(),
+                EditAction::make(),
             ])
             ->bulkActions([
-                Actions\BulkActionGroup::make([
-                    Actions\DeleteBulkAction::make(),
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
                 ]),
             ]);
     }

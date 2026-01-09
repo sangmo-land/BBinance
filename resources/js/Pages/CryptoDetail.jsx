@@ -1,5 +1,6 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
+import { useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import { Head, Link } from '@inertiajs/react';
@@ -13,7 +14,18 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
-export default function CryptoDetail({ account, currency, balances, spotBalances = [], rateToUsd, walletType, tradingPairs = [] }) {
+export default function CryptoDetail({ account, currency, balances, spotBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1 }) {
+    const { flash } = usePage().props;
+    const [showNotification, setShowNotification] = useState(false);
+
+    useEffect(() => {
+        if (flash.success) {
+            setShowNotification(true);
+            const timer = setTimeout(() => setShowNotification(false), 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash.success]);
+
     // Calculate total balance across all types (available, locked, etc) for this currency
     const totalBalance = balances.reduce((sum, b) => sum + Number(b.balance), 0);
     const usdEquivalent = totalBalance * (rateToUsd || 0);
@@ -27,13 +39,49 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     const topPairs = sortedPairs.slice(0, 6);
     const otherPairs = sortedPairs.slice(6);
 
+    // Form handling
+    const { data, setData, post, processing, errors, reset } = useForm({
+        pair_id: '',
+        amount: '',
+        spending_currency: '',
+        receiving_currency: ''
+    });
+
     // Buy Modal State
     let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     let [buyPairId, setBuyPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
     let [buyAmount, setBuyAmount] = useState('');
 
     const selectedBuyPair = tradingPairs.find(p => p.id == buyPairId) || tradingPairs[0] || null;
-    const estimatedReceive = (selectedBuyPair && buyAmount) ? (parseFloat(buyAmount) / selectedBuyPair.rate) : 0;
+    
+    // Sync form data
+    React.useEffect(() => {
+        if (selectedBuyPair) {
+            setData(prev => ({
+                ...prev,
+                pair_id: selectedBuyPair.id,
+                amount: buyAmount,
+                spending_currency: selectedBuyPair.to,
+                receiving_currency: selectedBuyPair.from
+            }));
+        }
+    }, [buyAmount, buyPairId, selectedBuyPair]);
+
+    const handleBuySubmit = () => {
+        post(route('accounts.buy-crypto', account.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsBuyModalOpen(false);
+                setBuyAmount('');
+                setBuyPairId(tradingPairs.length > 0 ? tradingPairs[0].id : null);
+            }
+        });
+    };
+
+    // Fee Calculation using local state for immediate feedback
+    const rawReceive = (selectedBuyPair && buyAmount) ? (parseFloat(buyAmount) / selectedBuyPair.rate) : 0;
+    const feeAmount = rawReceive * (tradingFeePercent / 100);
+    const estimatedReceive = rawReceive - feeAmount;
 
     // Calculate Available Balance for Spending
     // We spend the 'to' currency (Second in pair) to buy the 'from' currency (First in pair)
@@ -54,6 +102,38 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                 title={`${currency} Details - ${account.account_number}`}
                 description={`View detailed ${currency} balance information.`}
             />
+            
+            {/* Notification */}
+            <Transition
+                show={showNotification}
+                enter="transition ease-out duration-300 transform"
+                enterFrom="-translate-y-2 opacity-0"
+                enterTo="translate-y-0 opacity-100"
+                leave="transition ease-in duration-200 transform"
+                leaveFrom="translate-y-0 opacity-100"
+                leaveTo="-translate-y-2 opacity-0"
+                className="fixed top-4 right-4 z-50 w-full max-w-sm"
+            >
+                <div className="bg-white rounded-lg shadow-lg border border-green-100 p-4 flex items-center gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-500">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-900">Success</h4>
+                        <p className="text-xs text-gray-600 font-medium">{flash.success}</p>
+                    </div>
+                    <button 
+                        onClick={() => setShowNotification(false)}
+                        className="ml-auto text-gray-400 hover:text-gray-500"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </Transition>
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -303,7 +383,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     </div>
 
                                                     <div>
-                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I will receive (approx)</label>
+                                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">I will receive (Net)</label>
                                                         <div className="relative rounded-md shadow-sm">
                                                             <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
                                                                 {formatNumber(estimatedReceive, 8)}
@@ -312,6 +392,9 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                 <span className="text-gray-500 sm:text-sm font-bold">{selectedBuyPair.from}</span>
                                                             </div>
                                                         </div>
+                                                        <p className="mt-1 text-xs text-gray-400 flex justify-end">
+                                                            Fee ({tradingFeePercent}%): {formatNumber(feeAmount, 8)} {selectedBuyPair.from}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -321,21 +404,29 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     <div className="mt-6 flex gap-3">
                                         <button
                                             type="button"
-                                            disabled={isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0}
-                                            className={`flex-1 justify-center rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
-                                                (isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0)
+                                            disabled={isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0 || processing}
+                                            className={`flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
+                                                (isInsufficientBalance || !buyAmount || parseFloat(buyAmount) <= 0 || processing)
                                                 ? 'bg-gray-300 cursor-not-allowed'
                                                 : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                             }`}
-                                            onClick={() => {
-                                                alert(`Buy logic not implemented yet.\nSpend: ${buyAmount} ${selectedBuyPair?.to}\nReceive: ${formatNumber(estimatedReceive, 8)} ${selectedBuyPair?.from}`);
-                                                setIsBuyModalOpen(false);
-                                            }}
+                                            onClick={handleBuySubmit}
                                         >
-                                            Buy {selectedBuyPair ? selectedBuyPair.from : currency}
+                                            {processing ? (
+                                                <>
+                                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Processing...
+                                                </>
+                                            ) : (
+                                                `Buy ${selectedBuyPair ? selectedBuyPair.from : currency}`
+                                            )}
                                         </button>
                                         <button
                                             type="button"
+                                            disabled={processing}
                                             className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
                                             onClick={() => setIsBuyModalOpen(false)}
                                         >
