@@ -48,6 +48,11 @@ class Account extends Model
         return $this->hasMany(Transaction::class, 'to_account_id');
     }
 
+    public function balances(): HasMany
+    {
+        return $this->hasMany(AccountBalance::class);
+    }
+
     public function transactions()
     {
         return Transaction::where('from_account_id', $this->id)

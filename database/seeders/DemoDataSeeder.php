@@ -48,7 +48,17 @@ class DemoDataSeeder extends Seeder
         if($johnFiat) $johnFiat->update(['balance' => 5000.00]);
         
         $johnCrypto = $john->cryptoAccount;
-        if($johnCrypto) $johnCrypto->update(['currency' => 'BTC', 'balance' => 0.5]);
+        if($johnCrypto) {
+            // Update main currency to USDT as per new spec OR leave as is
+            // But we need to seed the balances for the 10 currenices
+            $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
+            foreach ($cryptos as $crypto) {
+                $johnCrypto->balances()->create([
+                    'currency' => $crypto,
+                    'balance' => ($crypto === 'BTC') ? 0.5 : (($crypto === 'USDT') ? 1000 : 0),
+                ]);
+            }
+        }
 
 
         $jane = User::create([
@@ -62,7 +72,15 @@ class DemoDataSeeder extends Seeder
         if($janeFiat) $janeFiat->update(['balance' => 10000.00]);
         
         $janeCrypto = $jane->cryptoAccount;
-        if($janeCrypto) $janeCrypto->update(['currency' => 'ETH', 'balance' => 5.0]);
+        if($janeCrypto) {
+             $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
+            foreach ($cryptos as $crypto) {
+                $janeCrypto->balances()->create([
+                    'currency' => $crypto,
+                    'balance' => ($crypto === 'ETH') ? 5.0 : (($crypto === 'SOL') ? 50 : 0),
+                ]);
+            }
+        }
 
 
         $alice = User::create([
@@ -75,6 +93,16 @@ class DemoDataSeeder extends Seeder
         $aliceFiat = $alice->fiatAccount;
         if($aliceFiat) $aliceFiat->update(['balance' => 2500.00]);
         // Alice keeps USDT default
+        $aliceCrypto = $alice->cryptoAccount;
+        if($aliceCrypto) {
+             $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
+             foreach ($cryptos as $crypto) {
+                 $aliceCrypto->balances()->create([
+                     'currency' => $crypto,
+                     'balance' => 0,
+                 ]);
+             }
+        }
 
         // Create some transactions
         if ($johnFiat) {

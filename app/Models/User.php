@@ -82,11 +82,20 @@ public function canAccessPanel(Panel $panel): bool
                 'balance' => 0,
             ]);
 
-            $user->accounts()->create([
+            $cryptoAccount = $user->accounts()->create([
                 'account_type' => 'crypto',
-                'currency' => 'USDT',
+                'currency' => 'USDT', // Default Main Currency
                 'balance' => 0,
             ]);
+
+            // Initialize default crypto balances
+            $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
+            foreach ($cryptos as $crypto) {
+                $cryptoAccount->balances()->create([
+                    'currency' => $crypto,
+                    'balance' => 0,
+                ]);
+            }
         });
     }
 
