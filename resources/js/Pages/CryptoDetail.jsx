@@ -55,13 +55,27 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         receiving_currency: ''
     });
 
+    // Normalize wallet type from URL to match Title Case DB values (Spot, Funding, Earn)
+    const normalizedWalletType = React.useMemo(() => {
+        if (!walletType) return 'Spot';
+        const w = walletType.toLowerCase();
+        if (w === 'earning' || w === 'earn') return 'Earn';
+        return w.charAt(0).toUpperCase() + w.slice(1);
+    }, [walletType]);
+
     // Form handling for Transfer
     const { data: transferData, setData: setTransferData, post: postTransfer, processing: processingTransfer, errors: errorsTransfer, reset: resetTransfer } = useForm({
         amount: '',
-        from_wallet: 'Spot',
-        to_wallet: 'Funding',
+        from_wallet: normalizedWalletType,
+        to_wallet: normalizedWalletType === 'Spot' ? 'Funding' : 'Spot',
         currency: currency
     });
+
+    // Update form default if URL changes while component is mounted
+    useEffect(() => {
+        setTransferData('from_wallet', normalizedWalletType);
+        setTransferData('to_wallet', normalizedWalletType === 'Spot' ? 'Funding' : 'Spot');
+    }, [normalizedWalletType]);
 
     // Modal States
     let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
@@ -951,7 +965,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             <div className="flex justify-between items-center mb-1">
                                                 <label className="text-xs font-bold text-gray-500 uppercase">Amount</label>
                                                 <span className="text-xs font-bold text-gray-500">
-                                                    Available ({transferData.from_wallet}): {formatNumber(allCurrencyBalances.find(b => b.wallet_type === transferData.from_wallet)?.balance || 0, 8)} {currency}
+                                                    Available ({transferData.from_wallet}): {formatNumber(allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === transferData.from_wallet.toLowerCase())?.balance || 0, 8)} {currency}
                                                 </span>
                                             </div>
                                             <div className="relative rounded-md shadow-sm">
