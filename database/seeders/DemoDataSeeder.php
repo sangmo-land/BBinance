@@ -45,7 +45,12 @@ class DemoDataSeeder extends Seeder
         // We refresh relations to ensure we have the created accounts
         $john->refresh();
         $johnFiat = $john->fiatAccount;
-        if($johnFiat) $johnFiat->update(['balance' => 5000.00]);
+        if($johnFiat) {
+            $johnFiat->update(['balance' => 5000.00]);
+            // Update sub-balances for Fiat
+            $johnFiat->balances()->where('currency', 'USD')->update(['balance' => 4500.00]);
+            $johnFiat->balances()->where('currency', 'EUR')->update(['balance' => 450.00]); 
+        }
         
         $johnCrypto = $john->cryptoAccount;
         if($johnCrypto) {
@@ -71,7 +76,12 @@ class DemoDataSeeder extends Seeder
         
         $jane->refresh();
         $janeFiat = $jane->fiatAccount;
-        if($janeFiat) $janeFiat->update(['balance' => 10000.00]);
+        if($janeFiat) {
+            $janeFiat->update(['balance' => 10000.00]);
+            // Update sub-balances for Fiat
+            $janeFiat->balances()->where('currency', 'USD')->update(['balance' => 6000.00]);
+            $janeFiat->balances()->where('currency', 'EUR')->update(['balance' => 3800.00]);
+        }
         
         $janeCrypto = $jane->cryptoAccount;
         if($janeCrypto) {

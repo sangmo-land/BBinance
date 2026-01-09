@@ -76,11 +76,21 @@ public function canAccessPanel(Panel $panel): bool
         parent::boot();
 
         static::created(function ($user) {
-            $user->accounts()->create([
+            $fiatAccount = $user->accounts()->create([
                 'account_type' => 'fiat',
                 'currency' => 'USD',
                 'balance' => 0,
             ]);
+            
+            // Initialize default fiat balances
+            $fiatCurrencies = ['USD', 'EUR'];
+            foreach ($fiatCurrencies as $currency) {
+                $fiatAccount->balances()->create([
+                    'wallet_type' => 'fiat', // Consistent wallet type for fiat balances
+                    'currency' => $currency,
+                    'balance' => 0,
+                ]);
+            }
 
             $cryptoAccount = $user->accounts()->create([
                 'account_type' => 'crypto',

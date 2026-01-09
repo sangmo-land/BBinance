@@ -172,11 +172,9 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {accountsList.map((account) => (
                 <div key={account.id} 
-                  className={`group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-2xl hover:border-blue-200 transition-all transform hover:-translate-y-1 ${account.account_type === 'crypto' ? 'cursor-pointer' : ''}`}
+                  className="group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-2xl hover:border-blue-200 transition-all transform hover:-translate-y-1 cursor-pointer"
                   onClick={() => {
-                    if (account.account_type === 'crypto') {
                       window.open(`/accounts/${account.id}`, '_blank');
-                    }
                   }}
                 >
                   <div className="flex items-start justify-between mb-4">

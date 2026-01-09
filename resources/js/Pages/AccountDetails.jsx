@@ -29,10 +29,12 @@ const currencyNames = {
 };
 
 export default function AccountDetails({ account, rates }) {
-    const [activeTab, setActiveTab] = useState('spot');
-    const [displayCurrency, setDisplayCurrency] = useState('BTC');
+    const isFiat = account.account_type === 'fiat';
+    const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
+    const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
 
     const getUsdEquivalent = (currency, balance) => {
+        if (currency === 'USD') return balance;
         if (!rates || !rates[currency]) return 0;
         return balance * rates[currency];
     };
@@ -43,9 +45,11 @@ export default function AccountDetails({ account, rates }) {
         .reduce((sum, b) => sum + getUsdEquivalent(b.currency, b.balance), 0);
     
     // Convert total USD to selected display currency
-    const totalDisplayBalance = totalUsdBalance / (rates[displayCurrency] || 1);
+    const totalDisplayBalance = displayCurrency === 'USD' 
+        ? totalUsdBalance 
+        : totalUsdBalance / (rates[displayCurrency] || 1);
 
-    const availableCurrencies = Object.keys(currencyNames).filter(c => ['USD', 'EUR', 'GBP'].indexOf(c) === -1); // Filter purely for crypto view preference if desired, or keep all.
+    const availableCurrencies = Object.keys(currencyNames).filter(c => ['USD', 'EUR', 'GBP'].indexOf(c) === -1); 
 
     return (
         <AppLayout>
@@ -60,7 +64,7 @@ export default function AccountDetails({ account, rates }) {
                          <div className="flex justify-between items-center mb-6">
                             <div>
                                 <h1 className="text-3xl font-black text-gray-900">
-                                    Crypto Wallets
+                                    {isFiat ? 'Fiat Account' : 'Crypto Wallets'}
                                 </h1>
                                 <p className="text-lg text-gray-500 mt-1">{account.account_number} • {account.currency}</p>
                             </div>
@@ -73,46 +77,61 @@ export default function AccountDetails({ account, rates }) {
                              <div className="flex justify-between items-start">
                                 <div>
                                      <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">
-                                        Total Estimated Balance ({activeTab} Wallet)
+                                        Total Estimated Balance {isFiat ? '' : `(${activeTab} Wallet)`}
                                      </h2>
                                      <div className="flex items-baseline gap-2">
                                          <p className="text-4xl font-black text-gray-900">
-                                            {formatNumber(totalDisplayBalance, 8)}
+                                            {isFiat ? '$' : ''}{formatNumber(totalDisplayBalance, isFiat ? 2 : 8)}
                                          </p>
-                                         <select 
-                                            value={displayCurrency}
-                                            onChange={(e) => setDisplayCurrency(e.target.value)}
-                                            className="ml-2 text-lg font-bold text-gray-600 bg-transparent border-0 border-b-2 border-gray-300 focus:border-blue-500 focus:ring-0 py-0 pl-0 pr-8 cursor-pointer hover:text-blue-600 transition-colors"
-                                         >
-                                            {Object.keys(currencyNames).map(c => (
-                                                <option key={c} value={c}>{c}</option>
-                                            ))}
-                                         </select>
+                                         {!isFiat && (
+                                             <select 
+                                                value={displayCurrency}
+                                                onChange={(e) => setDisplayCurrency(e.target.value)}
+                                                className="ml-2 text-lg font-bold text-gray-600 bg-transparent border-0 border-b-2 border-gray-300 focus:border-blue-500 focus:ring-0 py-0 pl-0 pr-8 cursor-pointer hover:text-blue-600 transition-colors"
+                                             >
+                                                {Object.keys(currencyNames).map(c => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                             </select>
+                                         )}
+                                          {isFiat && (
+                                              <span className="text-xl text-gray-500 font-bold ml-1">USD</span>
+                                          )}
                                      </div>
                                      <p className="text-sm text-gray-500 font-medium mt-1">
-                                        ≈ ${formatNumber(totalUsdBalance, 2)} USD
+                                        {isFiat ? (
+                                            <>
+                                                ≈ €{formatNumber(totalUsdBalance / (rates?.EUR || 1), 2)} EUR
+                                            </>
+                                        ) : (
+                                            <>
+                                                ≈ ${formatNumber(totalUsdBalance, 2)} USD
+                                            </>
+                                        )}
                                      </p>
                                 </div>
                              </div>
                         </div>
 
-                        <div className="border-b border-gray-200 mb-6">
-                            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                                {['spot', 'funding', 'earning'].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        className={`${
-                                            activeTab === tab
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg capitalize transition-colors duration-200`}
-                                    >
-                                        {tab} Wallet
-                                    </button>
-                                ))}
-                            </nav>
-                        </div>
+                        {!isFiat && (
+                            <div className="border-b border-gray-200 mb-6">
+                                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                                    {['spot', 'funding', 'earning'].map((tab) => (
+                                        <button
+                                            key={tab}
+                                            onClick={() => setActiveTab(tab)}
+                                            className={`${
+                                                activeTab === tab
+                                                    ? 'border-blue-500 text-blue-600'
+                                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg capitalize transition-colors duration-200`}
+                                        >
+                                            {tab} Wallet
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+                        )}
 
                         <div className="overflow-hidden bg-white rounded-xl border border-gray-200 shadow-sm">
                             <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between font-bold text-gray-500 text-xs uppercase tracking-wider">
