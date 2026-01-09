@@ -91,6 +91,8 @@ class AccountController extends Controller
 
         // Fetch Trading Pairs (Rates involving this currency)
         // Exclude Fiat pairs (USD, EUR) as trading happens in Spot wallet with Stablecoins/Crypto
+        // Requirement: Pair formatted as TARGET/CURRENT. 
+        // We are Buying the TARGET (from), Paying with CURRENT (to).
         $tradingPairs = \App\Models\ExchangeRate::where(function ($q) use ($currency) {
                 $q->where('from_currency', $currency)
                   ->orWhere('to_currency', $currency);
@@ -98,14 +100,29 @@ class AccountController extends Controller
             ->whereNotIn('from_currency', ['USD', 'EUR'])
             ->whereNotIn('to_currency', ['USD', 'EUR'])
             ->get()
-            ->map(function ($rateModel) {
+            ->map(function ($rateModel) use ($currency) {
+                // If Current is already Quote (to), keep as is.
+                // e.g. BTC/USDT. Page=USDT. Result: BTC/USDT. Buy BTC with USDT.
+                if ($rateModel->to_currency === $currency) {
+                     return [
+                        'id' => $rateModel->id,
+                        'from' => $rateModel->from_currency,
+                        'to' => $rateModel->to_currency,
+                        'rate' => (float)$rateModel->rate,
+                    ];
+                }
+
+                // If Current is Base (from), Invert.
+                // e.g. BTC/USDT. Page=BTC. Result: USDT/BTC. Buy USDT with BTC.
+                $val = (float)$rateModel->rate;
                 return [
                     'id' => $rateModel->id,
-                    'from' => $rateModel->from_currency,
-                    'to' => $rateModel->to_currency,
-                    'rate' => (float)$rateModel->rate,
+                    'from' => $rateModel->to_currency,
+                    'to' => $rateModel->from_currency, // = $currency
+                    'rate' => $val > 0 ? 1 / $val : 0,
                 ];
             })
+            ->filter(fn($p) => $p['rate'] > 0)
             ->values();
 
         // Fetch all spot balances for trading validations
