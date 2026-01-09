@@ -277,4 +277,67 @@ class AccountController extends Controller
 
         return back()->with('success', 'Conversion to crypto successful.');
     }
+
+    /**
+     * Internal Transfer between Balance Types (e.g. Available <-> Withdrawable)
+     */
+    public function transferInternal(Request $request, \App\Models\Account $account)
+    {
+        $request->validate([
+            'currency' => 'required|in:USD,EUR',
+            'amount' => 'required|numeric|min:0.01',
+            'direction' => 'required|in:available_to_withdrawable,withdrawable_to_available',
+        ]);
+
+        if ($account->user_id !== $request->user()->id) abort(403);
+        if ($account->account_type !== 'fiat') return back()->withErrors(['error' => 'Only for fiat accounts.']);
+
+        $currency = $request->currency;
+        $amount = (float) $request->amount;
+        $direction = $request->direction;
+
+        $fromType = $direction === 'available_to_withdrawable' ? 'available' : 'withdrawable';
+        $toType   = $direction === 'available_to_withdrawable' ? 'withdrawable' : 'available';
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($account, $currency, $amount, $fromType, $toType) {
+            
+            // Get Source Balance
+            $sourceBalance = $account->balances()->firstOrCreate(
+                ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => $fromType],
+                ['balance' => 0]
+            );
+
+            if ($sourceBalance->balance < $amount) {
+                // Throw validation error to be caught by Laravel
+                throw \Illuminate\Validation\ValidationException::withMessages(['amount' => "Insufficient {$fromType} balance."]);
+            }
+
+            // Get Destination Balance
+            $destBalance = $account->balances()->firstOrCreate(
+                ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => $toType],
+                ['balance' => 0]
+            );
+
+            $sourceBalance->decrement('balance', $amount);
+            $destBalance->increment('balance', $amount);
+
+            // Record Internal Transaction
+            \App\Models\Transaction::create([
+                'from_account_id' => $account->id,
+                'to_account_id'   => $account->id,
+                'type' => 'transfer', 
+                'from_currency' => $currency,
+                'to_currency'   => $currency,
+                'amount' => $amount,
+                'converted_amount' => $amount,
+                'exchange_rate' => 1.0,
+                'status' => 'completed',
+                'description' => "Internal Transfer: {$amount} {$currency} from " . ucfirst($fromType) . " to " . ucfirst($toType),
+                'reference_number' => \Illuminate\Support\Str::uuid(),
+                'created_by' => auth()->id(),
+            ]);
+        });
+
+        return back()->with('success', 'Transfer successful.');
+    }
 }
