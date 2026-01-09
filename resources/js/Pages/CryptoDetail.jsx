@@ -962,42 +962,70 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         </div>
 
                                         <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                            <div className="flex justify-between items-center mb-1">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Amount</label>
-                                                <span className="text-xs font-bold text-gray-500">
-                                                    Available ({transferData.from_wallet}): {formatNumber(allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === transferData.from_wallet.toLowerCase())?.balance || 0, 8)} {currency}
-                                                </span>
-                                            </div>
-                                            <div className="relative rounded-md shadow-sm">
-                                                <input
-                                                    type="number"
-                                                    value={transferData.amount}
-                                                    onChange={(e) => setTransferData('amount', e.target.value)}
-                                                    className="block w-full rounded-xl pl-4 pr-16 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold"
-                                                    placeholder="0.00"
-                                                    step="any"
-                                                />
-                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                                                    <span className="text-gray-500 sm:text-sm font-bold">{currency}</span>
-                                                </div>
-                                            </div>
-                                            {errorsTransfer.amount && (
-                                                <p className="mt-1 text-xs text-red-600 font-bold">{errorsTransfer.amount}</p>
-                                            )}
+                                            {(() => {
+                                                const sourceWallet = allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === transferData.from_wallet.toLowerCase());
+                                                const maxTransfer = sourceWallet ? parseFloat(sourceWallet.balance) : 0;
+                                                const currentAmount = parseFloat(transferData.amount || 0);
+                                                const isExceeding = currentAmount > maxTransfer;
+
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase">Amount</label>
+                                                            <span className={`text-xs font-bold ${isExceeding ? 'text-red-500' : 'text-gray-500'}`}>
+                                                                Available ({transferData.from_wallet}): {formatNumber(maxTransfer, 8)} {currency}
+                                                            </span>
+                                                        </div>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={transferData.amount}
+                                                                onChange={(e) => setTransferData('amount', e.target.value)}
+                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
+                                                                    isExceeding ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500' : ''
+                                                                }`}
+                                                                placeholder="0.00"
+                                                                step="any"
+                                                            />
+                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className={`${isExceeding ? 'text-red-500' : 'text-gray-500'} sm:text-sm font-bold`}>{currency}</span>
+                                                            </div>
+                                                        </div>
+                                                        {isExceeding && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">Amount exceeds available balance.</p>
+                                                        )}
+                                                        {errorsTransfer.amount && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">{errorsTransfer.amount}</p>
+                                                        )}
+                                                        
+                                                        {/* Hidden input to pass validation state to parent form if needed, but here we control button directly */}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
 
                                         <div className="mt-6 flex gap-3">
-                                            <button
-                                                type="submit"
-                                                disabled={processingTransfer || !transferData.amount || parseFloat(transferData.amount) <= 0}
-                                                className={`flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
-                                                    (processingTransfer || !transferData.amount || parseFloat(transferData.amount) <= 0)
-                                                    ? 'bg-gray-300 cursor-not-allowed'
-                                                    : 'bg-blue-600 hover:bg-blue-700'
-                                                }`}
-                                            >
-                                                {processingTransfer ? 'Processing...' : 'Confirm Transfer'}
-                                            </button>
+                                            {(() => {
+                                                const sourceWallet = allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === transferData.from_wallet.toLowerCase());
+                                                const maxTransfer = sourceWallet ? parseFloat(sourceWallet.balance) : 0;
+                                                const currentAmount = parseFloat(transferData.amount || 0);
+                                                const isValid = !processingTransfer && transferData.amount && currentAmount > 0 && currentAmount <= maxTransfer;
+
+                                                return (
+                                                    <button
+                                                        type="submit"
+                                                        disabled={!isValid}
+                                                        className={`flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
+                                                            !isValid
+                                                            ? 'bg-gray-300 cursor-not-allowed'
+                                                            : 'bg-blue-600 hover:bg-blue-700'
+                                                        }`}
+                                                    >
+                                                        {processingTransfer ? 'Processing...' : 'Confirm Transfer'}
+                                                    </button>
+                                                );
+                                            })()}
+
                                             <button
                                                 type="button"
                                                 disabled={processingTransfer}
