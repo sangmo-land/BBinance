@@ -31,6 +31,10 @@ export default function Register() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    // Calculate max date for 18+ age restriction
+    const today = new Date();
+    const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+
     // Refs for file inputs
     const idFrontInput = useRef(null);
     const idBackInput = useRef(null);
@@ -46,6 +50,7 @@ export default function Register() {
             data.email !== "" &&
             data.country_of_residence !== "" &&
             data.date_of_birth !== "" &&
+            data.date_of_birth <= maxDate &&
             data.nationality !== "" &&
             data.password !== "" &&
             data.password_confirmation !== "" &&
@@ -717,17 +722,22 @@ export default function Register() {
 
                                 {/* Date of Birth */}
                                 <div className="col-span-12">
-                                    <InputLabel
-                                        htmlFor="date_of_birth"
-                                        value="Date of Birth"
-                                        className="mb-1.5"
-                                    />
+                                    <div className="flex justify-between items-center mb-1.5">
+                                        <InputLabel
+                                            htmlFor="date_of_birth"
+                                            value="Date of Birth"
+                                        />
+                                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                            Must be at least 18 years old
+                                        </span>
+                                    </div>
                                     <div className="relative">
                                         <input
                                             id="date_of_birth"
                                             type="date"
                                             name="date_of_birth"
                                             value={data.date_of_birth}
+                                            max={maxDate}
                                             className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
                                             onChange={(e) =>
                                                 setData(
