@@ -691,8 +691,28 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                                         <ul className="divide-y divide-gray-50">
                                             {transactions.data.map((tx) => {
-                                                const isInflow =
-                                                    tx.to_currency === currency;
+                                                let isInflow = tx.to_currency === currency;
+
+                                                // Handle Internal Transfers (Same Account, Different Wallet)
+                                                // We need to check description to determine direction relative to current wallet
+                                                if (tx.from_account_id === tx.to_account_id) {
+                                                     // Try to parse "from X to Y"
+                                                     const match = tx.description?.match(/from (\w+) to (\w+)/i);
+                                                     if (match) {
+                                                         const fromWallet = match[1]; // e.g. Spot
+                                                         const toWallet = match[2];   // e.g. Funding
+                                                         
+                                                         // Normalize current wallet type for comparison
+                                                         // normalizedWalletType is already Title Case (Spot, Funding, Earn) due to useMemo
+                                                         
+                                                         if (normalizedWalletType.toLowerCase() === fromWallet.toLowerCase()) {
+                                                             isInflow = false; // Sent from current wallet
+                                                         } else if (normalizedWalletType.toLowerCase() === toWallet.toLowerCase()) {
+                                                             isInflow = true; // Received in current wallet
+                                                         }
+                                                     }
+                                                }
+
                                                 const isTrade = [
                                                     "Spot Trade",
                                                     "Buy Crypto",
