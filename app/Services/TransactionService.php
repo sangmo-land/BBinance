@@ -55,18 +55,19 @@ class TransactionService
     /**
      * Add funds to an account (Admin operation)
      */
-    public function addFunds(Account $account, float $amount, string $description = 'Admin credit', ?int $userId = null, ?string $currency = null): Transaction
+    public function addFunds(Account $account, float $amount, string $description = 'Admin credit', ?int $userId = null, ?string $currency = null, ?string $targetWalletType = null): Transaction
     {
         $currency = $currency ?? $account->currency;
 
-        return DB::transaction(function () use ($account, $amount, $description, $userId, $currency) {
-            // Add to account balance (legacy/primary) only if currency matches
+        return DB::transaction(function () use ($account, $amount, $description, $userId, $currency, $targetWalletType) {
+            // Add to account balance (legacy/primary) only if currency matches AND we are not forcing a specific wallet that isn't the main one
+            // Ideally, only increment main account balance if it matches account currency. 
             if ($currency === $account->currency) {
                 $account->increment('balance', $amount);
             }
 
             // Update detailed AccountBalance
-            $walletType = match ($account->account_type) {
+            $walletType = $targetWalletType ?? match ($account->account_type) {
                 'fiat' => 'fiat',
                 'crypto' => 'spot',
                 default => null,

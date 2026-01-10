@@ -70,14 +70,29 @@ class AccountsTable
                     ->form([
                         Select::make('currency')
                             ->label('Currency')
-                            ->options([
-                                'USD' => 'USD',
-                                'EUR' => 'EUR',
-                            ])
-                            ->default(fn ($record) => $record->currency)
-                            ->visible(fn ($record) => $record->account_type === 'fiat')
-                            ->required(fn ($record) => $record->account_type === 'fiat')
-                            ->helperText('Funds will be added to the available balance of the chosen currency.'),
+                            ->options(fn ($record) => match ($record->account_type) {
+                                'fiat' => [
+                                    'USD' => 'USD',
+                                    'EUR' => 'EUR',
+                                ],
+                                'crypto' => [
+                                    'EUR' => 'EUR',
+                                    'USD' => 'USD',
+                                    'BTC' => 'BTC',
+                                    'ETH' => 'ETH',
+                                    'USDT' => 'USDT',
+                                    'BNB' => 'BNB',
+                                    'USDC' => 'USDC',
+                                ],
+                                default => [],
+                            })
+                            ->default(fn ($record) => $record->account_type === 'fiat' ? $record->currency : 'USDT')
+                            ->visible(fn ($record) => in_array($record->account_type, ['fiat', 'crypto']))
+                            ->required(fn ($record) => in_array($record->account_type, ['fiat', 'crypto']))
+                            ->helperText(fn ($record) => match ($record->account_type) {
+                                'crypto' => 'Funds will be added to the funding wallet available balance.',
+                                default => 'Funds will be added to the available balance of the chosen currency.',
+                            }),
                         TextInput::make('amount')
                             ->required()
                             ->numeric()
@@ -85,7 +100,12 @@ class AccountsTable
                             ->label('Amount to Add')
                             ->prefix(fn ($get) => match ($get('currency')) {
                                 'EUR' => '€',
-                                default => '$',
+                                'GBP' => '£',
+                                'BTC' => '₿',
+                                'ETH' => 'Ξ',
+                                'USDT' => '₮',
+                                'USD' => '$',
+                                default => '',
                             }),
                         Textarea::make('description')
                             ->label('Description')
@@ -95,13 +115,20 @@ class AccountsTable
                     ->action(function ($record, array $data) {
                         $transactionService = app(TransactionService::class);
                         $currency = $data['currency'] ?? $record->currency;
+                        
+                        $walletType = match ($record->account_type) {
+                            'crypto' => 'funding',
+                            'fiat' => 'fiat',
+                            default => null,
+                        };
 
                         $transactionService->addFunds(
                             $record,
                             $data['amount'],
                             $data['description'] ?? 'Admin credit',
                             auth()->id(),
-                            $currency
+                            $currency,
+                            $walletType
                         );
                         
                         Notification::make()

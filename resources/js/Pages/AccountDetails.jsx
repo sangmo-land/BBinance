@@ -730,9 +730,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                                     tx.amount,
                                                                     2
                                                                 )}{" "}
-                                                                {
-                                                                    tx.from_currency
-                                                                }
+                                                                {tx.from_currency || tx.to_currency}
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                                 {tx.converted_amount

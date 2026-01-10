@@ -801,7 +801,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                         : "-"}
                                                                     {formatNumber(
                                                                         isInflow
-                                                                            ? tx.converted_amount
+                                                                            ? (Number(tx.converted_amount) > 0 ? tx.converted_amount : tx.amount)
                                                                             : tx.amount,
                                                                         8
                                                                     )}{" "}
