@@ -103,7 +103,13 @@ public function canAccessPanel(Panel $panel): bool
             $wallets = ['spot', 'funding', 'earning'];
             
             foreach ($wallets as $wallet) {
-                foreach ($cryptos as $crypto) {
+                $currenciesForWallet = $cryptos;
+                // Funding wallet can also hold USD and EUR
+                if ($wallet === 'funding') {
+                    $currenciesForWallet = array_merge($currenciesForWallet, ['USD', 'EUR']);
+                }
+
+                foreach ($currenciesForWallet as $crypto) {
                     $cryptoAccount->balances()->create([
                         'wallet_type' => $wallet,
                         'currency' => $crypto,
