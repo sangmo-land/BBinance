@@ -196,14 +196,11 @@ export default function Dashboard({ accounts, groupedUsers, transactions, isAdmi
                     <div className="flex flex-wrap justify-center gap-6">
                         {user.accounts.map((account) => (
                           <div key={account.id} 
-                            className={`group relative bg-white rounded-2xl p-6 shadow-sm border-2 transition-all duration-300 cursor-pointer overflow-hidden w-full md:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-1.5rem)] hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.02] ${
+                            className={`group relative bg-white rounded-2xl p-6 shadow-sm border-2 transition-all duration-300 cursor-default overflow-hidden w-full md:w-[calc(50%-1.5rem)] lg:w-[calc(33.333%-1.5rem)] hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.02] ${
                                 account.account_type === 'fiat' ? 'border-gray-200 hover:border-emerald-400' : 
                                 account.account_type === 'crypto' ? 'border-gray-200 hover:border-amber-400' : 
                                 'border-gray-200 hover:border-blue-400'
                             }`}
-                            onClick={() => {
-                                window.open(`/accounts/${account.id}`, '_blank');
-                            }}
                           >
                             <div className={`absolute top-0 left-0 w-full h-1 ${
                                 account.account_type === 'fiat' ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' : 
@@ -283,9 +280,6 @@ export default function Dashboard({ accounts, groupedUsers, transactions, isAdmi
                                   </div>
                               )}
                               
-                              <div className="pt-2 flex items-center justify-end text-blue-600 font-bold text-xs group-hover:translate-x-1 transition-transform">
-                                  View Details <span className="ml-1">&rarr;</span>
-                              </div>
                             </div>
                           </div>
                         ))}
