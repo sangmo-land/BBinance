@@ -309,8 +309,24 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                     (transactions ?? []).map((tx) => {
                       const fromAcc = tx.from_account || tx.fromAccount;
                       const toAcc = tx.to_account || tx.toAccount;
-                      const fromLabel = fromAcc?.account_number ?? (tx.from_account_id ? `#${tx.from_account_id}` : '—');
-                      const toLabel = toAcc?.account_number ?? (tx.to_account_id ? `#${tx.to_account_id}` : '—');
+                      
+                      // Calculate From Label
+                      let fromLabel = fromAcc?.account_number;
+                      if (!fromLabel) {
+                          if (tx.type === 'admin_credit') fromLabel = 'Admin'; // Admin Credit
+                          else if (tx.type === 'deposit') fromLabel = 'External Deposit';
+                          else if (tx.from_account_id) fromLabel = `#${tx.from_account_id}`;
+                          else fromLabel = '—';
+                      }
+
+                      // Calculate To Label
+                      let toLabel = toAcc?.account_number;
+                      if (!toLabel) {
+                           if (tx.type === 'withdrawal') toLabel = 'External Withdrawal';
+                           else if (tx.to_account_id) toLabel = `#${tx.to_account_id}`;
+                           else toLabel = '—';
+                      }
+
                       const amount = asNumber(tx.amount);
                       const currency = tx.from_currency || tx.to_currency || 'USD';
 
