@@ -21,6 +21,7 @@ export default function Register() {
         identity_card_back: null,
         password: "",
         password_confirmation: "",
+        terms: false,
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -29,6 +30,26 @@ export default function Register() {
     // Refs for file inputs
     const idFrontInput = useRef(null);
     const idBackInput = useRef(null);
+
+    const isFormValid = () => {
+        return (
+            data.civility &&
+            data.name !== "" &&
+            data.surname !== "" &&
+            data.spoken_language !== "" &&
+            data.profession !== "" &&
+            data.phone !== "" &&
+            data.email !== "" &&
+            data.country_of_residence !== "" &&
+            data.date_of_birth !== "" &&
+            data.nationality !== "" &&
+            data.password !== "" &&
+            data.password_confirmation !== "" &&
+            data.identity_card_front &&
+            data.identity_card_back &&
+            data.terms
+        );
+    };
 
     const submit = (e) => {
         e.preventDefault();
@@ -942,6 +963,8 @@ export default function Register() {
                                 <label className="flex items-start">
                                     <Checkbox
                                         name="terms"
+                                        checked={data.terms}
+                                        onChange={(e) => setData('terms', e.target.checked)}
                                         className="mt-1 text-[#FF2D20] focus:ring-[#FF2D20] border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                         required
                                     />
@@ -967,8 +990,8 @@ export default function Register() {
 
                             <div className="pt-2">
                                 <button
-                                    className="w-full bg-[#FF2D20] hover:bg-[#e0281b] text-white font-bold py-3 px-4 rounded-md shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF2D20] focus:ring-offset-2 disabled:opacity-50 dark:ring-offset-black flex items-center justify-center gap-2"
-                                    disabled={processing}
+                                    className="w-full bg-[#FF2D20] hover:bg-[#e0281b] text-white font-bold py-3 px-4 rounded-md shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#FF2D20] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:ring-offset-black flex items-center justify-center gap-2"
+                                    disabled={!isFormValid() || processing}
                                 >
                                     {processing && (
                                         <svg
@@ -992,7 +1015,7 @@ export default function Register() {
                                             ></path>
                                         </svg>
                                     )}
-                                    Register
+                                    {processing ? 'Registering...' : 'Register'}
                                 </button>
                             </div>
                         </form>
