@@ -696,20 +696,37 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 // Handle Internal Transfers (Same Account, Different Wallet)
                                                 // We need to check description to determine direction relative to current wallet
                                                 if (tx.from_account_id === tx.to_account_id) {
-                                                     // Try to parse "from X to Y"
-                                                     const match = tx.description?.match(/from (\w+) to (\w+)/i);
-                                                     if (match) {
-                                                         const fromWallet = match[1]; // e.g. Spot
-                                                         const toWallet = match[2];   // e.g. Funding
-                                                         
-                                                         // Normalize current wallet type for comparison
-                                                         // normalizedWalletType is already Title Case (Spot, Funding, Earn) due to useMemo
-                                                         
-                                                         if (normalizedWalletType.toLowerCase() === fromWallet.toLowerCase()) {
-                                                             isInflow = false; // Sent from current wallet
-                                                         } else if (normalizedWalletType.toLowerCase() === toWallet.toLowerCase()) {
-                                                             isInflow = true; // Received in current wallet
+                                                     if (tx.type === 'Transfer' || tx.type === 'transfer') {
+                                                         // Try to parse "from X to Y"
+                                                         const match = tx.description?.match(/from (\w+) to (\w+)/i);
+                                                         if (match) {
+                                                             const fromWallet = match[1]; // e.g. Spot
+                                                             const toWallet = match[2];   // e.g. Funding
+                                                             
+                                                             // Normalize current wallet type for comparison
+                                                             // normalizedWalletType is already Title Case (Spot, Funding, Earn) due to useMemo
+                                                             
+                                                             if (normalizedWalletType.toLowerCase() === fromWallet.toLowerCase()) {
+                                                                 isInflow = false; // Sent from current wallet
+                                                             } else if (normalizedWalletType.toLowerCase() === toWallet.toLowerCase()) {
+                                                                 isInflow = true; // Received in current wallet
+                                                             }
                                                          }
+                                                     } else if (tx.type === 'conversion' || tx.type === 'Conversion') {
+                                                         // Conversions happen WITHIN same wallet (except advanced cases not yet implemented)
+                                                         // OR across currencies.
+                                                         // Logic: if current currency is FromCurrency -> Outflow.
+                                                         //        if current currency is ToCurrency   -> Inflow.
+                                                         
+                                                         // The default "tx.to_currency === currency" check at top is usually sufficient for Conversions
+                                                         // because conversions change currency.
+                                                         // Example: Convert BTC to USDT.
+                                                         // Page BTC: tx.to=USDT != BTC. isInflow=False. Correct.
+                                                         // Page USDT: tx.to=USDT == USDT. isInflow=True. Correct.
+                                                         
+                                                         // Explicit check just to be safe
+                                                         if (tx.from_currency === currency) isInflow = false;
+                                                         if (tx.to_currency === currency) isInflow = true;
                                                      }
                                                 }
 
