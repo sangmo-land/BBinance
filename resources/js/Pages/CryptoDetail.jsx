@@ -1,6 +1,6 @@
 import React, { useState, Fragment, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import { Head, Link } from '@inertiajs/react';
@@ -15,17 +15,6 @@ function formatNumber(value, fractionDigits = 8) {
 }
 
 export default function CryptoDetail({ account, currency, balances, spotBalances = [], allCurrencyBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [], fiatBalances = {} }) {
-    const { flash } = usePage().props;
-    const [showNotification, setShowNotification] = useState(false);
-
-    useEffect(() => {
-        if (flash.success) {
-            setShowNotification(true);
-            const timer = setTimeout(() => setShowNotification(false), 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [flash.success]);
-
     // Calculate total balance across all types (available, locked, etc) for this currency
     const totalBalance = balances.reduce((sum, b) => sum + Number(b.balance), 0);
     const usdEquivalent = totalBalance * (rateToUsd || 0);
@@ -231,8 +220,6 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
             onSuccess: () => {
                 setIsDepositFiatModalOpen(false);
                 resetDeposit();
-                setShowNotification(true);
-                setTimeout(() => setShowNotification(false), 5000);
             },
         });
     };
@@ -243,8 +230,6 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
             onSuccess: () => {
                 setIsWithdrawFundingModalOpen(false);
                 resetWithdrawFunding();
-                setShowNotification(true);
-                setTimeout(() => setShowNotification(false), 5000);
             },
         });
     };
@@ -320,62 +305,6 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                 title={`${currency} Details - ${account.account_number}`}
                 description={`View detailed ${currency} balance information.`}
             />
-
-            {/* Notification */}
-            <Transition
-                show={showNotification}
-                enter="transition ease-out duration-300 transform"
-                enterFrom="-translate-y-2 opacity-0"
-                enterTo="translate-y-0 opacity-100"
-                leave="transition ease-in duration-200 transform"
-                leaveFrom="translate-y-0 opacity-100"
-                leaveTo="-translate-y-2 opacity-0"
-                className="fixed top-4 right-4 z-50 w-full max-w-sm"
-            >
-                <div className="bg-white rounded-lg shadow-lg border border-green-100 p-4 flex items-center gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-500">
-                        <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M5 13l4 4L19 7"
-                            />
-                        </svg>
-                    </div>
-                    <div>
-                        <h4 className="text-sm font-bold text-gray-900">
-                            Success
-                        </h4>
-                        <p className="text-xs text-gray-600 font-medium">
-                            {flash.success}
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowNotification(false)}
-                        className="ml-auto text-gray-400 hover:text-gray-500"
-                    >
-                        <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
-                </div>
-            </Transition>
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">

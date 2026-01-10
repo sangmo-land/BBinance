@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import Modal from '@/Components/Modal';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 function formatNumber(value, fractionDigits = 8) {
   const n = Number(value);
@@ -32,10 +32,6 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
     const [showWithdrawModal, setShowWithdrawModal] = useState(false); // New Withdraw Modal
     const [conversionMode, setConversionMode] = useState('menu'); // menu, fiat, crypto
     
-    // Toast Notification State
-    const { flash } = usePage().props;
-    const [toast, setToast] = useState(null);
-
     // Withdraw Form
     const { 
         data: withdrawData, 
@@ -55,8 +51,6 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
             onSuccess: () => {
                 resetWithdraw();
                 setShowWithdrawModal(false);
-                setToast({ type: 'success', message: 'Withdrawal successful.' });
-                setTimeout(() => setToast(null), 4000);
             }
         });
     };
@@ -81,24 +75,9 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
             onSuccess: () => {
                 resetTransfer();
                 setShowTransferModal(false);
-                setToast({ type: 'success', message: 'Transfer successful.' });
-                setTimeout(() => setToast(null), 4000);
             }
         });
     };
-
-    useEffect(() => {
-        if (flash?.success) {
-            setToast({ type: 'success', message: flash.success });
-            const timer = setTimeout(() => setToast(null), 4000);
-            return () => clearTimeout(timer);
-        }
-        if (flash?.error) {
-            setToast({ type: 'error', message: flash.error || 'An error occurred.' });
-            const timer = setTimeout(() => setToast(null), 4000);
-            return () => clearTimeout(timer);
-        }
-    }, [flash]);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         from_currency: 'EUR',
@@ -144,81 +123,6 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                 title={`Account Details - ${account.account_number}`}
                 description="View detailed account information and wallet balances."
             />
-
-            {/* Toast Notification */}
-            {toast && (
-                <div
-                    className={`fixed top-24 right-4 z-[60] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 animate-fade-in-down ${
-                        toast.type === "success"
-                            ? "bg-white border-l-4 border-green-500"
-                            : "bg-white border-l-4 border-red-500"
-                    }`}
-                >
-                    {toast.type === "success" ? (
-                        <div className="bg-green-100 p-2 rounded-full">
-                            <svg
-                                className="w-6 h-6 text-green-600"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                />
-                            </svg>
-                        </div>
-                    ) : (
-                        <div className="bg-red-100 p-2 rounded-full">
-                            <svg
-                                className="w-6 h-6 text-red-600"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
-                                />
-                            </svg>
-                        </div>
-                    )}
-                    <div>
-                        <h4
-                            className={`font-bold text-sm ${
-                                toast.type === "success"
-                                    ? "text-green-800"
-                                    : "text-red-800"
-                            }`}
-                        >
-                            {toast.type === "success" ? "Success" : "Error"}
-                        </h4>
-                        <p className="text-sm text-gray-600">{toast.message}</p>
-                    </div>
-                    <button
-                        onClick={() => setToast(null)}
-                        className="ml-4 text-gray-400 hover:text-gray-600"
-                    >
-                        <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                            />
-                        </svg>
-                    </button>
-                </div>
-            )}
 
             <div className="py-12">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
