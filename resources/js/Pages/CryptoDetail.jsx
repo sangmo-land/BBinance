@@ -14,7 +14,7 @@ function formatNumber(value, fractionDigits = 8) {
   });
 }
 
-export default function CryptoDetail({ account, currency, balances, spotBalances = [], allCurrencyBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [] }) {
+export default function CryptoDetail({ account, currency, balances, spotBalances = [], allCurrencyBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [], fiatBalances = {} }) {
     const { flash } = usePage().props;
     const [showNotification, setShowNotification] = useState(false);
 
@@ -95,6 +95,20 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     let [isSellModalOpen, setIsSellModalOpen] = useState(false);
     let [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     let [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
+    let [isDepositFiatModalOpen, setIsDepositFiatModalOpen] = useState(false); // New Modal state for Fiat Deposit
+
+    // Form handling for Deposit Fiat
+    const { 
+        data: depositData, 
+        setData: setDepositData, 
+        post: postDeposit, 
+        processing: processingDeposit, 
+        errors: errorsDeposit, 
+        reset: resetDeposit 
+    } = useForm({
+        amount: '',
+        currency: currency, // Should be USD or EUR
+    });
     
     // Selection States
     let [selectedPairId, setSelectedPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
@@ -186,25 +200,6 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         });
     };
 
-    const handleActionClick = (name) => {
-        if (name === 'Buy') {
-            setIsBuyModalOpen(true);
-            setInputAmount(''); // Reset
-        }
-        if (name === 'Sell') {
-            setIsSellModalOpen(true);
-            setInputAmount(''); // Reset
-        }
-        if (name === 'Transfer') {
-            setTransferData('currency', currency); // Ensure currency is set
-            setIsTransferModalOpen(true);
-        }
-        if (name === 'Convert') {
-            setConvertData('from_currency', currency);
-            setIsConvertModalOpen(true);
-        }
-    }
-
     const handleConvertSubmit = (e) => {
         e.preventDefault();
         postConvert(route('accounts.convert-crypto-action', account.id), {
@@ -214,6 +209,49 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                 resetConvert();
             }
         });
+    };
+
+    const handleDepositSubmit = (e) => {
+        e.preventDefault();
+        postDeposit(route('accounts.deposit-fiat-funding', account.id), {
+            onSuccess: () => {
+                setIsDepositFiatModalOpen(false);
+                resetDeposit();
+                setShowNotification(true);
+                setTimeout(() => setShowNotification(false), 5000);
+            },
+        });
+    };
+
+    const handleActionClick = (actionName) => {
+        if (actionName === 'Buy') {
+             // Default to buying Current Currency with something (default USDT if available, or first pair)
+             // But 'Buy' modal logic relies on 'selectedPair'.
+             // We need to set active state.
+             setIsBuyModalOpen(true);
+        } else if (actionName === 'Sell') {
+             setIsSellModalOpen(true);
+        } else if (actionName === 'Transfer') {
+             // Reset form data for Transfer when opening modal
+             setTransferData('to_wallet', normalizedWalletType === 'Spot' ? 'Funding' : 'Spot');
+             setTransferData('amount', '');
+             setIsTransferModalOpen(true);
+        } else if (actionName === 'Convert') {
+             // Reset form data for Convert when opening modal
+             // ... logic if needed
+             setConvertData(data => ({ ...data, amount: '', to_currency: '', wallet_type: normalizedWalletType }));
+             setIsConvertModalOpen(true);
+        } else if (actionName === 'Deposit') {
+             // Open Deposit Fiat Modal if applicable (Funding Wallet)
+             if (normalizedWalletType === 'Funding') {
+                 // Update default currency selection based on current page if relevant, else default to USD
+                 const defaultCurrency = (currency === 'EUR') ? 'EUR' : 'USD';
+                 setDepositData('currency', defaultCurrency);
+                 setIsDepositFiatModalOpen(true);
+             } else {
+                 alert("Crypto Deposit Feature coming soon.");
+             }
+        }
     };
 
     // Calculation Logic
@@ -2216,6 +2254,153 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 }
                                             >
                                                 Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Deposit Fiat Modal */}
+            <Transition appear show={isDepositFiatModalOpen} as={Fragment}>
+                <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setIsDepositFiatModalOpen(false)}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                            </svg>
+                                        </div>
+                                        Deposit Fiat to Funding
+                                    </Dialog.Title>
+
+                                    <form onSubmit={handleDepositSubmit} className="mt-4 space-y-4">
+                                        <div className="text-sm text-gray-500 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+                                            Transfer funds from your internal <strong>Fiat Account</strong> to your <strong>Funding Wallet</strong>.
+                                        </div>
+
+                                        {/* Currency Selection */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                Select Currency
+                                            </label>
+                                            <select
+                                                value={depositData.currency}
+                                                onChange={(e) => setDepositData("currency", e.target.value)}
+                                                className="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 py-3 font-bold text-gray-800"
+                                            >
+                                                <option value="USD">USD - US Dollar</option>
+                                                <option value="EUR">EUR - Euro</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Source: Fiat Balance */}
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-1">
+                                                Source (Fiat Account)
+                                            </label>
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-bold text-gray-900 text-lg">
+                                                    {depositData.currency}
+                                                </span>
+                                                <span className="text-xs font-bold text-gray-500">
+                                                    Available: {formatNumber(fiatBalances[depositData.currency] || 0, 2)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Amount Input */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            {(() => {
+                                                const maxAmount = parseFloat(fiatBalances[depositData.currency] || 0);
+                                                const currentAmount = parseFloat(depositData.amount || 0);
+                                                const isExceeding = currentAmount > maxAmount;
+                                                
+                                                return (
+                                                    <>
+                                                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                            Deposit Amount
+                                                        </label>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={depositData.amount}
+                                                                onChange={(e) => setDepositData("amount", e.target.value)}
+                                                                className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500 sm:text-lg font-bold ${
+                                                                    isExceeding ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500" : ""
+                                                                }`}
+                                                                placeholder="0.00"
+                                                                min="0.01"
+                                                                step="any"
+                                                            />
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                                <span className={`${isExceeding ? "text-red-500" : "text-gray-500"} sm:text-sm font-bold`}>
+                                                                    {depositData.currency}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {isExceeding && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">
+                                                                Amount exceeds available balance.
+                                                            </p>
+                                                        )}
+                                                        {errorsDeposit.amount && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">
+                                                                {errorsDeposit.amount}
+                                                            </p>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        <div className="mt-6 flex justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
+                                                onClick={() => setIsDepositFiatModalOpen(false)}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={processingDeposit || !depositData.amount || (parseFloat(depositData.amount || 0) > parseFloat(fiatBalances[depositData.currency] || 0))}
+                                                className="inline-flex justify-center rounded-xl border border-transparent bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
+                                            >
+                                                {processingDeposit ? "Depositing..." : "Confirm Deposit"}
                                             </button>
                                         </div>
                                     </form>

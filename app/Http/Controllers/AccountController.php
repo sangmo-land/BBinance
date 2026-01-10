@@ -158,7 +158,79 @@ class AccountController extends Controller
             'tradingPairs' => $tradingPairs,
             'tradingFeePercent' => $tradingFeePercent,
             'transactions' => $transactions,
+            'fiatBalances' => $user->fiatAccount 
+                ? $user->fiatAccount->balances
+                    ->where('wallet_type', 'fiat')
+                    ->where('balance_type', 'available')
+                    ->mapWithKeys(fn($b) => [$b->currency => $b->balance]) 
+                : [],
         ]);
+    }
+
+    public function depositFiatToFunding(Request $request, \App\Models\Account $account)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id && !$user->is_admin) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'currency' => 'required|in:USD,EUR',
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $account, $user) {
+            $amount = (float) $validated['amount'];
+            $currency = $validated['currency'];
+
+            $fiatAccount = $user->fiatAccount;
+            if (!$fiatAccount) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                     'amount' => ["No Fiat Account found."],
+                 ]);
+            }
+
+            // Lock and check Fiat Balance
+            $fiatBalance = $fiatAccount->balances()
+                ->where('wallet_type', 'fiat')
+                ->where('currency', $currency)
+                ->where('balance_type', 'available') // Explicitly use available balance
+                ->lockForUpdate()
+                ->first();
+
+            if (!$fiatBalance || $fiatBalance->balance < $amount) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                     'amount' => ["Insufficient {$currency} available balance in Fiat Account."],
+                 ]);
+            }
+
+            // Deduct from Fiat
+            $fiatBalance->decrement('balance', $amount);
+            
+            // Credit Funding Wallet
+            $fundingBalance = $account->balances()
+                ->firstOrCreate(
+                    ['wallet_type' => 'funding', 'currency' => $currency],
+                    ['balance' => 0]
+                );
+            
+            $fundingBalance->increment('balance', $amount);
+
+            // Record Transaction
+            \App\Models\Transaction::create([
+                 'from_account_id' => $fiatAccount->id,
+                 'to_account_id' => $account->id,
+                 'type' => 'Deposit to Funding',
+                 'from_currency' => $currency,
+                 'to_currency' => $currency,
+                 'amount' => $amount,
+                 'status' => 'completed',
+                 'description' => "Deposit {$amount} {$currency} from Fiat Account to Funding Wallet",
+                 'created_by' => $user->id,
+            ]);
+
+            return redirect()->back()->with('success', "Successfully deposited {$amount} {$currency} to Funding Wallet");
+        });
     }
 
     public function buyCrypto(Request $request, \App\Models\Account $account)
