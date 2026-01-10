@@ -625,6 +625,124 @@ class AccountController extends Controller
         return back()->with('success', 'Conversion to crypto successful.');
     }
 
+    public function convertCryptoAction(Request $request, \App\Models\Account $account)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id && !$user->is_admin) {
+             abort(403);
+        }
+
+        $validated = $request->validate([
+             'from_currency' => 'required|string',
+             'to_currency' => 'required|string|different:from_currency',
+             'amount' => 'required|numeric|min:0.00000001',
+             'wallet_type' => 'required|string|in:Spot,Funding,Earn',
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $account) {
+             $fromCurrency = $validated['from_currency'];
+             $toCurrency = $validated['to_currency'];
+             $amount = (float) $validated['amount'];
+             $walletType = $validated['wallet_type']; // Use the correct wallet type (Spot, Funding, Earn)
+
+             // 1. Check Source Balance in standard Title Case wallet
+             $sourceBalance = $account->balances()
+                 ->where('wallet_type', $walletType)
+                 ->where('currency', $fromCurrency)
+                 ->lockForUpdate()
+                 ->first();
+             
+             if (!$sourceBalance || $sourceBalance->balance < $amount) {
+                 throw \Illuminate\Validation\ValidationException::withMessages([
+                     'amount' => ["Insufficient {$fromCurrency} balance in {$walletType} Wallet."],
+                 ]);
+             }
+             
+             // 2. Determine Exchange Rate (From Currency -> To Currency)
+             // Need Value of 1 FromCurrency in ToCurrency.
+             
+             // Try Direct Pair: From -> To
+             $pair = \App\Models\ExchangeRate::where('from_currency', $fromCurrency)
+                 ->where('to_currency', $toCurrency)
+                 ->first();
+             
+             $rate = 0;
+             if ($pair) {
+                 $rate = (float)$pair->rate;
+             } else {
+                 // Try Indirect: To -> From (Invert)
+                 $reversePair = \App\Models\ExchangeRate::where('from_currency', $toCurrency)
+                     ->where('to_currency', $fromCurrency)
+                     ->first();
+                     
+                 if ($reversePair) {
+                     $rate = 1 / (float)$reversePair->rate;
+                 } else {
+                     // Try Cross Rate via USD? (Simplified for demo: assume USD intermediate or fail)
+                     // Fetch From->USD and To->USD
+                     // Rate = (Rate From->USD) / (Rate To->USD)
+                     $rateFromUsd = $this->getRateToUsd($fromCurrency);
+                     $rateToUsd = $this->getRateToUsd($toCurrency);
+                     
+                     if ($rateToUsd > 0) {
+                         $rate = $rateFromUsd / $rateToUsd;
+                     } else {
+                         throw \Illuminate\Validation\ValidationException::withMessages([
+                             'to_currency' => ["Exchange rate not available for {$fromCurrency} to {$toCurrency}"],
+                         ]);
+                     }
+                 }
+             }
+
+             // 3. Calculate Amounts
+             $grossReceiveAvailable = $amount * $rate;
+             
+             // Apply Fee? Let's say 0.1% or reuse system setting
+             $feePercent = (float)(\App\Models\SystemSetting::where('key', 'trading_fee_percent')->value('value') ?? 0.1);
+             $feeAmount = $grossReceiveAvailable * ($feePercent / 100);
+             $netReceive = $grossReceiveAvailable - $feeAmount;
+
+             // 4. Update Balances
+             $sourceBalance->decrement('balance', $amount);
+             
+             $destBalance = $account->balances()->firstOrCreate(
+                 ['wallet_type' => $walletType, 'currency' => $toCurrency],
+                 ['balance' => 0, 'balance_type' => 'crypto']
+             );
+             $destBalance->increment('balance', $netReceive);
+
+             // 5. Record Transaction
+             \App\Models\Transaction::create([
+                'from_account_id' => $account->id,
+                'to_account_id' => $account->id,
+                'type' => 'conversion', // or 'Convert Crypto'
+                'from_currency' => $fromCurrency,
+                'to_currency' => $toCurrency,
+                'amount' => $amount,
+                'converted_amount' => $netReceive,
+                'exchange_rate' => $rate,
+                'status' => 'completed',
+                'description' => "Converted {$amount} {$fromCurrency} to {$netReceive} {$toCurrency} in {$walletType} Wallet (Fee: {$feePercent}%)",
+                'reference_number' => 'CNV-' . strtoupper(uniqid()),
+                'created_by' => $account->user_id,
+            ]);
+
+            return redirect()->back()->with('success', "Successfully converted " . number_format($amount, 8) . " {$fromCurrency} to " . number_format($netReceive, 8) . " {$toCurrency}");
+        });
+    }
+
+    private function getRateToUsd($currency) {
+        if ($currency === 'USD' || $currency === 'USDT' || $currency === 'USDC') return 1.0;
+        
+        $pair = \App\Models\ExchangeRate::where('from_currency', $currency)->where('to_currency', 'USD')->first();
+        if ($pair) return (float)$pair->rate;
+        
+        $pairRev = \App\Models\ExchangeRate::where('from_currency', 'USD')->where('to_currency', $currency)->first();
+        if ($pairRev) return 1 / (float)$pairRev->rate;
+        
+        return 0; // Not found
+    }
+
     /**
      * Internal Transfer between Balance Types (e.g. Available <-> Withdrawable)
      */

@@ -40,6 +40,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/accounts/{account}/crypto/{currency}', [\App\Http\Controllers\AccountController::class, 'showCryptoDetail'])->name('accounts.crypto-detail');
     Route::post('/accounts/{account}/convert-fiat', [\App\Http\Controllers\AccountController::class, 'convertFiat'])->name('accounts.convert-fiat');
     Route::post('/accounts/{account}/convert-to-crypto', [\App\Http\Controllers\AccountController::class, 'convertToCrypto'])->name('accounts.convert-to-crypto');
+    Route::post('/accounts/{account}/convert-crypto-action', [\App\Http\Controllers\AccountController::class, 'convertCryptoAction'])->name('accounts.convert-crypto-action');
     Route::post('/accounts/{account}/buy-crypto', [\App\Http\Controllers\AccountController::class, 'buyCrypto'])->name('accounts.buy-crypto');
     Route::post('/accounts/{account}/sell-crypto', [\App\Http\Controllers\AccountController::class, 'sellCrypto'])->name('accounts.sell-crypto');
     Route::post('/accounts/{account}/transfer-crypto', [\App\Http\Controllers\AccountController::class, 'transferCrypto'])->name('accounts.transfer-crypto');

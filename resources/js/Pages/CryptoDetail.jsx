@@ -77,10 +77,24 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         setTransferData('to_wallet', normalizedWalletType === 'Spot' ? 'Funding' : 'Spot');
     }, [normalizedWalletType]);
 
+    // Form handling for Convert
+    const { data: convertData, setData: setConvertData, post: postConvert, processing: processingConvert, errors: errorsConvert, reset: resetConvert } = useForm({
+        from_currency: currency,
+        to_currency: '',
+        amount: '',
+        wallet_type: normalizedWalletType
+    });
+
+    // Update wallet type in convert form when it changes
+    useEffect(() => {
+        setConvertData(data => ({ ...data, wallet_type: normalizedWalletType }));
+    }, [normalizedWalletType]);
+
     // Modal States
     let [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
     let [isSellModalOpen, setIsSellModalOpen] = useState(false);
     let [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    let [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
     
     // Selection States
     let [selectedPairId, setSelectedPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
@@ -185,7 +199,22 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
             setTransferData('currency', currency); // Ensure currency is set
             setIsTransferModalOpen(true);
         }
+        if (name === 'Convert') {
+            setConvertData('from_currency', currency);
+            setIsConvertModalOpen(true);
+        }
     }
+
+    const handleConvertSubmit = (e) => {
+        e.preventDefault();
+        postConvert(route('accounts.convert-crypto-action', account.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsConvertModalOpen(false);
+                resetConvert();
+            }
+        });
+    };
 
     // Calculation Logic
     let rawReceive = 0;
@@ -1042,6 +1071,152 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                     </div>
                 </Dialog>
             </Transition>
+            {/* Convert Modal */}
+            <Transition appear show={isConvertModalOpen} as={Fragment}>
+                <Dialog as="div" className="relative z-50" onClose={() => setIsConvertModalOpen(false)}>
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                            </svg>
+                                        </div>
+                                        Convert {currency} ({convertData.wallet_type} Wallet)
+                                    </Dialog.Title>
+                                    
+                                    <form onSubmit={handleConvertSubmit} className="mt-4 space-y-4">
+                                        {/* From Currency (Read Only) */}
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-1">From</label>
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-bold text-gray-900 text-lg">{currency}</span>
+                                                <span className="text-xs font-bold text-gray-500">
+                                                    Available: {formatNumber(allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === convertData.wallet_type.toLowerCase())?.balance || 0, 8)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* To Currency Selection */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-1">To</label>
+                                            <select
+                                                value={convertData.to_currency}
+                                                onChange={e => setConvertData('to_currency', e.target.value)}
+                                                className="w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 py-3 font-bold text-gray-800"
+                                            >
+                                                <option value="" disabled>Select Currency</option>
+                                                {['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'].filter(c => c !== currency).map(c => (
+                                                    <option key={c} value={c}>{c}</option>
+                                                ))}
+                                            </select>
+                                            {errorsConvert.to_currency && (
+                                                <p className="mt-1 text-xs text-red-600 font-bold">{errorsConvert.to_currency}</p>
+                                            )}
+                                        </div>
+
+                                        {/* Amount Input */}
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            {(() => {
+                                                const sourceWallet = allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === convertData.wallet_type.toLowerCase());
+                                                const maxAmount = sourceWallet ? parseFloat(sourceWallet.balance) : 0;
+                                                const currentAmount = parseFloat(convertData.amount || 0);
+                                                const isExceeding = currentAmount > maxAmount;
+
+                                                return (
+                                                    <>
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <label className="text-xs font-bold text-gray-500 uppercase">Amount to Convert</label>
+                                                        </div>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={convertData.amount}
+                                                                onChange={(e) => setConvertData('amount', e.target.value)}
+                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 border-gray-300 focus:border-purple-500 focus:ring-purple-500 sm:text-lg font-bold ${
+                                                                    isExceeding ? 'border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500' : ''
+                                                                }`}
+                                                                placeholder="0.00"
+                                                                step="any"
+                                                            />
+                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className={`${isExceeding ? 'text-red-500' : 'text-gray-500'} sm:text-sm font-bold`}>{currency}</span>
+                                                            </div>
+                                                        </div>
+                                                        {isExceeding && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">Amount exceeds available balance.</p>
+                                                        )}
+                                                        {errorsConvert.amount && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">{errorsConvert.amount}</p>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        <div className="mt-6 flex gap-3">
+                                            {(() => {
+                                                const sourceWallet = allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === convertData.wallet_type.toLowerCase());
+                                                const maxAmount = sourceWallet ? parseFloat(sourceWallet.balance) : 0;
+                                                const currentAmount = parseFloat(convertData.amount || 0);
+                                                const isValid = !processingConvert && convertData.to_currency && currentAmount > 0 && currentAmount <= maxAmount;
+
+                                                return (
+                                                    <button
+                                                        type="submit"
+                                                        disabled={!isValid}
+                                                        className={`flex-1 flex justify-center items-center gap-2 rounded-xl border border-transparent px-4 py-3 text-sm font-bold text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors uppercase tracking-wider ${
+                                                            !isValid
+                                                            ? 'bg-gray-300 cursor-not-allowed'
+                                                            : 'bg-purple-600 hover:bg-purple-700'
+                                                        }`}
+                                                    >
+                                                        {processingConvert ? 'Processing...' : 'Confirm Conversion'}
+                                                    </button>
+                                                );
+                                            })()}
+                                            <button
+                                                type="button"
+                                                disabled={processingConvert}
+                                                className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors"
+                                                onClick={() => setIsConvertModalOpen(false)}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
         </AppLayout>
     );
 }
