@@ -189,7 +189,15 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                           {account.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">{account.account_type ?? 'Account'}</p>
+                      <div className="mb-2 mt-1">
+                        <span className={`text-sm font-black uppercase tracking-wide px-3 py-1 rounded-lg ${
+                            account.account_type === 'fiat' ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-500/20' : 
+                            account.account_type === 'crypto' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-500/20' : 
+                            'bg-blue-100 text-blue-800 ring-1 ring-blue-500/20'
+                        }`}>
+                            {account.account_type ?? 'Account'}
+                        </span>
+                      </div>
                       <p className="mt-1 text-xl font-black text-gray-900">{account.account_number}</p>
                       {isAdmin && account.user?.name && (
                         <p className="mt-2 text-sm text-gray-600">
@@ -205,21 +213,10 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                       {formatNumber(account.balance, 2)}
                       <span className="text-lg font-bold text-gray-600 ml-2">{account.currency}</span>
                     </p>
-                    {account.account_type === 'crypto' && (
+                    {(account.account_type === 'crypto' || account.account_type === 'fiat') && (
                         <p className="text-xs text-blue-600 mt-2 font-bold">Click to view wallets &rarr;</p>
                     )}
                   </div>
-
-                  <Link
-                    href={`/transfer?from_account=${account.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-3 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                    Transfer Funds
-                  </Link>
                 </div>
               ))}
             </div>
