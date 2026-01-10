@@ -543,10 +543,13 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         className="group flex flex-col items-center gap-2"
                                     >
                                         <div
-                                            className={`w-12 h-12 rounded-full bg-white border border-gray-100 shadow-md flex items-center justify-center group-hover:shadow-lg group-hover:-translate-y-1 transition-all duration-300 ring-4 ring-transparent group-hover:ring-gray-50 ${action.color}`}
+                                            className={`w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 border-2 border-gray-300 shadow-[0_4px_10px_rgb(0,0,0,0.1)] flex items-center justify-center group-hover:shadow-[0_8px_20px_rgb(0,0,0,0.15)] group-hover:-translate-y-1 transition-all duration-300 group-hover:border-amber-400 overflow-hidden relative ${action.color}`}
                                         >
+                                            {/* Decorative Background Blob on Hover */}
+                                            <div className="absolute inset-0 bg-gradient-to-br from-amber-200/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            
                                             <svg
-                                                className="w-6 h-6"
+                                                className="w-6 h-6 relative z-10"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 viewBox="0 0 24 24"
@@ -559,7 +562,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 />
                                             </svg>
                                         </div>
-                                        <span className="text-xs font-bold text-gray-500 group-hover:text-gray-800 transition-colors">
+                                        <span className="text-xs font-bold text-gray-500 group-hover:text-gray-900 transition-colors">
                                             {action.name}
                                         </span>
                                     </button>
@@ -591,12 +594,12 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         <div
                                             key={pair.id}
                                             onClick={() => setSelectedPairId(pair.id)}
-                                            className={`bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 border-2 text-left cursor-pointer rounded-xl p-3 shadow-[0_4px_10px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden ${selectedPairId === pair.id ? 'border-amber-500' : 'border-gray-300 hover:border-amber-400'}`}
+                                            className={`bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 border-2 text-left cursor-pointer rounded-xl p-1.5 shadow-[0_4px_10px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden ${selectedPairId === pair.id ? 'border-amber-500' : 'border-gray-300 hover:border-amber-400'}`}
                                         >
                                             {/* Decorative Background Blob on Hover */}
                                             <div className="absolute -right-6 -top-6 w-16 h-16 bg-gradient-to-br from-amber-200/50 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-lg"></div>
 
-                                            <div className="flex justify-between items-center mb-2 relative z-10">
+                                            <div className="flex justify-between items-center mb-1 relative z-10">
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex -space-x-2">
                                                         <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[8px] font-black text-gray-700 border border-gray-200 shadow-sm z-10">
