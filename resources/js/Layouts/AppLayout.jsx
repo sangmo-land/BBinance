@@ -83,7 +83,7 @@ export default function AppLayout({ children }) {
             <Link
                 href={href}
                 className={`
-                    group relative inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg
+                    group relative inline-flex items-center px-5 py-2.5 text-base font-semibold rounded-lg
                     transition-all duration-200 ease-in-out
                     ${
                         active
@@ -106,7 +106,7 @@ export default function AppLayout({ children }) {
             {/* Navigation */}
             <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200/50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center py-0">
+                    <div className="flex justify-between items-center py-4">
                         {/* Logo & Brand */}
                         <div className="flex items-center space-x-8">
                             <Link href="/" className="flex items-center group">
@@ -118,7 +118,7 @@ export default function AppLayout({ children }) {
                                     <div className="relative transform group-hover:scale-105 transition-transform duration-200">
                                         <img
                                             src="/images/logo.png"
-                                            className="h-12 w-auto"
+                                            className="h-16 w-auto"
                                             alt="Logo"
                                         />
                                     </div>
@@ -137,7 +137,7 @@ export default function AppLayout({ children }) {
                                             }
                                             icon={
                                                 <svg
-                                                    className="w-4 h-4"
+                                                    className="w-5 h-5"
                                                     fill="none"
                                                     stroke="currentColor"
                                                     viewBox="0 0 24 24"
@@ -159,7 +159,7 @@ export default function AppLayout({ children }) {
                                     href="/contacts"
                                     icon={
                                         <svg
-                                            className="w-4 h-4"
+                                            className="w-5 h-5"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -191,12 +191,12 @@ export default function AppLayout({ children }) {
                                             className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                                         >
                                             <div className="flex items-center space-x-2">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-base shadow-md">
                                                     {auth.user.name
                                                         .charAt(0)
                                                         .toUpperCase()}
                                                 </div>
-                                                <span className="text-sm font-semibold text-gray-700">
+                                                <span className="text-base font-semibold text-gray-700">
                                                     {auth.user.name}
                                                 </span>
                                             </div>
@@ -261,15 +261,15 @@ export default function AppLayout({ children }) {
                                 <div className="hidden md:flex items-center space-x-3">
                                     <Link
                                         href="/login"
-                                        className="text-sm font-semibold text-gray-700 hover:text-blue-700 transition-colors duration-200"
+                                        className="text-base font-semibold text-gray-700 hover:text-blue-700 transition-colors duration-200"
                                     >
                                         Sign in
                                     </Link>
                                     <Link
                                         href="/register"
-                                        className="px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200"
+                                        className="px-5 py-2.5 text-base font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transform hover:scale-105 transition-all duration-200"
                                     >
-                                        Get started
+                                        Register
                                     </Link>
                                 </div>
                             )}
