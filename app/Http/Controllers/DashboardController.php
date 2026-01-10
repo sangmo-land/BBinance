@@ -85,6 +85,25 @@ class DashboardController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
+
+        // Process accounts to add calculated totals for Crypto accounts
+        $processor = function ($account) {
+            if ($account->account_type === 'crypto') {
+                $totalUsd = $account->balances->sum(function ($balance) {
+                    return $this->convertToUSD((float) $balance->balance, $balance->currency);
+                });
+                
+                $account->total_btc_value = $this->convertFromUSD($totalUsd, 'BTC');
+                $account->total_usdt_value = $this->convertFromUSD($totalUsd, 'USDT');
+            }
+            return $account;
+        };
+
+        if ($user->is_admin) {
+            $accounts->through($processor);
+        } else {
+            $accounts->transform($processor);
+        }
         
         // Recent transactions (last 5): Admin sees global, users see their activity
         $transactionsQuery = Transaction::query()

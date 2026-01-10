@@ -225,6 +225,23 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                                 </p>
                             </div>
                         </div>
+                    ) : account.account_type === 'crypto' ? (
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total BTC Balance</p>
+                                <p className="text-2xl font-black text-gray-900">
+                                    {formatNumber(account.total_btc_value ?? 0, 8)}
+                                    <span className="text-sm font-bold text-gray-600 ml-2">BTC</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total USDT Equivalent</p>
+                                <p className="text-2xl font-black text-gray-900">
+                                    {formatNumber(account.total_usdt_value ?? 0, 2)}
+                                    <span className="text-sm font-bold text-gray-600 ml-2">USDT</span>
+                                </p>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Current Balance {account.account_type === 'crypto' ? '(Total Estimated)' : ''}</p>
