@@ -69,22 +69,10 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        $accounts = null;
+        $groupedUsers = null;
         
-        // Accounts: Admin sees all with pagination; users see their own
-        if ($user->is_admin) {
-            $accounts = Account::query()
-                ->with(['user', 'balances'])
-                ->orderBy('created_at', 'desc')
-                ->paginate(9)
-                ->onEachSide(1);
-        } else {
-            $accounts = Account::where('user_id', $user->id)
-                ->with(['user', 'balances'])
-                ->orderBy('created_at', 'desc')
-                ->get();
-        }
-
-        // Process accounts to add calculated totals for Crypto accounts
+        // Define processor for crypto calculations
         $processor = function ($account) {
             if ($account->account_type === 'crypto') {
                 $totalUsd = $account->balances->sum(function ($balance) {
@@ -97,10 +85,42 @@ class DashboardController extends Controller
             return $account;
         };
 
+        // Accounts: Admin sees users grouped; users see their own accounts flat
         if ($user->is_admin) {
-            $accounts->through($processor);
+            $groupedUsers = \App\Models\User::with(['accounts.balances'])
+                ->whereHas('accounts') // Only show users with accounts
+                ->orderBy('created_at', 'desc')
+                ->paginate(5)
+                ->onEachSide(1);
+
+            // Process accounts for each user in the admin view
+            $groupedUsers->through(function ($u) use ($processor) {
+                foreach ($u->accounts as $account) {
+                    $processor($account);
+                }
+                return $u;
+            });
+            
+            // For admin stats, we still use full account query
+            $allAccounts = Account::query()->get();
+            $totalBalanceUSD = $allAccounts->sum(function ($account) {
+                return $this->convertToUSD((float) $account->balance, $account->currency);
+            });
+            $accountCount = Account::query()->count();
+
         } else {
+            $accounts = Account::where('user_id', $user->id)
+                ->with(['user', 'balances'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+            
             $accounts->transform($processor);
+
+            // For user stats
+            $totalBalanceUSD = $accounts->sum(function ($account) {
+                return $this->convertToUSD((float) $account->balance, $account->currency);
+            });
+            $accountCount = count($accounts);
         }
         
         // Recent transactions (last 5): Admin sees global, users see their activity
@@ -120,22 +140,6 @@ class DashboardController extends Controller
         }
 
         $transactions = $transactionsQuery->limit(5)->get();
-        
-        // Calculate stats with currency conversion to USD
-        if ($user->is_admin) {
-            // For admin: sum all accounts converted to USD
-            $allAccounts = Account::query()->get();
-            $totalBalanceUSD = $allAccounts->sum(function ($account) {
-                return $this->convertToUSD((float) $account->balance, $account->currency);
-            });
-            $accountCount = Account::query()->count();
-        } else {
-            // For user: sum their accounts converted to USD
-            $totalBalanceUSD = $accounts->sum(function ($account) {
-                return $this->convertToUSD((float) $account->balance, $account->currency);
-            });
-            $accountCount = count($accounts);
-        }
 
         // Convert total to EUR and BTC for display
         $totalBalanceEUR = $this->convertFromUSD($totalBalanceUSD, 'EUR');
@@ -143,6 +147,7 @@ class DashboardController extends Controller
         
         return Inertia::render('Dashboard', [
             'accounts' => $accounts,
+            'groupedUsers' => $groupedUsers,
             'transactions' => $transactions,
             'isAdmin' => (bool) $user->is_admin,
             'stats' => [

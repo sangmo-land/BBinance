@@ -22,10 +22,15 @@ function formatDate(value) {
   return Number.isFinite(dt.getTime()) ? dt.toLocaleString() : String(value);
 }
 
-export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
+export default function Dashboard({ accounts, groupedUsers, transactions, isAdmin, stats }) {
   const { auth } = usePage().props;
+  // If admin with groupedUsers, we don't use accountsList for the main view
   const accountsList = Array.isArray(accounts) ? accounts : (accounts?.data ?? []);
-  const paginationLinks = Array.isArray(accounts) ? null : accounts?.links;
+  
+  // Pagination links (Admin uses groupedUsers links, User uses accounts links if any)
+  const paginationLinks = isAdmin && groupedUsers 
+      ? groupedUsers.links 
+      : (Array.isArray(accounts) ? null : accounts?.links);
 
   const totalUsd = stats?.totalBalance?.usd ?? 0;
   const totalEur = stats?.totalBalance?.eur ?? 0;
@@ -161,7 +166,108 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
             )}
           </div>
 
-          {accountsList.length === 0 ? (
+          {isAdmin && groupedUsers ? (
+            <div className="space-y-10">
+              {groupedUsers.data.map((user) => (
+                <div key={user.id} className="bg-gray-50 border border-gray-200 rounded-2xl p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                     <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                        {user.name.charAt(0).toUpperCase()}
+                     </div>
+                     <div>
+                        <h3 className="text-xl font-bold text-gray-900">{user.name}</h3>
+                        <p className="text-sm text-gray-500">{user.email}</p>
+                     </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {user.accounts.map((account) => (
+                        <div key={account.id} 
+                          className="group bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-2xl hover:border-blue-200 transition-all transform hover:-translate-y-1 cursor-pointer"
+                          onClick={() => {
+                              window.open(`/accounts/${account.id}`, '_blank');
+                          }}
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                  </svg>
+                                </div>
+                                <span className={`text-xs font-bold px-3 py-1 rounded-full ${account.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                  {account.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                              <div className="mb-2 mt-1">
+                                <span className={`text-sm font-black uppercase tracking-wide px-3 py-1 rounded-lg ${
+                                    account.account_type === 'fiat' ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-500/20' : 
+                                    account.account_type === 'crypto' ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-500/20' : 
+                                    'bg-blue-100 text-blue-800 ring-1 ring-blue-500/20'
+                                }`}>
+                                    {account.account_type ?? 'Account'}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xl font-black text-gray-900">{account.account_number}</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 mb-4">
+                            {account.account_type === 'fiat' ? (
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total USD Balance</p>
+                                        <p className="text-2xl font-black text-gray-900">
+                                            {formatNumber(account.balances?.filter(b => b.currency === 'USD').reduce((sum, b) => sum + Number(b.balance), 0) ?? 0, 2)}
+                                            <span className="text-sm font-bold text-gray-600 ml-2">USD</span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total EUR Balance</p>
+                                        <p className="text-2xl font-black text-gray-900">
+                                            {formatNumber(account.balances?.filter(b => b.currency === 'EUR').reduce((sum, b) => sum + Number(b.balance), 0) ?? 0, 2)}
+                                            <span className="text-sm font-bold text-gray-600 ml-2">EUR</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : account.account_type === 'crypto' ? (
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total BTC Balance</p>
+                                        <p className="text-2xl font-black text-gray-900">
+                                            {formatNumber(account.total_btc_value ?? 0, 8)}
+                                            <span className="text-sm font-bold text-gray-600 ml-2">BTC</span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total USDT Equivalent</p>
+                                        <p className="text-2xl font-black text-gray-900">
+                                            {formatNumber(account.total_usdt_value ?? 0, 2)}
+                                            <span className="text-sm font-bold text-gray-600 ml-2">USDT</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Current Balance {account.account_type === 'crypto' ? '(Total Estimated)' : ''}</p>
+                                    <p className="text-3xl font-black text-gray-900">
+                                    {formatNumber(account.balance, 2)}
+                                    <span className="text-lg font-bold text-gray-600 ml-2">{account.currency}</span>
+                                    </p>
+                                </>
+                            )}
+                            
+                            {(account.account_type === 'crypto' || account.account_type === 'fiat') && (
+                                <p className="text-xs text-blue-600 mt-2 font-bold">Click to view wallets &rarr;</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : accountsList.length === 0 ? (
             <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300 p-12 text-center">
               <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
