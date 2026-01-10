@@ -208,11 +208,33 @@ export default function Dashboard({ accounts, transactions, isAdmin, stats }) {
                   </div>
 
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 mb-4">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Current Balance {account.account_type === 'crypto' ? '(Total Estimated)' : ''}</p>
-                    <p className="text-3xl font-black text-gray-900">
-                      {formatNumber(account.balance, 2)}
-                      <span className="text-lg font-bold text-gray-600 ml-2">{account.currency}</span>
-                    </p>
+                    {account.account_type === 'fiat' ? (
+                        <div className="space-y-3">
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total USD Balance</p>
+                                <p className="text-2xl font-black text-gray-900">
+                                    {formatNumber(account.balances?.filter(b => b.currency === 'USD').reduce((sum, b) => sum + Number(b.balance), 0) ?? 0, 2)}
+                                    <span className="text-sm font-bold text-gray-600 ml-2">USD</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total EUR Balance</p>
+                                <p className="text-2xl font-black text-gray-900">
+                                    {formatNumber(account.balances?.filter(b => b.currency === 'EUR').reduce((sum, b) => sum + Number(b.balance), 0) ?? 0, 2)}
+                                    <span className="text-sm font-bold text-gray-600 ml-2">EUR</span>
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Current Balance {account.account_type === 'crypto' ? '(Total Estimated)' : ''}</p>
+                            <p className="text-3xl font-black text-gray-900">
+                            {formatNumber(account.balance, 2)}
+                            <span className="text-lg font-bold text-gray-600 ml-2">{account.currency}</span>
+                            </p>
+                        </>
+                    )}
+                    
                     {(account.account_type === 'crypto' || account.account_type === 'fiat') && (
                         <p className="text-xs text-blue-600 mt-2 font-bold">Click to view wallets &rarr;</p>
                     )}
