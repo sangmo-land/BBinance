@@ -505,7 +505,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
 
                         <div className="space-y-4">
                             {(account.balances || [])
-                                .filter(b => b.wallet_type === activeTab && (b.balance_type === "available" || b.balance_type === undefined))
+                                .filter(b => b.wallet_type === activeTab && (!b.balance_type || b.balance_type === "available"))
                                 .map((balance, idx) => (
                                     <Link 
                                         key={`${balance.currency}-${idx}`}
@@ -550,7 +550,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     </Link>
                                 ))}
                             
-                            {(account.balances || []).filter(b => b.wallet_type === activeTab && (b.balance_type === "available" || b.balance_type === undefined)).length === 0 && (
+                            {(account.balances || []).filter(b => b.wallet_type === activeTab && (!b.balance_type || b.balance_type === "available")).length === 0 && (
                                 <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                                     <div className="bg-white p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
                                         <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
