@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\TransferController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\SitemapController;
 use Inertia\Inertia;
@@ -48,9 +47,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/accounts/{account}/deposit-fiat-funding', [\App\Http\Controllers\AccountController::class, 'depositFiatToFunding'])->name('accounts.deposit-fiat-funding');
     Route::post('/accounts/{account}/withdraw-funding', [\App\Http\Controllers\AccountController::class, 'withdrawFundingToFiat'])->name('accounts.withdraw-funding');
     Route::post('/accounts/{account}/withdraw', [\App\Http\Controllers\AccountController::class, 'withdraw'])->name('accounts.withdraw');
-
-    Route::get('/transfer', [TransferController::class, 'create'])->name('transfer.create');
-    Route::post('/transfer', [TransferController::class, 'store'])->name('transfer.store');
 
     // Ensure Filament admin dashboard explicit path works
     Route::redirect('/admin/dashboard', '/admin');

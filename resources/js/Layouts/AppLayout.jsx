@@ -136,26 +136,6 @@ export default function AppLayout({ children }) {
                                         >
                                             Dashboard
                                         </NavLink>
-                                        <NavLink
-                                            href="/transfer"
-                                            icon={
-                                                <svg
-                                                    className="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                                                    />
-                                                </svg>
-                                            }
-                                        >
-                                            Transfer
-                                        </NavLink>
                                     </>
                                 )}
                                 <NavLink
@@ -360,32 +340,6 @@ export default function AppLayout({ children }) {
                                             />
                                         </svg>
                                         Dashboard
-                                    </Link>
-                                    <Link
-                                        href="/transfer"
-                                        className={`
-                                            flex items-center px-3 py-2 rounded-lg text-base font-semibold transition-colors duration-200
-                                            ${
-                                                isActive("/transfer")
-                                                    ? "bg-blue-50 text-blue-700"
-                                                    : "text-gray-700 hover:bg-gray-50 hover:text-blue-700"
-                                            }
-                                        `}
-                                    >
-                                        <svg
-                                            className="w-5 h-5 mr-3"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                                            />
-                                        </svg>
-                                        Transfer
                                     </Link>
                                     <Link
                                         href="/contacts"
