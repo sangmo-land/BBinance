@@ -18,15 +18,9 @@ const currencyNames = {
     ETH: 'Ethereum',
     USDT: 'Tether US',
     BNB: 'BNB',
-    SOL: 'Solana',
-    XRP: 'XRP',
     USDC: 'USDC',
-    ADA: 'Cardano',
-    AVAX: 'Avalanche',
-    DOGE: 'Dogecoin',
     USD: 'US Dollar',
     EUR: 'Euro',
-    GBP: 'British Pound',
 };
 
 export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1, transactions = [] }) {

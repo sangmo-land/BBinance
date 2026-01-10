@@ -54,15 +54,7 @@ class DemoDataSeeder extends Seeder
         
         $johnCrypto = $john->cryptoAccount;
         if($johnCrypto) {
-            // Update main currency to USDT as per new spec OR leave as is
-            // But we need to seed the balances for the 10 currenices
-            $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
-            $wallets = ['spot', 'funding', 'earning'];
-            
-             // We first remove any auto-created balances from User boot if we want to custom seed,
-             // or we just update them. Since boot runs on create, records exist.
-             // Let's update Spot BTC and USDT for John
-            
+            // Update Spot BTC and USDT for John
             $johnCrypto->balances()->where('wallet_type', 'spot')->where('currency', 'BTC')->update(['balance' => 0.5]);
             $johnCrypto->balances()->where('wallet_type', 'funding')->where('currency', 'USDT')->update(['balance' => 1000]);
         }
@@ -86,7 +78,7 @@ class DemoDataSeeder extends Seeder
         $janeCrypto = $jane->cryptoAccount;
         if($janeCrypto) {
             $janeCrypto->balances()->where('wallet_type', 'spot')->where('currency', 'ETH')->update(['balance' => 5.0]);
-            $janeCrypto->balances()->where('wallet_type', 'earning')->where('currency', 'SOL')->update(['balance' => 50]);
+            $janeCrypto->balances()->where('wallet_type', 'earning')->where('currency', 'BNB')->update(['balance' => 50]);
         }
 
 

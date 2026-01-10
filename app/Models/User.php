@@ -99,7 +99,7 @@ public function canAccessPanel(Panel $panel): bool
             ]);
 
             // Initialize default crypto balances for all wallets
-            $cryptos = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'AVAX', 'DOGE'];
+            $cryptos = ['BTC', 'ETH', 'USDT', 'USDC', 'BNB'];
             $wallets = ['spot', 'funding', 'earning'];
             
             foreach ($wallets as $wallet) {
