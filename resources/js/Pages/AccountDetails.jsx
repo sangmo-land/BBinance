@@ -30,8 +30,32 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
     const [showConvertModal, setShowConvertModal] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false); // New Transfer Modal
     const [showWithdrawModal, setShowWithdrawModal] = useState(false); // New Withdraw Modal
+    const [showDepositModal, setShowDepositModal] = useState(false); // New Deposit Modal
     const [conversionMode, setConversionMode] = useState('menu'); // menu, fiat, crypto
     
+    // Deposit Form
+    const { 
+        data: depositData, 
+        setData: setDepositData, 
+        post: postDeposit, 
+        processing: depositProcessing, 
+        errors: depositErrors, 
+        reset: resetDeposit 
+    } = useForm({
+        currency: 'USD',
+        amount: ''
+    });
+
+    const handleDeposit = (e) => {
+        e.preventDefault();
+        postDeposit(route('accounts.deposit', account.id), {
+            onSuccess: () => {
+                resetDeposit();
+                setShowDepositModal(false);
+            }
+        });
+    };
+
     // Withdraw Form
     const { 
         data: withdrawData, 
@@ -418,7 +442,7 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
 
                             {isFiat && (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t border-gray-100">
-                                    <button className="group relative overflow-hidden bg-gray-900 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left">
+                                    <button onClick={() => setShowDepositModal(true)} className="group relative overflow-hidden bg-gray-900 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left">
                                         <div className="absolute top-0 right-0 p-4 -mr-4 -mt-4 bg-white/10 rounded-full blur-xl w-24 h-24"></div>
                                         <div className="relative z-10 flex flex-col h-full justify-between gap-3">
                                             <div className="p-2 bg-white/10 w-fit rounded-lg backdrop-blur-sm">
@@ -506,12 +530,9 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                         <div className="space-y-4">
                             {(account.balances || [])
                                 .filter(b => b.wallet_type === activeTab && (!b.balance_type || b.balance_type === "available"))
-                                .map((balance, idx) => (
-                                    <Link 
-                                        key={`${balance.currency}-${idx}`}
-                                        href={route('accounts.crypto-detail', [account.id, balance.currency]) + `?wallet=${activeTab}`}
-                                        className="group block bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1"
-                                    >
+                                .map((balance, idx) => {
+                                    const CardContent = () => (
+                                       <>
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-4">
                                                 <div className="relative">
@@ -547,8 +568,26 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                 </div>
                                             </div>
                                         </div>
-                                    </Link>
-                                ))}
+                                       </>
+                                    );
+
+                                    return isFiat ? (
+                                        <div 
+                                            key={`${balance.currency}-${idx}`}
+                                            className="group block bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-blue-200 transform hover:-translate-y-1"
+                                        >
+                                            <CardContent />
+                                        </div>
+                                    ) : (
+                                        <Link 
+                                            key={`${balance.currency}-${idx}`}
+                                            href={route('accounts.crypto-detail', [account.id, balance.currency]) + `?wallet=${activeTab}`}
+                                            className="group block bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1"
+                                        >
+                                            <CardContent />
+                                        </Link>
+                                    );
+                                })}
                             
                             {(account.balances || []).filter(b => b.wallet_type === activeTab && (!b.balance_type || b.balance_type === "available")).length === 0 && (
                                 <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
@@ -1117,6 +1156,21 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                         </select>
                                     </div>
                                 </div>
+                                {(() => {
+                                    const available = account.balances?.find(
+                                        (b) =>
+                                            b.currency === data.from_currency &&
+                                            b.wallet_type === "fiat"
+                                    )?.balance || 0;
+                                    if (Number(data.amount) > Number(available)) {
+                                        return (
+                                            <p className="text-red-500 text-xs font-bold mt-2">
+                                                Insufficient balance for this transaction.
+                                            </p>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
 
                             <div className="flex justify-center -my-9 relative z-10 pointer-events-none">
@@ -1757,6 +1811,107 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     </button>
                                 );
                             })()}
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+            {/* Deposit Modal */}
+            <Modal
+                show={showDepositModal}
+                onClose={() => setShowDepositModal(false)}
+            >
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">
+                            Deposit Funds
+                        </h2>
+                        <button
+                            onClick={() => setShowDepositModal(false)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleDeposit}>
+                        {/* IBAN Display */}
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6">
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                                IBAN (Account Number)
+                            </label>
+                            <div className="font-mono font-bold text-gray-900 text-lg">
+                                {account.account_number}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Funds will be deposited to this account.</p>
+                        </div>
+
+                        {/* Currency & Amount */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                Currency & Amount
+                            </label>
+                            <div className="flex gap-4">
+                                <div className="w-1/3">
+                                    <select
+                                        value={depositData.currency}
+                                        onChange={(e) =>
+                                            setDepositData(
+                                                "currency",
+                                                e.target.value
+                                            )
+                                        }
+                                        className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
+                                    >
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                    </select>
+                                </div>
+                                <div className="flex-1">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="1"
+                                        value={depositData.amount}
+                                        onChange={(e) =>
+                                            setDepositData(
+                                                "amount",
+                                                e.target.value
+                                            )
+                                        }
+                                        className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
+                                        placeholder="0.00"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {depositErrors.amount && (
+                            <p className="text-red-500 text-sm font-medium mb-4">
+                                {depositErrors.amount}
+                            </p>
+                        )}
+                        {depositErrors.error && (
+                            <p className="text-red-500 text-sm font-medium mb-4">
+                                {depositErrors.error}
+                            </p>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setShowDepositModal(false)}
+                                className="flex-1 px-4 py-3 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={depositProcessing || !depositData.amount}
+                                className="flex-1 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                            >
+                                {depositProcessing ? "Processing..." : "Confirm Deposit"}
+                            </button>
                         </div>
                     </form>
                 </div>

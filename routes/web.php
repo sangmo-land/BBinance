@@ -47,6 +47,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/accounts/{account}/deposit-fiat-funding', [\App\Http\Controllers\AccountController::class, 'depositFiatToFunding'])->name('accounts.deposit-fiat-funding');
     Route::post('/accounts/{account}/withdraw-funding', [\App\Http\Controllers\AccountController::class, 'withdrawFundingToFiat'])->name('accounts.withdraw-funding');
     Route::post('/accounts/{account}/withdraw', [\App\Http\Controllers\AccountController::class, 'withdraw'])->name('accounts.withdraw');
+    Route::post('/accounts/{account}/deposit', [\App\Http\Controllers\AccountController::class, 'deposit'])->name('accounts.deposit'); // New Deposit Route
+
 
     // Ensure Filament admin dashboard explicit path works
     Route::redirect('/admin/dashboard', '/admin');

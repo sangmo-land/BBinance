@@ -994,4 +994,57 @@ class AccountController extends Controller
 
         return back()->with('success', 'Funds transferred to Fiat available balance.');
     }
+
+    public function deposit(Request $request, \App\Models\Account $account)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id && !$user->is_admin) {
+             abort(403);
+        }
+
+        $request->validate([
+            'currency' => 'required|string|in:USD,EUR',
+            'amount' => 'required|numeric|min:1', // Assuming min deposit is 1
+        ]);
+
+        $currency = $request->currency;
+        $amount = $request->amount;
+
+        // Ensure we are adding to a Fiat account's available balance
+        if ($account->account_type !== 'fiat') {
+             return back()->withErrors(['error' => 'Deposits are only allowed for Fiat accounts directly.']);
+        }
+
+        // Add to Available Balance
+        // We use firstOrCreate to ensure the balance record exists
+        $balance = $account->balances()->firstOrCreate(
+            ['wallet_type' => 'fiat', 'currency' => $currency], // Match keys
+            ['balance' => 0, 'balance_type' => 'available'] // Default values for creation
+        );
+        
+        // Ensure balance_type is available if it was created without it (legacy)
+        if ($balance->balance_type !== 'available') {
+             $balance->balance_type = 'available';
+             $balance->save();
+        }
+
+        $balance->increment('balance', $amount);
+
+        // Record Transaction
+        \App\Models\Transaction::create([
+            'to_account_id' => $account->id,
+            'type' => 'deposit',
+            'to_currency' => $currency,
+            'amount' => $amount,
+            // from_currency matches to_currency for direct deposits
+            'from_currency' => $currency,
+            'converted_amount' => $amount, 
+            'status' => 'completed',
+            'description' => "Deposit to Fiat Account",
+            'reference_number' => \Illuminate\Support\Str::uuid(),
+            'created_by' => $user->id,
+        ]);
+
+        return back()->with('success', "Successfully deposited {$amount} {$currency}.");
+    }
 }
