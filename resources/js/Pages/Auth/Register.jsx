@@ -480,9 +480,10 @@ export default function Register() {
                                             value={data.phone}
                                             className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
                                             autoComplete="tel"
-                                            onChange={(e) =>
-                                                setData("phone", e.target.value)
-                                            }
+                                            onChange={(e) => {
+                                                const value = e.target.value.replace(/[^0-9+() -]/g, '');
+                                                setData("phone", value);
+                                            }}
                                             required
                                             placeholder="+1 (555) 000-0000"
                                         />
