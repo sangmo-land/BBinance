@@ -1124,7 +1124,30 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
 
                                         {/* To Currency Selection */}
                                         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-1">To</label>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-xs font-bold text-gray-500 uppercase block">To</label>
+                                                {convertData.to_currency && (
+                                                    <div className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                                                        {(() => {
+                                                            // Find direct pair in tradingPairs 
+                                                            // Pairs are standard: {from: OTHER, to: CURRENT, rate: CURRENT_PER_OTHER}
+                                                            // We want to Convert CURRENT -> OTHER.
+                                                            // Rate CURRENT -> OTHER is 1 / OTHER_PER_CURRENT
+                                                            // Wait. The rate in tradingPairs is "Amount of CURRENT per 1 OTHER".
+                                                            // Example: ETH Page. Pair USDT/ETH. Rate = 0.0003 ETH per 1 USDT.
+                                                            // We convert ETH -> USDT. 
+                                                            // 1 ETH = (1/0.0003) USDT = 3333 USDT.
+                                                            
+                                                            const pair = tradingPairs.find(p => p.from === convertData.to_currency);
+                                                            if (pair) {
+                                                                const rate = 1 / pair.rate;
+                                                                return `1 ${currency} ≈ ${formatNumber(rate, rate < 1 ? 6 : 2)} ${convertData.to_currency}`;
+                                                            }
+                                                            return "Best Market Rate";
+                                                        })()}
+                                                    </div>
+                                                )}
+                                            </div>
                                             <select
                                                 value={convertData.to_currency}
                                                 onChange={e => setConvertData('to_currency', e.target.value)}
