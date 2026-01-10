@@ -11,6 +11,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Select;
 use App\Services\TransactionService;
 use Filament\Notifications\Notification;
 
@@ -67,12 +68,25 @@ class AccountsTable
                     ->icon('heroicon-o-plus-circle')
                     ->color('success')
                     ->form([
+                        Select::make('currency')
+                            ->label('Currency')
+                            ->options([
+                                'USD' => 'USD',
+                                'EUR' => 'EUR',
+                            ])
+                            ->default(fn ($record) => $record->currency)
+                            ->visible(fn ($record) => $record->account_type === 'fiat')
+                            ->required(fn ($record) => $record->account_type === 'fiat')
+                            ->helperText('Funds will be added to the available balance of the chosen currency.'),
                         TextInput::make('amount')
                             ->required()
                             ->numeric()
                             ->minValue(0.01)
                             ->label('Amount to Add')
-                            ->prefix('$'),
+                            ->prefix(fn ($get) => match ($get('currency')) {
+                                'EUR' => '€',
+                                default => '$',
+                            }),
                         Textarea::make('description')
                             ->label('Description')
                             ->default('Admin credit')
@@ -80,17 +94,20 @@ class AccountsTable
                     ])
                     ->action(function ($record, array $data) {
                         $transactionService = app(TransactionService::class);
+                        $currency = $data['currency'] ?? $record->currency;
+
                         $transactionService->addFunds(
                             $record,
                             $data['amount'],
                             $data['description'] ?? 'Admin credit',
-                            auth()->id()
+                            auth()->id(),
+                            $currency
                         );
                         
                         Notification::make()
                             ->title('Funds Added Successfully')
                             ->success()
-                            ->body("Added {$data['amount']} {$record->currency} to account {$record->account_number}")
+                            ->body("Added {$data['amount']} {$currency} to account {$record->account_number}")
                             ->send();
                     }),
                 EditAction::make(),
