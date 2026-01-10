@@ -926,4 +926,70 @@ class AccountController extends Controller
 
         return back()->with('success', 'Withdrawal successful.');
     }
+
+    public function withdrawFundingToFiat(Request $request, \App\Models\Account $account)
+    {
+        $user = $request->user();
+        if ($account->user_id !== $user->id) abort(403);
+
+        $request->validate([
+            'currency' => 'required|in:USD,EUR',
+            'amount' => 'required|numeric|min:0.01',
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $account, $user) {
+            $currency = $request->currency;
+            $amount = (float) $request->amount;
+
+            // 1. Source: Funding Wallet Balance (USD/EUR)
+            // The $account passed is the Crypto Account
+            
+            $fundingBalance = $account->balances()
+                ->where('wallet_type', 'funding')
+                ->where('currency', $currency)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$fundingBalance || $fundingBalance->balance < $amount) {
+                 throw \Illuminate\Validation\ValidationException::withMessages([
+                     'amount' => ["Insufficient {$currency} balance in Funding Wallet."],
+                 ]);
+            }
+
+            // 2. Destination: User's Fiat Account -> Available Balance
+            $fiatAccount = $user->fiatAccount;
+            if (!$fiatAccount) {
+                 throw \Illuminate\Validation\ValidationException::withMessages([
+                     'error' => ["Fiat account not found."],
+                 ]);
+            }
+
+            $fiatAvailableBalance = $fiatAccount->balances()->firstOrCreate(
+                ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'available'],
+                ['balance' => 0]
+            );
+
+            // 3. Execute Transfer
+            $fundingBalance->decrement('balance', $amount);
+            $fiatAvailableBalance->increment('balance', $amount);
+
+            // 4. Record Transaction
+             \App\Models\Transaction::create([
+                'from_account_id' => $account->id, // Crypto Account
+                'to_account_id' => $fiatAccount->id, // Fiat Account
+                'type' => 'transfer', 
+                'from_currency' => $currency,
+                'to_currency' => $currency,
+                'amount' => $amount,
+                'converted_amount' => $amount,
+                'exchange_rate' => 1.0,
+                'status' => 'completed',
+                'description' => "Withdrawal from Funding Wallet to Fiat Balance",
+                'reference_number' => \Illuminate\Support\Str::uuid(),
+                'created_by' => $user->id,
+            ]);
+        });
+
+        return back()->with('success', 'Funds transferred to Fiat available balance.');
+    }
 }

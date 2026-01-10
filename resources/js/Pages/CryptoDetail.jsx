@@ -96,6 +96,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     let [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     let [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
     let [isDepositFiatModalOpen, setIsDepositFiatModalOpen] = useState(false); // New Modal state for Fiat Deposit
+    let [isWithdrawFundingModalOpen, setIsWithdrawFundingModalOpen] = useState(false); // New Modal for Funding Withdraw
 
     // Form handling for Deposit Fiat
     const { 
@@ -107,7 +108,20 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         reset: resetDeposit 
     } = useForm({
         amount: '',
-        currency: currency, // Should be USD or EUR
+        currency: 'USD',
+    });
+
+    // Form handling for Withdraw Funding
+    const { 
+        data: withdrawFundingData, 
+        setData: setWithdrawFundingData, 
+        post: postWithdrawFunding, 
+        processing: processingWithdrawFunding, 
+        errors: errorsWithdrawFunding, 
+        reset: resetWithdrawFunding 
+    } = useForm({
+        amount: '',
+        currency: 'USD',
     });
     
     // Selection States
@@ -223,6 +237,18 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         });
     };
 
+    const handleWithdrawFundingSubmit = (e) => {
+        e.preventDefault();
+        postWithdrawFunding(route('accounts.withdraw-funding', account.id), {
+            onSuccess: () => {
+                setIsWithdrawFundingModalOpen(false);
+                resetWithdrawFunding();
+                setShowNotification(true);
+                setTimeout(() => setShowNotification(false), 5000);
+            },
+        });
+    };
+
     const handleActionClick = (actionName) => {
         if (actionName === 'Buy') {
              // Default to buying Current Currency with something (default USDT if available, or first pair)
@@ -250,6 +276,15 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                  setIsDepositFiatModalOpen(true);
              } else {
                  alert("Crypto Deposit Feature coming soon.");
+             }
+        } else if (actionName === 'Withdraw') {
+             if (normalizedWalletType === 'Funding') {
+                 const defaultCurrency = (currency === 'EUR') ? 'EUR' : 'USD';
+                 setWithdrawFundingData('currency', defaultCurrency);
+                 setIsWithdrawFundingModalOpen(true);
+             } else {
+                 // Standard withdrawal or alert
+                 alert("Standard withdrawal for Spot/Earn currently disabled or handled elsewhere.");
              }
         }
     };
@@ -472,11 +507,10 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     } else if (
                                         normalizedWalletType === "Funding"
                                     ) {
-                                        // Funding: Hide Buy, Convert, Sell, Trade, Earn
+                                        // Funding: Hide Buy, Sell, Trade, Earn
                                         if (
                                             [
                                                 "Buy",
-                                                "Convert",
                                                 "Sell",
                                                 "Trade",
                                                 "Earn",
@@ -2094,18 +2128,22 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 <option value="" disabled>
                                                     Select Currency
                                                 </option>
-                                                {[
-                                                    "BTC",
-                                                    "ETH",
-                                                    "USDT",
-                                                    "BNB",
-                                                    "SOL",
-                                                    "XRP",
-                                                    "USDC",
-                                                    "ADA",
-                                                    "AVAX",
-                                                    "DOGE",
-                                                ]
+                                                {(() => {
+                                                    const baseCurrencies = [
+                                                        "BTC",
+                                                        "ETH",
+                                                        "USDT",
+                                                        "USDC",
+                                                        "BNB",
+                                                    ];
+                                                    
+                                                    // Add Fiat for Funding Transaction
+                                                    if (convertData.wallet_type === "Funding") {
+                                                        baseCurrencies.push("USD", "EUR");
+                                                    }
+
+                                                    return baseCurrencies;
+                                                })()
                                                     .filter(
                                                         (c) => c !== currency
                                                     )
@@ -2398,9 +2436,188 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             <button
                                                 type="submit"
                                                 disabled={processingDeposit || !depositData.amount || (parseFloat(depositData.amount || 0) > parseFloat(fiatBalances[depositData.currency] || 0))}
-                                                className="inline-flex justify-center rounded-xl border border-transparent bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
+                                                className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
                                             >
-                                                {processingDeposit ? "Depositing..." : "Confirm Deposit"}
+                                                {processingDeposit ? (
+                                                    <>
+                                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                        <span>Depositing...</span>
+                                                    </>
+                                                ) : (
+                                                    "Confirm Deposit"
+                                                )}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+            {/* Withdraw Funding Modal */}
+            <Transition appear show={isWithdrawFundingModalOpen} as={Fragment}>
+                <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setIsWithdrawFundingModalOpen(false)}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                            </svg>
+                                        </div>
+                                        Withdraw from Funding
+                                    </Dialog.Title>
+
+                                    <form onSubmit={handleWithdrawFundingSubmit} className="mt-4 space-y-4">
+                                        <div className="text-sm text-gray-500 bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
+                                            Withdraw funds from your <strong>Funding Wallet</strong> back to your <strong>Fiat Account</strong>.
+                                        </div>
+
+                                        {/* Currency Selection */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                Select Currency
+                                            </label>
+                                            <select
+                                                value={withdrawFundingData.currency}
+                                                onChange={(e) => setWithdrawFundingData("currency", e.target.value)}
+                                                className="w-full rounded-xl border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-3 font-bold text-gray-800"
+                                            >
+                                                <option value="USD">USD - US Dollar</option>
+                                                <option value="EUR">EUR - Euro</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Source: Funding Balance */}
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-1">
+                                                Source (Funding Wallet)
+                                            </label>
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-bold text-gray-900 text-lg">
+                                                    {withdrawFundingData.currency}
+                                                </span>
+                                                <span className="text-xs font-bold text-gray-500">
+                                                    {(() => {
+                                                        const bal = allCurrencyBalances.find(b => 
+                                                            b.wallet_type.toLowerCase() === 'funding' && 
+                                                            b.currency === withdrawFundingData.currency
+                                                        );
+                                                        return `Available: ${formatNumber(bal ? bal.balance : 0, 2)}`;
+                                                    })()}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Amount Input */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            {(() => {
+                                                const balObj = allCurrencyBalances.find(b => 
+                                                    b.wallet_type.toLowerCase() === 'funding' && 
+                                                    b.currency === withdrawFundingData.currency
+                                                );
+                                                const maxAmount = balObj ? parseFloat(balObj.balance) : 0;
+                                                const currentAmount = parseFloat(withdrawFundingData.amount || 0);
+                                                const isExceeding = currentAmount > maxAmount;
+                                                
+                                                return (
+                                                    <>
+                                                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                            Withdraw Amount
+                                                        </label>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={withdrawFundingData.amount}
+                                                                onChange={(e) => setWithdrawFundingData("amount", e.target.value)}
+                                                                className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-orange-500 focus:ring-orange-500 sm:text-lg font-bold ${
+                                                                    isExceeding ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500" : ""
+                                                                }`}
+                                                                placeholder="0.00"
+                                                                min="0.01"
+                                                                step="any"
+                                                            />
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                                <span className={`${isExceeding ? "text-red-500" : "text-gray-500"} sm:text-sm font-bold`}>
+                                                                    {withdrawFundingData.currency}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {isExceeding && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">
+                                                                Amount exceeds available balance.
+                                                            </p>
+                                                        )}
+                                                        {errorsWithdrawFunding.amount && (
+                                                            <p className="mt-1 text-xs text-red-600 font-bold">
+                                                                {errorsWithdrawFunding.amount}
+                                                            </p>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        <div className="mt-6 flex justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
+                                                onClick={() => setIsWithdrawFundingModalOpen(false)}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={processingWithdrawFunding || !withdrawFundingData.amount || (
+                                                    parseFloat(withdrawFundingData.amount || 0) > 
+                                                    (allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === 'funding' && b.currency === withdrawFundingData.currency)?.balance || 0)
+                                                )}
+                                                className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-orange-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
+                                            >
+                                                {processingWithdrawFunding ? (
+                                                    <>
+                                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        </svg>
+                                                        <span>Withdrawing...</span>
+                                                    </>
+                                                ) : (
+                                                    "Confirm Withdraw"
+                                                )}
                                             </button>
                                         </div>
                                     </form>
