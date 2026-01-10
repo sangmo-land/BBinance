@@ -23,12 +23,11 @@ class DashboardController extends Controller
             $rates = [
                 'USD' => 1.0,
                 'EUR' => 0.92,
-                'GBP' => 0.79,
-                'JPY' => 149.50,
                 'BTC' => 0.000024,
                 'ETH' => 0.00042,
-                'SOL' => 0.0095,
                 'USDT' => 1.0,
+                'BNB' => 0.0016,
+                'USDC' => 1.0,
             ];
             
             $fromRate = $rates[$currency] ?? 1.0;
@@ -52,12 +51,11 @@ class DashboardController extends Controller
             $rates = [
                 'USD' => 1.0,
                 'EUR' => 0.92,
-                'GBP' => 0.79,
-                'JPY' => 149.50,
                 'BTC' => 0.000024,
                 'ETH' => 0.00042,
-                'SOL' => 0.0095,
                 'USDT' => 1.0,
+                'BNB' => 0.0016,
+                'USDC' => 1.0,
             ];
             
             $fromRate = $rates['USD'] ?? 1.0;

@@ -92,12 +92,14 @@ class AccountController extends Controller
         // Fetch Trading Pairs (Rates involving this currency)
         // Exclude Fiat pairs (USD, EUR) as trading happens in Spot wallet with Stablecoins/Crypto
         // Return standard pair keys (Base/Quote)
+        $allowedCurrencies = ['BTC', 'ETH', 'USDT', 'BNB', 'USDC'];
+        
         $tradingPairs = \App\Models\ExchangeRate::where(function ($q) use ($currency) {
                 $q->where('from_currency', $currency)
                   ->orWhere('to_currency', $currency);
             })
-            ->whereNotIn('from_currency', ['USD', 'EUR'])
-            ->whereNotIn('to_currency', ['USD', 'EUR'])
+            ->whereIn('from_currency', $allowedCurrencies)
+            ->whereIn('to_currency', $allowedCurrencies)
             ->get()
             ->map(function ($rateModel) use ($currency) {
                 // Determine if we need to invert the pair to ensure Other/Current format

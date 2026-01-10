@@ -586,50 +586,35 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     Trade
                                 </h3>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                                     {topPairs.map((pair) => (
                                         <div
                                             key={pair.id}
-                                            className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer hover:border-gray-200"
+                                            onClick={() => setSelectedPairId(pair.id)}
+                                            className={`bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 border-2 text-left cursor-pointer rounded-xl p-3 shadow-[0_4px_10px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden ${selectedPairId === pair.id ? 'border-amber-500' : 'border-gray-300 hover:border-amber-400'}`}
                                         >
-                                            <div className="flex justify-between items-start mb-2">
+                                            {/* Decorative Background Blob on Hover */}
+                                            <div className="absolute -right-6 -top-6 w-16 h-16 bg-gradient-to-br from-amber-200/50 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-lg"></div>
+
+                                            <div className="flex justify-between items-center mb-2 relative z-10">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="flex -space-x-1">
-                                                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 border border-white z-10">
-                                                            {pair.from.substring(
-                                                                0,
-                                                                1
-                                                            )}
+                                                    <div className="flex -space-x-2">
+                                                        <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[8px] font-black text-gray-700 border border-gray-200 shadow-sm z-10">
+                                                            {pair.from.substring(0, 1)}
                                                         </div>
-                                                        <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center text-[10px] font-bold text-gray-400 border border-white">
-                                                            {pair.to.substring(
-                                                                0,
-                                                                1
-                                                            )}
+                                                        <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-500 border border-gray-200 shadow-inner">
+                                                            {pair.to.substring(0, 1)}
                                                         </div>
                                                     </div>
-                                                    <span className="font-bold text-gray-700 text-lg group-hover:text-amber-600 transition-colors">
+                                                    <span className="font-extrabold text-gray-800 text-xs group-hover:text-amber-800 transition-colors">
                                                         {pair.from}/{pair.to}
                                                     </span>
                                                 </div>
-                                                <span className="text-xs font-bold px-2 py-1 bg-gray-50 text-gray-400 rounded-lg group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
-                                                    Spot
-                                                </span>
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-2xl font-black text-gray-900 tracking-tight">
-                                                    {formatNumber(
-                                                        pair.rate,
-                                                        pair.rate < 1 ? 6 : 2
-                                                    )}
-                                                </span>
-                                                <span className="text-xs text-gray-400 font-medium mt-1">
-                                                    1 {pair.from} ={" "}
-                                                    {formatNumber(
-                                                        pair.rate,
-                                                        pair.rate < 1 ? 6 : 2
-                                                    )}{" "}
-                                                    {pair.to}
+                                            
+                                            <div className="flex items-baseline gap-1 relative z-10">
+                                                <span className="text-lg font-black text-gray-900 tracking-tight group-hover:text-amber-900 transition-colors">
+                                                    {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)}
                                                 </span>
                                             </div>
                                         </div>
