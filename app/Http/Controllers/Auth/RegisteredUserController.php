@@ -100,8 +100,7 @@ $user = User::create([
 
         // Auth::login($user);
 
-return redirect(route('login'))->with('status', 'Registration successful! Your account is pending approval by an
-administrator.');
+        return redirect(route('login'))->with('status', 'Registration successful! Your account is pending approval by an administrator.');
 } catch (\Exception $e) {
 Log::error('Registration failed: ' . $e->getMessage());
 Log::error($e->getTraceAsString());

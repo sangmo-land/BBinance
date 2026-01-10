@@ -20,10 +20,8 @@ export default function Login({ status, canResetPassword }) {
 
     useEffect(() => {
         if (
-            status ===
-                "Registration successful! Your account is pending approval by an administrator." ||
-            errors.email ===
-                "Your account is pending approval by an administrator."
+            status?.includes("Your account is pending approval by an administrator.") ||
+            errors.email?.includes("Your account is pending approval by an administrator.")
         ) {
             setShowApprovalModal(true);
             if (errors.email) clearErrors("email");

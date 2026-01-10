@@ -5,6 +5,10 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { useState, useRef } from "react";
 import { countries, civilities } from "@/Constants/countries";
 
+const languages = [
+    "English", "Spanish", "French", "German", "Chinese", "Japanese", "Russian", "Arabic", "Portuguese", "Italian", "Hindi", "Korean", "Turkish", "Dutch", "Other"
+];
+
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
         civility: civilities[0],
@@ -388,11 +392,11 @@ export default function Register() {
                                         className="mb-1.5"
                                     />
                                     <div className="relative">
-                                        <input
+                                        <select
                                             id="spoken_language"
                                             name="spoken_language"
                                             value={data.spoken_language}
-                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
+                                            className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400 appearance-none"
                                             onChange={(e) =>
                                                 setData(
                                                     "spoken_language",
@@ -400,8 +404,16 @@ export default function Register() {
                                                 )
                                             }
                                             required
-                                            placeholder="English"
-                                        />
+                                        >
+                                            <option value="">
+                                                Select Language
+                                            </option>
+                                            {languages.map((lang) => (
+                                                <option key={lang} value={lang}>
+                                                    {lang}
+                                                </option>
+                                            ))}
+                                        </select>
                                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
                                             <svg
                                                 className="h-5 w-5"
@@ -415,6 +427,21 @@ export default function Register() {
                                                     strokeWidth="1.5"
                                                     d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"
                                                 />
+                                            </svg>
+                                        </div>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-zinc-500">
+                                            <svg
+                                                className="h-4 w-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="2"
+                                                    d="M19 9l-7 7-7-7"
+                                                ></path>
                                             </svg>
                                         </div>
                                     </div>
