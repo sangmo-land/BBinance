@@ -133,42 +133,44 @@ export default function Register() {
                 <div className="hidden lg:flex w-[400px] xl:w-[500px] flex-col justify-between bg-[#18181b] p-12 relative overflow-hidden shrink-0 border-r border-[#ffffff1a]">
                     <div className="absolute inset-0 bg-[url('https://laravel.com/assets/img/welcome/background.svg')] bg-cover opacity-10"></div>
 
-                    <div className="relative z-10">
-                        {/* Logo */}
-                        <div className="flex items-center gap-3">
-                            <img
-                                src="/images/logo.png"
-                                className="h-32 w-auto"
-                                alt="Logo"
-                            />
+                    <div className="space-y-12">
+                        <div className="relative z-10">
+                            {/* Logo */}
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src="/images/logo.png"
+                                    className="h-32 w-auto"
+                                    alt="Logo"
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="relative z-10 space-y-6">
-                        <h2 className="text-3xl font-bold text-white leading-tight">
-                            Start Investing
-                            <br />
-                            In Your Future
-                        </h2>
-                        <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
-                            <p>
-                                Join millions of users worldwide who trust
-                                BBinance for their crypto journey.
-                            </p>
-                            <ul className="space-y-3 mt-4 text-white/80">
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
-                                    <span>Fast & Secure Verification</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
-                                    <span>Low Trading Fees</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
-                                    <span>24/7 Customer Support</span>
-                                </li>
-                            </ul>
+                        <div className="relative z-10 space-y-6">
+                            <h2 className="text-3xl font-bold text-white leading-tight">
+                                Start Investing
+                                <br />
+                                In Your Future
+                            </h2>
+                            <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
+                                <p>
+                                    Join millions of users worldwide who trust
+                                    BBinance for their crypto journey.
+                                </p>
+                                <ul className="space-y-3 mt-4 text-white/80">
+                                    <li className="flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
+                                        <span>Fast & Secure Verification</span>
+                                    </li>
+                                    <li className="flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
+                                        <span>Low Trading Fees</span>
+                                    </li>
+                                    <li className="flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
+                                        <span>24/7 Customer Support</span>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 

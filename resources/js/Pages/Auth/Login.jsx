@@ -87,42 +87,44 @@ export default function Login({ status, canResetPassword }) {
                 <div className="hidden lg:flex w-[400px] xl:w-[500px] flex-col justify-between bg-[#18181b] p-12 relative overflow-hidden shrink-0 border-r border-[#ffffff1a]">
                     <div className="absolute inset-0 bg-[url('https://laravel.com/assets/img/welcome/background.svg')] bg-cover opacity-10"></div>
 
-                    <div className="relative z-10">
-                        {/* Logo - Matching Welcome.jsx Style */}
-                        <div className="flex items-center gap-3">
-                            <img
-                                src="/images/logo.png"
-                                className="h-32 w-auto"
-                                alt="Logo"
-                            />
+                    <div className="space-y-12">
+                        <div className="relative z-10">
+                            {/* Logo - Matching Welcome.jsx Style */}
+                            <div className="flex items-center gap-3">
+                                <img
+                                    src="/images/logo.png"
+                                    className="h-32 w-auto"
+                                    alt="Logo"
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="relative z-10 space-y-6">
-                        <h2 className="text-3xl font-bold text-white leading-tight">
-                            Professional
-                            <br />
-                            Trading Platform
-                        </h2>
-                        <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
-                            <p>
-                                Access global markets with advanced tools and
-                                rock-solid security.
-                            </p>
-                            <ul className="space-y-3 mt-4 text-white/80">
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
-                                    <span>Real-time Market Data</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
-                                    <span>Advanced Charting Tools</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
-                                    <span>Instant Execution</span>
-                                </li>
-                            </ul>
+                        <div className="relative z-10 space-y-6">
+                            <h2 className="text-3xl font-bold text-white leading-tight">
+                                Professional
+                                <br />
+                                Trading Platform
+                            </h2>
+                            <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
+                                <p>
+                                    Access global markets with advanced tools and
+                                    rock-solid security.
+                                </p>
+                                <ul className="space-y-3 mt-4 text-white/80">
+                                    <li className="flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
+                                        <span>Real-time Market Data</span>
+                                    </li>
+                                    <li className="flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
+                                        <span>Advanced Charting Tools</span>
+                                    </li>
+                                    <li className="flex items-center gap-3">
+                                        <div className="w-1.5 h-1.5 bg-[#FF2D20] rounded-full"></div>
+                                        <span>Instant Execution</span>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 
