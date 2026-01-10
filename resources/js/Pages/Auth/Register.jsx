@@ -33,7 +33,11 @@ export default function Register() {
 
     // Calculate max date for 18+ age restriction
     const today = new Date();
-    const maxDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate()).toISOString().split('T')[0];
+    const cutoffDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+    const year = cutoffDate.getFullYear();
+    const month = String(cutoffDate.getMonth() + 1).padStart(2, '0');
+    const day = String(cutoffDate.getDate()).padStart(2, '0');
+    const maxDate = `${year}-${month}-${day}`;
 
     // Refs for file inputs
     const idFrontInput = useRef(null);
@@ -737,14 +741,27 @@ export default function Register() {
                                             type="date"
                                             name="date_of_birth"
                                             value={data.date_of_birth}
-                                            max={maxDate}
                                             className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
-                                            onChange={(e) =>
-                                                setData(
-                                                    "date_of_birth",
-                                                    e.target.value
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                const selectedDate = e.target.value; // YYYY-MM-DD
+                                                
+                                                // Calculate 18 years ago from today
+                                                const today = new Date();
+                                                const cutoffDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+                                                
+                                                // Format cutoffDate to YYYY-MM-DD (Local time)
+                                                const year = cutoffDate.getFullYear();
+                                                const month = String(cutoffDate.getMonth() + 1).padStart(2, '0');
+                                                const day = String(cutoffDate.getDate()).padStart(2, '0');
+                                                const maxDateString = `${year}-${month}-${day}`;
+
+                                                if (selectedDate > maxDateString) {
+                                                    alert("You must be at least 18 years old to register.");
+                                                    setData("date_of_birth", "");
+                                                } else {
+                                                    setData("date_of_birth", selectedDate);
+                                                }
+                                            }}
                                             required
                                         />
                                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-zinc-500">
