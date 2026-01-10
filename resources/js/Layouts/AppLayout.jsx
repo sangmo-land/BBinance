@@ -3,13 +3,30 @@ import { Link, usePage } from '@inertiajs/react';
 import ChatWidget from "@/Components/ChatWidget";
 
 export default function AppLayout({ children }) {
-    const { auth, adminContact } = usePage().props;
+    const { auth, adminContact, flash } = usePage().props;
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [toast, setToast] = useState({ message: '', type: '', visible: false });
     const currentRoute = usePage().url;
     const userMenuRef = useRef(null);
     const mobileMenuRef = useRef(null);
     const mobileBtnRef = useRef(null);
+
+    // Handle Flash Messages
+    useEffect(() => {
+        if (flash?.success) {
+            setToast({ message: flash.success, type: 'success', visible: true });
+        } else if (flash?.error) {
+            setToast({ message: flash.error, type: 'error', visible: true });
+        }
+
+        if (flash?.success || flash?.error) {
+            const timer = setTimeout(() => {
+                setToast(prev => ({ ...prev, visible: false }));
+            }, 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
 
     // Close user dropdown when clicking outside
     useEffect(() => {
@@ -657,6 +674,45 @@ export default function AppLayout({ children }) {
                 </div>
             </footer>
             {auth.user && <ChatWidget user={auth.user} />}
+
+            {/* Notification Toast */}
+            {toast.visible && (
+                <div className={`fixed top-24 right-5 p-4 rounded-xl shadow-2xl bg-white border-l-4 z-[9999] transition-all transform animate-[slideIn_0.3s_ease-out] flex items-center gap-3 max-w-sm ${
+                    toast.type === 'success' ? 'border-emerald-500' : 'border-red-500'
+                }`}>
+                    <div className={`p-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                        {toast.type === 'success' ? (
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                        ) : (
+                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        )}
+                    </div>
+                    <div>
+                        <h4 className={`text-sm font-bold ${toast.type === 'success' ? 'text-emerald-900' : 'text-red-900'}`}>
+                            {toast.type === 'success' ? 'Success' : 'Attention'}
+                        </h4>
+                        <p className="text-sm text-gray-600 font-medium">{toast.message}</p>
+                    </div>
+                    <button 
+                        onClick={() => setToast(prev => ({ ...prev, visible: false }))} 
+                        className="ml-auto text-gray-400 hover:text-gray-600"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <style>{`
+                        @keyframes slideIn {
+                            from { opacity: 0; transform: translateX(100%); }
+                            to { opacity: 1; transform: translateX(0); }
+                        }
+                    `}</style>
+                </div>
+            )}
         </div>
     );
 }
