@@ -230,9 +230,9 @@ export default function Register() {
                         </div>
                     </div>
 
-                    <div className="w-full max-w-sm space-y-8">
+                    <div className="w-full max-w-2xl space-y-8">
                         <div>
-                            <h2 className="text-2xl font-bold tracking-tight text-black dark:text-white mb-2">
+                            <h2 className="text-3xl font-bold tracking-tight text-black dark:text-white mb-2">
                                 Create an account
                             </h2>
                             <p className="text-sm text-black/50 dark:text-zinc-400">
