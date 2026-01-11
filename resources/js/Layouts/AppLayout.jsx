@@ -538,14 +538,6 @@ export default function AppLayout({ children }) {
                                         Dashboard
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link
-                                        href="/transfer"
-                                        className="text-sm hover:text-blue-400 transition-colors"
-                                    >
-                                        Transfer
-                                    </Link>
-                                </li>
                             </ul>
                         </div>
 
