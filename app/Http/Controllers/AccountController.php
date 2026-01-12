@@ -1015,18 +1015,11 @@ class AccountController extends Controller
              return back()->withErrors(['error' => 'Deposits are only allowed for Fiat accounts directly.']);
         }
 
-        // Add to Available Balance
-        // We use firstOrCreate to ensure the balance record exists
+// Add to Pending Balance (User specified this change)
         $balance = $account->balances()->firstOrCreate(
-            ['wallet_type' => 'fiat', 'currency' => $currency], // Match keys
-            ['balance' => 0, 'balance_type' => 'available'] // Default values for creation
+['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'pending'],
+            ['balance' => 0]
         );
-        
-        // Ensure balance_type is available if it was created without it (legacy)
-        if ($balance->balance_type !== 'available') {
-             $balance->balance_type = 'available';
-             $balance->save();
-        }
 
         $balance->increment('balance', $amount);
 
@@ -1039,12 +1032,13 @@ class AccountController extends Controller
             // from_currency matches to_currency for direct deposits
             'from_currency' => $currency,
             'converted_amount' => $amount, 
-            'status' => 'completed',
+'status' => 'pending', // Transaction is pending approval
             'description' => "Deposit to Fiat Account",
             'reference_number' => \Illuminate\Support\Str::uuid(),
             'created_by' => $user->id,
         ]);
 
-        return back()->with('success', "Successfully deposited {$amount} {$currency}.");
+return back()->with('success', "Deposit of {$amount} {$currency} submitted successfully. It will be credited once
+        approved.");
     }
 }
