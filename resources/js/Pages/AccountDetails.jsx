@@ -23,36 +23,44 @@ const currencyNames = {
     EUR: 'Euro',
 };
 
-export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1, transactions = [], recipientAccounts = [] }) {
-    const isFiat = account.account_type === 'fiat';
-    const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
-    const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
+export default function AccountDetails({
+    account,
+    rates,
+    cryptoConversionFeePercent = 1,
+    transactions = [],
+    recipientAccounts = [],
+}) {
+    const isFiat = account.account_type === "fiat";
+    const [activeTab, setActiveTab] = useState(isFiat ? "fiat" : "spot");
+    const [displayCurrency, setDisplayCurrency] = useState(
+        isFiat ? "USD" : "BTC"
+    );
     const [showConvertModal, setShowConvertModal] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false); // New Transfer Modal
     const [showWithdrawModal, setShowWithdrawModal] = useState(false); // New Withdraw Modal
     const [showDepositModal, setShowDepositModal] = useState(false); // New Deposit Modal
-    const [conversionMode, setConversionMode] = useState('menu'); // menu, fiat, crypto
-    
+    const [conversionMode, setConversionMode] = useState("menu"); // menu, fiat, crypto
+
     // Deposit Form
-    const { 
-        data: depositData, 
-        setData: setDepositData, 
-        post: postDeposit, 
-        processing: depositProcessing, 
-        errors: depositErrors, 
-        reset: resetDeposit 
+    const {
+        data: depositData,
+        setData: setDepositData,
+        post: postDeposit,
+        processing: depositProcessing,
+        errors: depositErrors,
+        reset: resetDeposit,
     } = useForm({
-        currency: 'USD',
-        amount: ''
+        currency: "USD",
+        amount: "",
     });
 
     const handleDeposit = (e) => {
         e.preventDefault();
-        postDeposit(route('accounts.deposit', account.id), {
+        postDeposit(route("accounts.deposit", account.id), {
             onSuccess: () => {
                 resetDeposit();
                 setShowDepositModal(false);
-            }
+            },
         });
     };
 
@@ -75,48 +83,49 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
 
     const handleWithdraw = (e) => {
         e.preventDefault();
-        postWithdraw(route('accounts.withdraw', account.id), {
+        postWithdraw(route("accounts.withdraw", account.id), {
             onSuccess: () => {
                 resetWithdraw();
                 setShowWithdrawModal(false);
-            }
+            },
         });
     };
 
     // Transfer Form
-    const { 
-        data: transferData, 
-        setData: setTransferData, 
-        post: postTransfer, 
-        processing: transferProcessing, 
-        errors: transferErrors, 
-        reset: resetTransfer 
+    const {
+        data: transferData,
+        setData: setTransferData,
+        post: postTransfer,
+        processing: transferProcessing,
+        errors: transferErrors,
+        reset: resetTransfer,
     } = useForm({
-        currency: 'USD',
-        amount: '',
-        direction: 'available_to_withdrawable'
+        currency: "USD",
+        amount: "",
+        direction: "available_to_withdrawable",
     });
 
     const handleTransfer = (e) => {
         e.preventDefault();
-        postTransfer(route('accounts.transfer-internal', account.id), {
+        postTransfer(route("accounts.transfer-internal", account.id), {
             onSuccess: () => {
                 resetTransfer();
                 setShowTransferModal(false);
-            }
+            },
         });
     };
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
-        from_currency: 'EUR',
-        to_currency: 'USD',
-        amount: '',
-    });
+    const { data, setData, post, processing, errors, reset, clearErrors } =
+        useForm({
+            from_currency: "EUR",
+            to_currency: "USD",
+            amount: "",
+        });
 
     useEffect(() => {
         if (!showConvertModal) {
             const timer = setTimeout(() => {
-                setConversionMode('menu');
+                setConversionMode("menu");
                 reset();
                 clearErrors();
             }, 300);
@@ -137,13 +146,16 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
             isFiat ? b.wallet_type === "fiat" : b.wallet_type === activeTab
         )
         .reduce((sum, b) => sum + getUsdEquivalent(b.currency, b.balance), 0);
-    
-    // Convert total USD to selected display currency
-    const totalDisplayBalance = displayCurrency === 'USD' 
-        ? totalUsdBalance 
-        : totalUsdBalance / (rates[displayCurrency] || 1);
 
-    const availableCurrencies = Object.keys(currencyNames).filter(c => ['USD', 'EUR', 'GBP'].indexOf(c) === -1); 
+    // Convert total USD to selected display currency
+    const totalDisplayBalance =
+        displayCurrency === "USD"
+            ? totalUsdBalance
+            : totalUsdBalance / (rates[displayCurrency] || 1);
+
+    const availableCurrencies = Object.keys(currencyNames).filter(
+        (c) => ["USD", "EUR", "GBP"].indexOf(c) === -1
+    );
 
     return (
         <AppLayout>
@@ -1999,7 +2011,9 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     }
                                     className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
                                 >
-                                    <option value="">Select Recipient Account</option>
+                                    <option value="">
+                                        Select Recipient Account
+                                    </option>
                                     {recipientAccounts &&
                                         recipientAccounts.map((acct) => (
                                             <option
