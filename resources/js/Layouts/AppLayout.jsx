@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import ChatWidget from "@/Components/ChatWidget";
+import AdminMessages from "@/Components/AdminMessages";
 
 export default function AppLayout({ children }) {
     const { auth, adminContact, flash } = usePage().props;
@@ -103,6 +104,7 @@ export default function AppLayout({ children }) {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+            <AdminMessages messages={auth?.unreadMessages} />
             {/* Navigation */}
             <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200/50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

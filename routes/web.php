@@ -49,6 +49,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/accounts/{account}/withdraw', [\App\Http\Controllers\AccountController::class, 'withdraw'])->name('accounts.withdraw');
     Route::post('/accounts/{account}/deposit', [\App\Http\Controllers\AccountController::class, 'deposit'])->name('accounts.deposit'); // New Deposit Route
 
+    Route::post('/messages/{message}/read', function (\App\Models\Message $message) {
+        if (request()->user()->id !== $message->user_id) {
+            abort(403);
+        }
+        $message->update(['read_at' => now()]);
+        return back();
+    })->name('messages.read');
+
+
 
     // Ensure Filament admin dashboard explicit path works
     Route::redirect('/admin/dashboard', '/admin');

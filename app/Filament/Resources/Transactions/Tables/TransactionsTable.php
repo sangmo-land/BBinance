@@ -7,6 +7,7 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
 
@@ -101,6 +102,199 @@ class TransactionsTable
             ])
             ->recordActions([
                 ViewAction::make(),
+                Action::make('approveDeposit')
+                    ->label('Approve')
+                    ->icon('heroicon-m-check')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->form([
+                        Textarea::make('message')
+                            ->label('Message to User')
+                            ->placeholder('Optional message to the user')
+                            ->rows(3),
+                    ])
+                    ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'deposit')
+                    ->action(function ($record, array $data) {
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                            // 1. Update Transaction Status
+                            $record->update(['status' => 'completed']);
+
+                            // 2. Update Account Balances
+                            $account = \App\Models\Account::find($record->to_account_id);
+                            if ($account) {
+                                // Decrement Pending Balance
+                                $pendingBalance = $account->balances()
+                                    ->where('wallet_type', 'fiat')
+                                    ->where('currency', $record->to_currency)
+                                    ->where('balance_type', 'pending')
+                                    ->first();
+                                
+                                if ($pendingBalance) {
+                                    $pendingBalance->decrement('balance', $record->amount);
+                                }
+
+                                // Increment Available Balance
+                                $availableBalance = $account->balances()->firstOrCreate(
+                                    ['wallet_type' => 'fiat', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+                                    ['balance' => 0]
+                                );
+                                $availableBalance->increment('balance', $record->amount);
+
+                                // 3. Create Message if provided
+                                if (!empty($data['message']) && $account->user_id) {
+                                    \App\Models\Message::create([
+                                        'user_id' => $account->user_id,
+                                        'body' => $data['message'],
+                                        'is_from_admin' => true,
+                                    ]);
+                                }
+                            }
+                        });
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Deposit Approved')
+                            ->success()
+                            ->send();
+                    }),
+                Action::make('rejectDeposit')
+                    ->label('Reject')
+                    ->icon('heroicon-m-x-mark')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->form([
+                        Textarea::make('message')
+                            ->label('Reason for Rejection')
+                            ->placeholder('Explain why the deposit was rejected')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'deposit')
+                    ->action(function ($record, array $data) {
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                            // 1. Update Transaction Status
+                            $record->update(['status' => 'failed']);
+
+                            // 2. Update Account Balances
+                            $account = \App\Models\Account::find($record->to_account_id);
+                            if ($account) {
+                                // Decrement Pending Balance
+                                $pendingBalance = $account->balances()
+                                    ->where('wallet_type', 'fiat')
+                                    ->where('currency', $record->to_currency)
+                                    ->where('balance_type', 'pending')
+                                    ->first();
+                                
+                                if ($pendingBalance) {
+                                    $pendingBalance->decrement('balance', $record->amount);
+                                }
+
+                                // 3. Create Message (Required for Rejection)
+                                if ($account->user_id) {
+                                    \App\Models\Message::create([
+                                        'user_id' => $account->user_id,
+                                        'body' => $data['message'],
+                                        'is_from_admin' => true,
+                                    ]);
+                                }
+                            }
+                        });
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Deposit Rejected')
+                            ->danger()
+                            ->send();
+                    }),
+Action::make('approveWithdrawal')
+                ->label('Approve Withdrawal')
+                ->icon('heroicon-m-check')
+                ->color('success')
+                ->requiresConfirmation()
+                ->form([
+                Textarea::make('message')
+                ->label('Message to User')
+                ->placeholder('Withdrawal has been processed...')
+                ->rows(3),
+                ])
+                ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'withdrawal')
+                ->action(function ($record, array $data) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                $record->update(['status' => 'completed']);
+                
+                // If Internal withdrawal, credit the target account
+                if ($record->to_account_id) {
+                $targetAccount = \App\Models\Account::find($record->to_account_id);
+                if ($targetAccount) {
+                // Credit to Available Balance directly? Or Pending? Typically available for internal.
+                $availableBalance = $targetAccount->balances()->firstOrCreate(
+                ['wallet_type' => 'fiat', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+                ['balance' => 0]
+                );
+                $availableBalance->increment('balance', $record->amount);
+                }
+                }
+                
+                // Send Message
+                $user = $record->fromAccount->user ?? null;
+                if ($user && !empty($data['message'])) {
+                \App\Models\Message::create([
+                'user_id' => $user->id,
+                'body' => $data['message'],
+                'is_from_admin' => true,
+                ]);
+                }
+                });
+                
+                \Filament\Notifications\Notification::make()
+                ->title('Withdrawal Approved')
+                ->success()
+                ->send();
+                }),
+                Action::make('rejectWithdrawal')
+                ->label('Reject Withdrawal')
+                ->icon('heroicon-m-x-mark')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->form([
+                Textarea::make('message')
+                ->label('Reason for Rejection')
+                ->required()
+                ->rows(3),
+                ])
+                ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'withdrawal')
+                ->action(function ($record, array $data) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                $record->update(['status' => 'failed']);
+                
+                // Refund the User
+                $sourceAccount = $record->fromAccount;
+                if ($sourceAccount) {
+                $withdrawableBalance = $sourceAccount->balances()->where([
+                'wallet_type' => 'fiat',
+                'currency' => $record->from_currency,
+                'balance_type' => 'withdrawable'
+                ])->first();
+                
+                if ($withdrawableBalance) {
+                $withdrawableBalance->increment('balance', $record->amount);
+                }
+                }
+                
+                // Send Message
+                $user = $sourceAccount->user ?? null;
+                if ($user) {
+                \App\Models\Message::create([
+                'user_id' => $user->id,
+                'body' => $data['message'],
+                'is_from_admin' => true,
+                ]);
+                }
+                });
+                
+                \Filament\Notifications\Notification::make()
+                ->title('Withdrawal Rejected')
+                ->danger()
+                ->send();
+                }),
             ])
             ->toolbarActions([
                 Action::make('exportCsv')

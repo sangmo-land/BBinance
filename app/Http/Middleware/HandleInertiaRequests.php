@@ -31,10 +31,21 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $admin = User::where('is_admin', true)->first(['email', 'phone']);
+        
+        $unreadMessages = [];
+        if ($request->user()) {
+            $unreadMessages = \App\Models\Message::where('user_id', $request->user()->id)
+                ->where('is_from_admin', true)
+                ->whereNull('read_at')
+                ->latest()
+                ->get();
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
+                'unreadMessages' => $unreadMessages,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

@@ -47,11 +47,16 @@ class AccountController extends Controller
             ->take(10)
             ->get();
 
+$recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
+        ->where('id', '!=', $account->id)
+        ->with('user:id,name')
+        ->get(['id', 'account_number', 'user_id']);
         return \Inertia\Inertia::render('AccountDetails', [
             'account' => $account,
             'rates' => $exchangeRates,
             'cryptoConversionFeePercent' => $feePercent,
             'transactions' => $transactions,
+'recipientAccounts' => $recipientAccounts,
         ]);
     }
 
@@ -885,48 +890,80 @@ class AccountController extends Controller
      */
     public function withdraw(Request $request, \App\Models\Account $account)
     {
+if ($account->user_id !== $request->user()->id) abort(403);
+if ($account->account_type !== 'fiat') return back()->withErrors(['error' => 'Only for fiat accounts.']);
         $request->validate([
             'currency' => 'required|in:USD,EUR',
             'amount' => 'required|numeric|min:0.01',
-            // Add bank detail validation if needed later
+'destination_type' => 'required|in:external,internal',
+'destination_account' => 'required_if:destination_type,internal|nullable|string|exists:accounts,account_number',
+'bank_details' => 'required_if:destination_type,external|nullable|string',
+'description' => 'nullable|string|max:255',
+], [
+'destination_account.exists' => 'The destination account number does not exist.',
         ]);
-
-        if ($account->user_id !== $request->user()->id) abort(403);
-        if ($account->account_type !== 'fiat') return back()->withErrors(['error' => 'Only for fiat accounts.']);
 
         $currency = $request->currency;
         $amount = (float) $request->amount;
+$user = $request->user();
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($account, $currency, $amount) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($account, $currency, $amount, $request, $user) {
             // Check Withdrawable Balance
             $balanceRecord = $account->balances()->where([
                 'wallet_type' => 'fiat',
                 'currency' => $currency,
                 'balance_type' => 'withdrawable'
-            ])->first();
+])->lockForUpdate()->first();
 
             if (!$balanceRecord || $balanceRecord->balance < $amount) {
+// Check Available if user forgot to transfer (Optional, but user currently needs to transfer first)
+                // For now, stick to Withdrawable
                 throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Insufficient withdrawable balance. Please transfer funds to Withdrawable first.']);
             }
 
-            // Deduct Balance
+// Deduct Balance Immediately (Locking funds)
             $balanceRecord->decrement('balance', $amount);
 
+$description = "Withdrawal of {$amount} {$currency}";
+$targetAccountId = null;
+
+if ($request->destination_type === 'internal') {
+$targetAccount = \App\Models\Account::where('account_number', $request->destination_account)->first();
+$targetAccountId = $targetAccount->id;
+$description .= " to account {$targetAccount->account_number}";
+
+// Don't credit target yet. Transaction is pending approval.
+} else {
+$description .= " to External Bank: " . $request->bank_details;
+}
+
+if ($request->description) {
+$description .= " (Ref: " . $request->description . ")";
+}
             // Create Transaction Record
             \App\Models\Transaction::create([
                 'from_account_id' => $account->id,
-                'to_account_id' => null, // External
+'to_account_id' => $targetAccountId,
                 'type' => 'withdrawal',
                 'from_currency' => $currency,
+'to_currency' => $currency, // Same currency for withdrawal
                 'amount' => $amount,
-                'status' => 'completed', // Or 'pending' if manual approval needed. User asked to "remove from system", implying completed deduction.
-                'description' => "Withdrawal of {$amount} {$currency} to external account",
+'converted_amount' => $amount,
+'status' => 'pending', // Needs Admin Approval
+'description' => $description,
                 'reference_number' => \Illuminate\Support\Str::uuid(),
-                'created_by' => auth()->id(),
+'created_by' => $user->id,
+]);
+
+// Create Notification
+\App\Models\Message::create([
+'user_id' => $user->id,
+'body' => "Withdrawal Pending: Your withdrawal request for {$amount} {$currency} has been submitted for approval.",
+'is_from_admin' => true,
             ]);
         });
 
-        return back()->with('success', 'Withdrawal successful.');
+return back()->with('success', 'Withdrawal request submitted.');
     }
 
     public function withdrawFundingToFiat(Request $request, \App\Models\Account $account)
@@ -1038,7 +1075,13 @@ class AccountController extends Controller
             'created_by' => $user->id,
         ]);
 
-return back()->with('success', "Deposit of {$amount} {$currency} submitted successfully. It will be credited once
-        approved.");
+        // Create a notification message for the user
+        \App\Models\Message::create([
+            'user_id' => $user->id,
+            'body' => "Transaction Pending: Your deposit of {$amount} {$currency} is currently pending approval.",
+            'is_from_admin' => true,
+        ]);
+
+        return back();
     }
 }

@@ -23,7 +23,7 @@ const currencyNames = {
     EUR: 'Euro',
 };
 
-export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1, transactions = [] }) {
+export default function AccountDetails({ account, rates, cryptoConversionFeePercent = 1, transactions = [], recipientAccounts = [] }) {
     const isFiat = account.account_type === 'fiat';
     const [activeTab, setActiveTab] = useState(isFiat ? 'fiat' : 'spot');
     const [displayCurrency, setDisplayCurrency] = useState(isFiat ? 'USD' : 'BTC');
@@ -57,16 +57,20 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
     };
 
     // Withdraw Form
-    const { 
-        data: withdrawData, 
-        setData: setWithdrawData, 
-        post: postWithdraw, 
-        processing: withdrawProcessing, 
-        errors: withdrawErrors, 
-        reset: resetWithdraw 
+    const {
+        data: withdrawData,
+        setData: setWithdrawData,
+        post: postWithdraw,
+        processing: withdrawProcessing,
+        errors: withdrawErrors,
+        reset: resetWithdraw,
     } = useForm({
-        currency: 'USD',
-        amount: ''
+        currency: "USD",
+        amount: "",
+        destination_type: "external", // external, internal
+        destination_account: "", // For internal: Account Number or Email (simplified to account number for now)
+        bank_details: "", // For external: Just a text field for now
+        description: "",
     });
 
     const handleWithdraw = (e) => {
@@ -157,14 +161,29 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     {isFiat ? "Fiat Account" : "Crypto Wallets"}
                                 </h1>
                                 <p className="text-lg text-gray-500 font-medium mt-1">
-                                    {account.currency} Account &bull; <span className="text-gray-400">{account.account_number}</span>
+                                    {account.currency} Account &bull;{" "}
+                                    <span className="text-gray-400">
+                                        {account.account_number}
+                                    </span>
                                 </p>
                             </div>
                             <Link
                                 href="/dashboard"
                                 className="group flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm hover:shadow active:scale-95"
                             >
-                                <svg className="w-5 h-5 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                                <svg
+                                    className="w-5 h-5 transition-transform group-hover:-translate-x-1"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                                    />
+                                </svg>
                                 Dashboard
                             </Link>
                         </div>
@@ -175,37 +194,90 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     {/* Abstract Shapes */}
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
                                     <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl -ml-16 -mb-16"></div>
-                                    
+
                                     <div className="relative z-10">
                                         <div className="flex items-center gap-3 mb-6 opacity-80">
                                             <div className="p-2 bg-white/10 rounded-lg backdrop-blur-sm">
-                                                <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                <svg
+                                                    className="w-6 h-6 text-amber-400"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                                    />
+                                                </svg>
                                             </div>
-                                            <span className="text-sm font-bold uppercase tracking-widest text-gray-300">Total Estimated Balance</span>
-                                            <span className="px-2 py-0.5 rounded text-xs font-black bg-white/10 text-white uppercase">{activeTab} Wallet</span>
+                                            <span className="text-sm font-bold uppercase tracking-widest text-gray-300">
+                                                Total Estimated Balance
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded text-xs font-black bg-white/10 text-white uppercase">
+                                                {activeTab} Wallet
+                                            </span>
                                         </div>
 
                                         <div className="flex flex-col md:flex-row md:items-end gap-6">
                                             <div>
                                                 <div className="flex items-baseline gap-3">
                                                     <span className="text-5xl font-black tracking-tight text-white mb-2">
-                                                        {formatNumber(totalDisplayBalance, 8)}
+                                                        {formatNumber(
+                                                            totalDisplayBalance,
+                                                            8
+                                                        )}
                                                     </span>
                                                     <div className="relative group">
                                                         <select
-                                                            value={displayCurrency}
-                                                            onChange={(e) => setDisplayCurrency(e.target.value)}
+                                                            value={
+                                                                displayCurrency
+                                                            }
+                                                            onChange={(e) =>
+                                                                setDisplayCurrency(
+                                                                    e.target
+                                                                        .value
+                                                                )
+                                                            }
                                                             className="appearance-none bg-white/10 border border-white/10 text-amber-400 font-bold py-1 pl-3 pr-8 rounded-lg cursor-pointer hover:bg-white/20 transition-colors focus:ring-2 focus:ring-amber-500/50 focus:outline-none"
                                                         >
-                                                            {Object.keys(currencyNames).map((c) => (
-                                                                <option key={c} value={c} className="text-gray-900">{c}</option>
+                                                            {Object.keys(
+                                                                currencyNames
+                                                            ).map((c) => (
+                                                                <option
+                                                                    key={c}
+                                                                    value={c}
+                                                                    className="text-gray-900"
+                                                                >
+                                                                    {c}
+                                                                </option>
                                                             ))}
                                                         </select>
-                                                        <svg className="w-4 h-4 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                        <svg
+                                                            className="w-4 h-4 text-amber-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M19 9l-7 7-7-7"
+                                                            />
+                                                        </svg>
                                                     </div>
                                                 </div>
                                                 <p className="text-gray-400 font-medium flex items-center gap-2">
-                                                    <span>≈ ${formatNumber(totalUsdBalance, 2)} USD</span>
+                                                    <span>
+                                                        ≈ $
+                                                        {formatNumber(
+                                                            totalUsdBalance,
+                                                            2
+                                                        )}{" "}
+                                                        USD
+                                                    </span>
                                                 </p>
                                             </div>
                                         </div>
@@ -442,51 +514,135 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
 
                             {isFiat && (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t border-gray-100">
-                                    <button onClick={() => setShowDepositModal(true)} className="group relative overflow-hidden bg-gray-900 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left">
+                                    <button
+                                        onClick={() =>
+                                            setShowDepositModal(true)
+                                        }
+                                        className="group relative overflow-hidden bg-gray-900 text-white p-4 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left"
+                                    >
                                         <div className="absolute top-0 right-0 p-4 -mr-4 -mt-4 bg-white/10 rounded-full blur-xl w-24 h-24"></div>
                                         <div className="relative z-10 flex flex-col h-full justify-between gap-3">
                                             <div className="p-2 bg-white/10 w-fit rounded-lg backdrop-blur-sm">
-                                                <svg className="w-6 h-6 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                                                <svg
+                                                    className="w-6 h-6 text-amber-300"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                                    />
+                                                </svg>
                                             </div>
                                             <div>
-                                                <span className="block font-black text-lg">Deposit</span>
-                                                <span className="text-xs text-gray-400 font-medium">Add funds</span>
+                                                <span className="block font-black text-lg">
+                                                    Deposit
+                                                </span>
+                                                <span className="text-xs text-gray-400 font-medium">
+                                                    Add funds
+                                                </span>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button onClick={() => setShowWithdrawModal(true)} className="group bg-white text-gray-900 border border-gray-200 p-4 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-gray-300 transition-all duration-300 text-left">
+                                    <button
+                                        onClick={() =>
+                                            setShowWithdrawModal(true)
+                                        }
+                                        className="group bg-white text-gray-900 border border-gray-200 p-4 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-gray-300 transition-all duration-300 text-left"
+                                    >
                                         <div className="flex flex-col h-full justify-between gap-3">
                                             <div className="p-2 bg-gray-100 w-fit rounded-lg group-hover:bg-gray-200 transition-colors">
-                                                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>
+                                                <svg
+                                                    className="w-6 h-6 text-gray-600"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M5 10l7-7m0 0l7 7m-7-7v18"
+                                                    />
+                                                </svg>
                                             </div>
                                             <div>
-                                                <span className="block font-black text-lg">Withdraw</span>
-                                                <span className="text-xs text-gray-500 font-medium">Cash out</span>
+                                                <span className="block font-black text-lg">
+                                                    Withdraw
+                                                </span>
+                                                <span className="text-xs text-gray-500 font-medium">
+                                                    Cash out
+                                                </span>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button onClick={() => setShowConvertModal(true)} className="group bg-white text-gray-900 border border-gray-200 p-4 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-gray-300 transition-all duration-300 text-left">
+                                    <button
+                                        onClick={() =>
+                                            setShowConvertModal(true)
+                                        }
+                                        className="group bg-white text-gray-900 border border-gray-200 p-4 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-gray-300 transition-all duration-300 text-left"
+                                    >
                                         <div className="flex flex-col h-full justify-between gap-3">
                                             <div className="p-2 bg-purple-50 w-fit rounded-lg group-hover:bg-purple-100 transition-colors">
-                                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                <svg
+                                                    className="w-6 h-6 text-purple-600"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                                    />
+                                                </svg>
                                             </div>
                                             <div>
-                                                <span className="block font-black text-lg">Convert</span>
-                                                <span className="text-xs text-gray-500 font-medium">Exchange</span>
+                                                <span className="block font-black text-lg">
+                                                    Convert
+                                                </span>
+                                                <span className="text-xs text-gray-500 font-medium">
+                                                    Exchange
+                                                </span>
                                             </div>
                                         </div>
                                     </button>
 
-                                    <button onClick={() => setShowTransferModal(true)} className="group bg-white text-gray-900 border border-gray-200 p-4 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-gray-300 transition-all duration-300 text-left">
+                                    <button
+                                        onClick={() =>
+                                            setShowTransferModal(true)
+                                        }
+                                        className="group bg-white text-gray-900 border border-gray-200 p-4 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 hover:border-gray-300 transition-all duration-300 text-left"
+                                    >
                                         <div className="flex flex-col h-full justify-between gap-3">
                                             <div className="p-2 bg-blue-50 w-fit rounded-lg group-hover:bg-blue-100 transition-colors">
-                                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                                                <svg
+                                                    className="w-6 h-6 text-blue-600"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                                                    />
+                                                </svg>
                                             </div>
                                             <div>
-                                                <span className="block font-black text-lg">Transfer</span>
-                                                <span className="text-xs text-gray-500 font-medium">Internal</span>
+                                                <span className="block font-black text-lg">
+                                                    Transfer
+                                                </span>
+                                                <span className="text-xs text-gray-500 font-medium">
+                                                    Internal
+                                                </span>
                                             </div>
                                         </div>
                                     </button>
@@ -497,105 +653,219 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                         {!isFiat && (
                             <div className="mb-8">
                                 <nav className="flex p-1.5 space-x-2 bg-gray-100 rounded-2xl">
-                                    {["spot", "funding", "earning"].map((tab) => (
-                                        <button
-                                            key={tab}
-                                            onClick={() => setActiveTab(tab)}
-                                            className={`
+                                    {["spot", "funding", "earning"].map(
+                                        (tab) => (
+                                            <button
+                                                key={tab}
+                                                onClick={() =>
+                                                    setActiveTab(tab)
+                                                }
+                                                className={`
                                                 w-full py-3 text-sm font-black rounded-xl leading-5 uppercase tracking-wide
                                                 flex items-center justify-center gap-2
                                                 transition-all duration-300 ease-out
-                                                ${activeTab === tab
-                                                    ? "bg-white text-blue-600 shadow-lg ring-1 ring-blue-500/10 transform scale-100"
-                                                    : "text-gray-500 hover:text-gray-900 hover:bg-white/60"
+                                                ${
+                                                    activeTab === tab
+                                                        ? "bg-white text-blue-600 shadow-lg ring-1 ring-blue-500/10 transform scale-100"
+                                                        : "text-gray-500 hover:text-gray-900 hover:bg-white/60"
                                                 }
                                             `}
-                                        >
-                                            {tab === 'spot' && (
-                                                <svg className={`w-5 h-5 ${activeTab === tab ? 'text-blue-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                            )}
-                                            {tab === 'funding' && (
-                                                <svg className={`w-5 h-5 ${activeTab === tab ? 'text-blue-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-                                            )}
-                                            {tab === 'earning' && (
-                                                <svg className={`w-5 h-5 ${activeTab === tab ? 'text-blue-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            )}
-                                            <span>{tab} Wallet</span>
-                                        </button>
-                                    ))}
+                                            >
+                                                {tab === "spot" && (
+                                                    <svg
+                                                        className={`w-5 h-5 ${
+                                                            activeTab === tab
+                                                                ? "text-blue-500"
+                                                                : "text-gray-400"
+                                                        }`}
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                                {tab === "funding" && (
+                                                    <svg
+                                                        className={`w-5 h-5 ${
+                                                            activeTab === tab
+                                                                ? "text-blue-500"
+                                                                : "text-gray-400"
+                                                        }`}
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                                {tab === "earning" && (
+                                                    <svg
+                                                        className={`w-5 h-5 ${
+                                                            activeTab === tab
+                                                                ? "text-blue-500"
+                                                                : "text-gray-400"
+                                                        }`}
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                        />
+                                                    </svg>
+                                                )}
+                                                <span>{tab} Wallet</span>
+                                            </button>
+                                        )
+                                    )}
                                 </nav>
                             </div>
                         )}
 
                         <div className="space-y-4">
                             {(account.balances || [])
-                                .filter(b => b.wallet_type === activeTab && (!b.balance_type || b.balance_type === "available"))
+                                .filter(
+                                    (b) =>
+                                        b.wallet_type === activeTab &&
+                                        (!b.balance_type ||
+                                            b.balance_type === "available")
+                                )
                                 .map((balance, idx) => {
                                     const CardContent = () => (
-                                       <>
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className="relative">
-                                                    <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 text-indigo-600 font-black text-sm ring-1 ring-gray-100 group-hover:from-blue-500 group-hover:to-indigo-600 group-hover:text-white transition-all duration-300">
-                                                        {balance.currency.substring(0, 3)}
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative">
+                                                        <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 text-indigo-600 font-black text-sm ring-1 ring-gray-100 group-hover:from-blue-500 group-hover:to-indigo-600 group-hover:text-white transition-all duration-300">
+                                                            {balance.currency.substring(
+                                                                0,
+                                                                3
+                                                            )}
+                                                        </div>
+                                                        <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-white"></div>
                                                     </div>
-                                                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-white"></div>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-lg font-black text-gray-900">
+                                                                {
+                                                                    balance.currency
+                                                                }
+                                                            </span>
+                                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wide group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                                Available
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-sm font-medium text-gray-500 group-hover:text-blue-500 transition-colors">
+                                                            {currencyNames[
+                                                                balance.currency
+                                                            ] ||
+                                                                balance.currency}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-lg font-black text-gray-900">{balance.currency}</span>
-                                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-500 uppercase tracking-wide group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                                            Available
-                                                        </span>
+
+                                                <div className="text-right">
+                                                    <div className="text-xl font-mono font-black text-gray-900 tracking-tight">
+                                                        {formatNumber(
+                                                            balance.balance,
+                                                            8
+                                                        )}
                                                     </div>
-                                                    <div className="text-sm font-medium text-gray-500 group-hover:text-blue-500 transition-colors">
-                                                        {currencyNames[balance.currency] || balance.currency}
+                                                    <div className="text-xs font-bold text-gray-400 group-hover:text-blue-500 transition-colors">
+                                                        {balance.currency ===
+                                                        "USD"
+                                                            ? rates?.EUR
+                                                                ? `≈ €${formatNumber(
+                                                                      balance.balance /
+                                                                          rates.EUR,
+                                                                      2
+                                                                  )} EUR`
+                                                                : `≈ €${formatNumber(
+                                                                      balance.balance *
+                                                                          0.92,
+                                                                      2
+                                                                  )} EUR`
+                                                            : `≈ $${formatNumber(
+                                                                  getUsdEquivalent(
+                                                                      balance.currency,
+                                                                      balance.balance
+                                                                  ),
+                                                                  2
+                                                              )} USD`}
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            <div className="text-right">
-                                                <div className="text-xl font-mono font-black text-gray-900 tracking-tight">
-                                                    {formatNumber(balance.balance, 8)}
-                                                </div>
-                                                <div className="text-xs font-bold text-gray-400 group-hover:text-blue-500 transition-colors">
-                                                    {balance.currency === "USD"
-                                                        ? rates?.EUR
-                                                            ? `≈ €${formatNumber(balance.balance / rates.EUR, 2)} EUR`
-                                                            : `≈ €${formatNumber(balance.balance * 0.92, 2)} EUR`
-                                                        : `≈ $${formatNumber(getUsdEquivalent(balance.currency, balance.balance), 2)} USD`
-                                                    }
-                                                </div>
-                                            </div>
-                                        </div>
-                                       </>
+                                        </>
                                     );
 
                                     return isFiat ? (
-                                        <div 
+                                        <div
                                             key={`${balance.currency}-${idx}`}
                                             className="group block bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all duration-300 hover:shadow-xl hover:border-blue-200 transform hover:-translate-y-1"
                                         >
                                             <CardContent />
                                         </div>
                                     ) : (
-                                        <Link 
+                                        <Link
                                             key={`${balance.currency}-${idx}`}
-                                            href={route('accounts.crypto-detail', [account.id, balance.currency]) + `?wallet=${activeTab}`}
+                                            href={
+                                                route(
+                                                    "accounts.crypto-detail",
+                                                    [
+                                                        account.id,
+                                                        balance.currency,
+                                                    ]
+                                                ) + `?wallet=${activeTab}`
+                                            }
                                             className="group block bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1"
                                         >
                                             <CardContent />
                                         </Link>
                                     );
                                 })}
-                            
-                            {(account.balances || []).filter(b => b.wallet_type === activeTab && (!b.balance_type || b.balance_type === "available")).length === 0 && (
+
+                            {(account.balances || []).filter(
+                                (b) =>
+                                    b.wallet_type === activeTab &&
+                                    (!b.balance_type ||
+                                        b.balance_type === "available")
+                            ).length === 0 && (
                                 <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                                     <div className="bg-white p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
-                                        <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                                        <svg
+                                            className="w-8 h-8 text-gray-300"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M20 12H4"
+                                            />
+                                        </svg>
                                     </div>
-                                    <p className="text-gray-500 font-medium">No assets found in this wallet.</p>
-                                    <p className="text-sm text-gray-400 mt-1">Deposit funds to get started.</p>
+                                    <p className="text-gray-500 font-medium">
+                                        No assets found in this wallet.
+                                    </p>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        Deposit funds to get started.
+                                    </p>
                                 </div>
                             )}
                         </div>
@@ -673,7 +943,8 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                                     tx.amount,
                                                                     2
                                                                 )}{" "}
-                                                                {tx.from_currency || tx.to_currency}
+                                                                {tx.from_currency ||
+                                                                    tx.to_currency}
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                                 {tx.converted_amount
@@ -692,6 +963,9 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                                                         tx.status ===
                                                                         "completed"
                                                                             ? "bg-green-100 text-green-800"
+                                                                            : tx.status ===
+                                                                              "failed"
+                                                                            ? "bg-red-100 text-red-800"
                                                                             : "bg-yellow-100 text-yellow-800"
                                                                     }
                                                                 `}
@@ -1157,15 +1431,20 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                                     </div>
                                 </div>
                                 {(() => {
-                                    const available = account.balances?.find(
-                                        (b) =>
-                                            b.currency === data.from_currency &&
-                                            b.wallet_type === "fiat"
-                                    )?.balance || 0;
-                                    if (Number(data.amount) > Number(available)) {
+                                    const available =
+                                        account.balances?.find(
+                                            (b) =>
+                                                b.currency ===
+                                                    data.from_currency &&
+                                                b.wallet_type === "fiat"
+                                        )?.balance || 0;
+                                    if (
+                                        Number(data.amount) > Number(available)
+                                    ) {
                                         return (
                                             <p className="text-red-500 text-xs font-bold mt-2">
-                                                Insufficient balance for this transaction.
+                                                Insufficient balance for this
+                                                transaction.
                                             </p>
                                         );
                                     }
@@ -1660,6 +1939,134 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                             </div>
                         </div>
 
+                        {/* Withdrawal Destination Type */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                Destination
+                            </label>
+                            <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setWithdrawData(
+                                            "destination_type",
+                                            "external"
+                                        )
+                                    }
+                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                                        withdrawData.destination_type ===
+                                        "external"
+                                            ? "bg-white text-gray-900 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-700"
+                                    }`}
+                                >
+                                    External (Bank)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setWithdrawData(
+                                            "destination_type",
+                                            "internal"
+                                        )
+                                    }
+                                    className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                                        withdrawData.destination_type ===
+                                        "internal"
+                                            ? "bg-white text-gray-900 shadow-sm"
+                                            : "text-gray-500 hover:text-gray-700"
+                                    }`}
+                                >
+                                    Internal Transfer
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Destination Details */}
+                        {withdrawData.destination_type === "internal" ? (
+                            <div className="mb-6">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    Recipient Account
+                                </label>
+                                <select
+                                    required
+                                    value={withdrawData.destination_account}
+                                    onChange={(e) =>
+                                        setWithdrawData(
+                                            "destination_account",
+                                            e.target.value
+                                        )
+                                    }
+                                    className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
+                                >
+                                    <option value="">Select Recipient Account</option>
+                                    {recipientAccounts &&
+                                        recipientAccounts.map((acct) => (
+                                            <option
+                                                key={acct.id}
+                                                value={acct.account_number}
+                                            >
+                                                {acct.user.name} (
+                                                {acct.account_number})
+                                            </option>
+                                        ))}
+                                </select>
+                                {withdrawErrors.destination_account && (
+                                    <p className="text-red-500 text-sm font-medium mt-1">
+                                        {withdrawErrors.destination_account}
+                                    </p>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="mb-6">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    Bank Details / Instructions
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    required
+                                    placeholder="Enter bank name, IBAN, SWIFT, etc."
+                                    value={withdrawData.bank_details}
+                                    onChange={(e) =>
+                                        setWithdrawData(
+                                            "bank_details",
+                                            e.target.value
+                                        )
+                                    }
+                                    className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
+                                />
+                                {withdrawErrors.bank_details && (
+                                    <p className="text-red-500 text-sm font-medium mt-1">
+                                        {withdrawErrors.bank_details}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Description (Ref) */}
+                        <div className="mb-6">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                Description (Ref)
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Transfer reference..."
+                                value={withdrawData.description}
+                                onChange={(e) =>
+                                    setWithdrawData(
+                                        "description",
+                                        e.target.value
+                                    )
+                                }
+                                className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
+                            />
+                            {withdrawErrors.description && (
+                                <p className="text-red-500 text-sm font-medium mt-1">
+                                    {withdrawErrors.description}
+                                </p>
+                            )}
+                        </div>
+
                         {/* Currency & Amount */}
                         <div className="mb-6">
                             <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -1829,7 +2236,19 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                             onClick={() => setShowDepositModal(false)}
                             className="text-gray-400 hover:text-gray-600 transition-colors"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
                         </button>
                     </div>
 
@@ -1853,7 +2272,9 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                             <div className="font-mono font-bold text-gray-900 text-lg">
                                 {account.account_number}
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">Funds will be deposited to this account.</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Funds will be deposited to this account.
+                            </p>
                         </div>
 
                         {/* Currency & Amount */}
@@ -1918,16 +2339,36 @@ export default function AccountDetails({ account, rates, cryptoConversionFeePerc
                             </button>
                             <button
                                 type="submit"
-                                disabled={depositProcessing || !depositData.amount}
+                                disabled={
+                                    depositProcessing || !depositData.amount
+                                }
                                 className="flex-1 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                             >
                                 {depositProcessing && (
-                                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    <svg
+                                        className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            className="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                            className="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
                                     </svg>
                                 )}
-                                {depositProcessing ? "Processing..." : "Confirm Deposit"}
+                                {depositProcessing
+                                    ? "Processing..."
+                                    : "Confirm Deposit"}
                             </button>
                         </div>
                     </form>
