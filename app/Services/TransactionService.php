@@ -99,6 +99,53 @@ class TransactionService
         });
     }
 
+/**
+    * Remove funds from an account (Admin operation)
+    */
+    public function removeFunds(Account $account, float $amount, string $description = 'Admin debit', ?int $userId = null,
+    ?string $currency = null, ?string $targetWalletType = null): Transaction
+    {
+    $currency = $currency ?? $account->currency;
+    
+    return DB::transaction(function () use ($account, $amount, $description, $userId, $currency, $targetWalletType) {
+    // Determine wallet type
+    $walletType = $targetWalletType ?? match ($account->account_type) {
+    'fiat' => 'fiat',
+    'crypto' => 'spot',
+    default => null,
+    };
+    
+    // Check if there's sufficient balance
+    if ($walletType) {
+    $balanceRecord = \App\Models\AccountBalance::where([
+    'account_id' => $account->id,
+    'wallet_type' => $walletType,
+    'currency' => $currency,
+    'balance_type' => 'available'
+    ])->first();
+    
+    if (!$balanceRecord || $balanceRecord->balance < $amount) { throw new Exception("Insufficient {$currency} balance in
+        {$walletType} wallet"); } $balanceRecord->decrement('balance', $amount);
+        }
+    
+        // Decrement from account balance if currency matches
+        if ($currency === $account->currency) {
+        if ($account->balance < $amount) { throw new Exception('Insufficient account balance'); } $account->
+            decrement('balance', $amount);
+            }
+    
+            // Create transaction record
+            return Transaction::create([
+            'from_account_id' => $account->id,
+            'type' => 'admin_debit',
+            'from_currency' => $currency,
+            'amount' => $amount,
+            'status' => 'completed',
+            'description' => $description,
+            'created_by' => $userId,
+            ]);
+            });
+            }
     /**
      * Convert between currencies within same account or to different account
      */

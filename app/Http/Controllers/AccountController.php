@@ -74,7 +74,12 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
         $query = $account->balances()->where('currency', $currency);
         
         if ($walletType) {
-            $query->where('wallet_type', $walletType);
+// Normalize for DB (lowercase seems to be used: spot, funding, earning)
+$w = strtolower($walletType);
+if ($w === 'earn') {
+$w = 'earning';
+}
+$query->where('wallet_type', $w);
         }
 
         $balances = $query->get();
@@ -236,7 +241,7 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
                  'created_by' => $user->id,
             ]);
 
-            return redirect()->back()->with('success', "Successfully deposited {$amount} {$currency} to Funding Wallet");
+return redirect()->back();
         });
     }
 
@@ -277,56 +282,56 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
              $feeAmount = $rawReceiveAmount * ($feePercent / 100);
              $netReceiveAmount = $rawReceiveAmount - $feeAmount;
 
-             // 3. Check & Deduct Balance
+// 3. Check & Deduct Balance (Available)
              $spendBalance = $account->balances()
                  ->where('wallet_type', 'Spot')
                  ->where('currency', $spendingCurrency)
-                 ->lockForUpdate() // Lock row
+->where('balance_type', 'available') // Specific check
+->lockForUpdate()
                  ->first();
 
+// Fallback for legacy records without explicit balance_type if needed,
+// but best to be strict now that we introduce locking.
+if (!$spendBalance) {
+// Try finding one without balance_type specifier if default is used
+$spendBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $spendingCurrency)
+->first();
+}
              if (!$spendBalance || $spendBalance->balance < $amount) {
                  throw \Illuminate\Validation\ValidationException::withMessages([
                      'amount' => ["Insufficient {$spendingCurrency} balance in Spot Wallet."],
                  ]);
              }
 
+// 1. Deduct from Available
              $spendBalance->decrement('balance', $amount);
 
-             // 4. Add Receive Balance
-             $receiveBalance = $account->balances()
-                 ->where('wallet_type', 'Spot')
-                 ->where('currency', $receivingCurrency)
-                 ->first();
-            
-             if ($receiveBalance) {
-                 $receiveBalance->increment('balance', $netReceiveAmount);
-             } else {
-                 $account->balances()->create([
-                     'wallet_type' => 'Spot',
-                     'currency' => $receivingCurrency,
-                     'balance' => $netReceiveAmount,
-                     'balance_type' => 'crypto' // Assuming default
-                 ]);
-             }
-
-             // 5. Create Transaction Record
+// 2. Add to Locked
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'Spot', 'currency' => $spendingCurrency, 'balance_type' => 'locked'],
+['balance' => 0]
+);
+$lockedBalance->increment('balance', $amount);
+// 3. Create Pending Transaction
              \App\Models\Transaction::create([
                  'from_account_id' => $account->id,
                  'to_account_id' => $account->id,
                  'type' => 'Buy Crypto',
-                 'from_currency' => $spendingCurrency,
-                 'to_currency' => $receivingCurrency,
-                 'amount' => $amount,
-                 'exchange_rate' => $rawReceiveAmount > 0 ? ($amount / $rawReceiveAmount) : 0, // Effective Rate
-                 'converted_amount' => $netReceiveAmount,
-                 'status' => 'completed',
-                 'description' => "Bought {$receivingCurrency} with {$spendingCurrency} (Fee: {$feePercent}%)",
+'from_currency' => $spendingCurrency, // Spending USDT
+'to_currency' => $receivingCurrency, // Buying BTC
+'amount' => $amount, // Spent Amount
+'exchange_rate' => $rawReceiveAmount > 0 ? ($amount / $rawReceiveAmount) : 0,
+'converted_amount' => $netReceiveAmount, // To be received
+'status' => 'pending',
+'description' => "Buy Crypto Request: {$amount} {$spendingCurrency} -> {$netReceiveAmount} {$receivingCurrency} (Fee:
+{$feePercent}%)",
                  'reference_number' => 'TRD-' . strtoupper(uniqid()),
                  'created_by' => $account->user_id,
-             ]);
-
-             return redirect()->back()->with('success', "Successfully bought " . number_format($netReceiveAmount, 8) . " {$receivingCurrency}");
+]);
         });
+return back();
     }
 
     public function sellCrypto(Request $request, \App\Models\Account $account)
@@ -370,6 +375,7 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
              $spendBalance = $account->balances()
                  ->where('wallet_type', 'Spot')
                  ->where('currency', $spendingCurrency)
+->where('balance_type', 'available')
                  ->lockForUpdate() // Lock row
                  ->first();
 
@@ -379,26 +385,16 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
                  ]);
              }
 
+// Deduct from Available
              $spendBalance->decrement('balance', $amount);
 
-             // 4. Add Receive Balance
-             $receiveBalance = $account->balances()
-                 ->where('wallet_type', 'Spot')
-                 ->where('currency', $receivingCurrency)
-                 ->first();
-            
-             if ($receiveBalance) {
-                 $receiveBalance->increment('balance', $netReceiveAmount);
-             } else {
-                 $account->balances()->create([
-                     'wallet_type' => 'Spot',
-                     'currency' => $receivingCurrency,
-                     'balance' => $netReceiveAmount,
-                     'balance_type' => 'crypto' // Assuming default
-                 ]);
-             }
-
-             // 5. Create Transaction Record
+// Add to Locked
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'Spot', 'currency' => $spendingCurrency, 'balance_type' => 'locked'],
+['balance' => 0]
+);
+$lockedBalance->increment('balance', $amount);
+// 4. Create Transaction Record (Pending)
              \App\Models\Transaction::create([
                  'from_account_id' => $account->id,
                  'to_account_id' => $account->id,
@@ -408,13 +404,14 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
                  'amount' => $amount,
                  'exchange_rate' => $rawReceiveAmount > 0 ? ($amount / $rawReceiveAmount) : 0, // Effective Rate
                  'converted_amount' => $netReceiveAmount,
-                 'status' => 'completed',
-                 'description' => "Sold {$spendingCurrency} for {$receivingCurrency} (Fee: {$feePercent}%)",
+'status' => 'pending',
+'description' => "Sell Crypto Request: {$amount} {$spendingCurrency} -> {$netReceiveAmount} {$receivingCurrency} (Fee:
+{$feePercent}%)",
                  'reference_number' => 'TRD-' . strtoupper(uniqid()),
                  'created_by' => $account->user_id,
              ]);
 
-             return redirect()->back()->with('success', "Successfully sold " . number_format($amount, 8) . " {$spendingCurrency} for " . number_format($netReceiveAmount, 8) . " {$receivingCurrency}");
+return redirect()->back();
         });
     }
 
@@ -435,13 +432,14 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
         return \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $account) {
             $amount = (float) $validated['amount'];
             $fromWallet = $validated['from_wallet'];
-            $toWallet = $validated['to_wallet'];
+$toWallet = $validated['to_wallet']; // used for description
             $currency = $validated['currency'];
 
-            // 1. Get Source Balance and Lock
+// 1. Get Source Balance (Available) and Lock
             $sourceBalance = $account->balances()
                 ->where('wallet_type', $fromWallet)
                 ->where('currency', $currency)
+->where('balance_type', 'available')
                 ->lockForUpdate()
                 ->first();
 
@@ -451,17 +449,21 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
                 ]);
             }
 
-            // 2. Decrement Source
+// 2. Decrement Source Available
             $sourceBalance->decrement('balance', $amount);
 
-            // 3. Increment Destination
-            $destBalance = $account->balances()->firstOrCreate(
-                ['wallet_type' => $toWallet, 'currency' => $currency],
-                ['balance' => 0, 'balance_type' => 'crypto'] // Default attributes
+// 3. Move to Source Locked
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => $fromWallet, 'currency' => $currency, 'balance_type' => 'locked'],
+['balance' => 0]
             );
-            $destBalance->increment('balance', $amount);
+$lockedBalance->increment('balance', $amount);
 
-            // 4. Create Transaction Record
+// 4. Create Transaction Record (Pending)
+// Storing destination wallet in description for Admin parsing
+// Format: "Transfer [Spot->Funding]..."
+$desc = "Transfer [{$fromWallet}->{$toWallet}]: {$amount} {$currency}";
+
             \App\Models\Transaction::create([
                 'from_account_id' => $account->id,
                 'to_account_id' => $account->id,
@@ -469,15 +471,15 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
                 'from_currency' => $currency,
                 'to_currency' => $currency,
                 'amount' => $amount,
-                'converted_amount' => $amount,
+'converted_amount' => $amount,
                 'exchange_rate' => 1.0,
-                'status' => 'completed',
-                'description' => "Transferred {$amount} {$currency} from {$fromWallet} to {$toWallet}",
+'status' => 'pending', // Requires Admin Approval
+'description' => $desc,
                 'reference_number' => 'TRF-' . strtoupper(uniqid()),
                 'created_by' => $account->user_id,
             ]);
 
-            return redirect()->back()->with('success', "Successfully transferred " . number_format($amount, 8) . " {$currency} from {$fromWallet} to {$toWallet}");
+return redirect()->back();
         });
     }
 
@@ -572,7 +574,7 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
            ]);
         });
 
-        return back()->with('success', 'Conversion successful.');
+return back();
     }
 
     public function convertToCrypto(Request $request, \App\Models\Account $account)
@@ -674,34 +676,34 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
         }
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($account, $fromBalance, $amount, $cryptoAccount, $toCurrency, $cryptoAmount, $fiatToUsdRate, $cryptoPriceUsd, $feePercent, $feeAmount, $fromCurrency) {
-             // Deduct Fiat
+// 1. Deduct Fiat Available
              $fromBalance->decrement('balance', $amount);
 
-             // Add Crypto to Spot
-             $spotBalance = $cryptoAccount->balances()->firstOrCreate(
-                 ['wallet_type' => 'spot', 'currency' => $toCurrency, 'balance_type' => 'available'],
+// 2. Add to Fiat Locked (Holding for approval)
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $fromCurrency, 'balance_type' => 'locked'],
                  ['balance' => 0]
              );
-             $spotBalance->increment('balance', $cryptoAmount);
+$lockedBalance->increment('balance', $amount);
 
-             // Record Transaction
+// 3. Create Pending Transaction Record
              \App\Models\Transaction::create([
                  'from_account_id' => $account->id,
                  'to_account_id' => $cryptoAccount->id,
-                 'type' => 'conversion',
+'type' => 'conversion', // or 'conversion_request' if we want to separate types, but 'conversion' + 'pending' works
                  'from_currency' => $fromCurrency,
                  'to_currency' => $toCurrency,
                  'amount' => $amount,
-                 'exchange_rate' => $cryptoPriceUsd, // Note: This is simplified. Ideally we store the cross-rate.
+'exchange_rate' => $cryptoPriceUsd,
                  'converted_amount' => $cryptoAmount,
-                 'status' => 'completed',
-                 'description' => "Converted {$amount} {$fromCurrency} to {$cryptoAmount} {$toCurrency} (Fee: {$feePercent}%, {$feeAmount} {$fromCurrency})",
-                 'reference_number' => \Illuminate\Support\Str::uuid(),
+'status' => 'pending',
+'description' => "Conversion Request: {$amount} {$fromCurrency} to {$cryptoAmount} {$toCurrency} (Fee: {$feePercent}%)",
+'reference_number' => 'CNV-' . strtoupper(uniqid()),
                  'created_by' => auth()->id(),
              ]);
         });
 
-        return back()->with('success', 'Conversion to crypto successful.');
+return back();
     }
 
     public function convertCryptoAction(Request $request, \App\Models\Account $account)
@@ -724,10 +726,11 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
              $amount = (float) $validated['amount'];
              $walletType = $validated['wallet_type']; // Use the correct wallet type (Spot, Funding, Earn)
 
-             // 1. Check Source Balance in standard Title Case wallet
+// 1. Check Source Balance (Available)
              $sourceBalance = $account->balances()
                  ->where('wallet_type', $walletType)
                  ->where('currency', $fromCurrency)
+->where('balance_type', 'available')
                  ->lockForUpdate()
                  ->first();
              
@@ -737,10 +740,7 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
                  ]);
              }
              
-             // 2. Determine Exchange Rate (From Currency -> To Currency)
-             // Need Value of 1 FromCurrency in ToCurrency.
-             
-             // Try Direct Pair: From -> To
+// 2. Determine Exchange Rate
              $pair = \App\Models\ExchangeRate::where('from_currency', $fromCurrency)
                  ->where('to_currency', $toCurrency)
                  ->first();
@@ -748,18 +748,14 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
              $rate = 0;
              if ($pair) {
                  $rate = (float)$pair->rate;
-             } else {
-                 // Try Indirect: To -> From (Invert)
+} else {
                  $reversePair = \App\Models\ExchangeRate::where('from_currency', $toCurrency)
                      ->where('to_currency', $fromCurrency)
                      ->first();
                      
                  if ($reversePair) {
                      $rate = 1 / (float)$reversePair->rate;
-                 } else {
-                     // Try Cross Rate via USD? (Simplified for demo: assume USD intermediate or fail)
-                     // Fetch From->USD and To->USD
-                     // Rate = (Rate From->USD) / (Rate To->USD)
+} else {
                      $rateFromUsd = $this->getRateToUsd($fromCurrency);
                      $rateToUsd = $this->getRateToUsd($toCurrency);
                      
@@ -774,39 +770,41 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
              }
 
              // 3. Calculate Amounts
-             $grossReceiveAvailable = $amount * $rate;
-             
-             // Apply Fee? Let's say 0.1% or reuse system setting
+$grossReceiveAvailable = $amount * $rate;
              $feePercent = (float)(\App\Models\SystemSetting::where('key', 'trading_fee_percent')->value('value') ?? 0.1);
              $feeAmount = $grossReceiveAvailable * ($feePercent / 100);
              $netReceive = $grossReceiveAvailable - $feeAmount;
 
-             // 4. Update Balances
+// 4. Update Balances (Lock funds)
              $sourceBalance->decrement('balance', $amount);
              
-             $destBalance = $account->balances()->firstOrCreate(
-                 ['wallet_type' => $walletType, 'currency' => $toCurrency],
-                 ['balance' => 0, 'balance_type' => 'crypto']
+// Move to Locked in same wallet
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => $walletType, 'currency' => $fromCurrency, 'balance_type' => 'locked'],
+['balance' => 0]
              );
-             $destBalance->increment('balance', $netReceive);
+$lockedBalance->increment('balance', $amount);
 
-             // 5. Record Transaction
+// 5. Record Transaction (Pending)
+// Storing wallet type in description for Admin parsing: "[Spot] Conversion..."
+$desc = "[{$walletType}] Conversion: {$amount} {$fromCurrency} to {$netReceive} {$toCurrency} (Fee: {$feePercent}%)";
+
              \App\Models\Transaction::create([
                 'from_account_id' => $account->id,
                 'to_account_id' => $account->id,
-                'type' => 'conversion', // or 'Convert Crypto'
+'type' => 'Convert Crypto',
                 'from_currency' => $fromCurrency,
                 'to_currency' => $toCurrency,
                 'amount' => $amount,
                 'converted_amount' => $netReceive,
                 'exchange_rate' => $rate,
-                'status' => 'completed',
-                'description' => "Converted {$amount} {$fromCurrency} to {$netReceive} {$toCurrency} in {$walletType} Wallet (Fee: {$feePercent}%)",
+'status' => 'pending', // Requires Admin Approval
+'description' => $desc,
                 'reference_number' => 'CNV-' . strtoupper(uniqid()),
                 'created_by' => $account->user_id,
             ]);
 
-            return redirect()->back()->with('success', "Successfully converted " . number_format($amount, 8) . " {$fromCurrency} to " . number_format($netReceive, 8) . " {$toCurrency}");
+return redirect()->back();
         });
     }
 
@@ -882,7 +880,7 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
             ]);
         });
 
-        return back()->with('success', 'Transfer successful.');
+return back();
     }
 
     /**
@@ -963,7 +961,7 @@ $description .= " (Ref: " . $request->description . ")";
             ]);
         });
 
-return back()->with('success', 'Withdrawal request submitted.');
+return back();
     }
 
     public function withdrawFundingToFiat(Request $request, \App\Models\Account $account)
@@ -1029,7 +1027,7 @@ return back()->with('success', 'Withdrawal request submitted.');
             ]);
         });
 
-        return back()->with('success', 'Funds transferred to Fiat available balance.');
+return back();
     }
 
     public function deposit(Request $request, \App\Models\Account $account)
@@ -1149,7 +1147,7 @@ if (!$fundingBalance || $fundingBalance->balance < $amount) { throw
     ]);
     });
 
-    return back()->with('success', 'Blockchain withdrawal request submitted.');
+return back();
     }
 }
 
