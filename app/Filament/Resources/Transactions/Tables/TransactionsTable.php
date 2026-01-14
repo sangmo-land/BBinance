@@ -44,11 +44,15 @@ class TransactionsTable
 ->formatStateUsing(function ($state, $record) {
                     // For blockchain withdrawals, extract network from description
                     if ($record->type === 'withdrawal' && !$record->to_account_id && $record->description) {
-                    if (preg_match('/to (\w+(?:\s+\w+)*)\s+Address:/i', $record->description, $matches)) {
-                    return $matches[1] . ' Network';
-                    }
-                    }
-                    return $state ?? '—';
+if (str_contains($record->description, 'External Bank:')) {
+                            $parts = explode('External Bank:', $record->description);
+                            return trim(end($parts));
+                            }
+if (preg_match('/to (\w+(?:\s+\w+)*)\s+Address:/i', $record->description, $matches)) {
+                            return $matches[1] . ' Network';
+                            }
+                            }
+                            return $state ?? '—';
                     })
                     ->default('—'),
                 TextColumn::make('amount')

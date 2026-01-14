@@ -103,6 +103,33 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
         useState(false); // New Selection Modal for Withdraw
     let [isWithdrawBlockchainModalOpen, setIsWithdrawBlockchainModalOpen] =
         useState(false); // New Modal for Blockchain Withdraw
+    let [isDepositSelectionModalOpen, setIsDepositSelectionModalOpen] =
+        useState(false); // New Selection Modal for Deposit
+    let [isDepositCryptoModalOpen, setIsDepositCryptoModalOpen] =
+        useState(false); // New Modal for Crypto Deposit
+    const [selectedDepositNetwork, setSelectedDepositNetwork] = useState(""); // State for selected network in deposit
+
+    const depositAddress = React.useMemo(() => {
+        if (!account || !account.account_number) return "Loading...";
+        const prefix = ["Morph", "BEP20", "ERC20"].includes(
+            selectedDepositNetwork
+        )
+            ? "0x71C9"
+            : selectedDepositNetwork === "TRC20"
+            ? "TKr9X"
+            : selectedDepositNetwork === "SOL"
+            ? "8xP2q"
+            : "1A1zP";
+        // Generate a pseudo-static part from account number
+        const hash = account.account_number
+            .split("")
+            .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return `${prefix}${hash}A${account.account_number.substring(3)}E${(
+            hash * 2
+        )
+            .toString(16)
+            .toUpperCase()}`;
+    }, [selectedDepositNetwork, account]);
 
     // Form handling for Deposit Fiat
     const {
@@ -142,21 +169,24 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
 
         if (address && network) {
             switch (network) {
-                case 'Morph': 
-                case 'BEP20': 
-                case 'ERC20': 
+                case "Morph":
+                case "BEP20":
+                case "ERC20":
                     if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-                        msg = "Invalid EVM Address (Must start with 0x and contain 40 hex characters)";
+                        msg =
+                            "Invalid EVM Address (Must start with 0x and contain 40 hex characters)";
                     }
                     break;
-                case 'TRC20': 
+                case "TRC20":
                     if (!/^T[a-zA-Z1-9]{33}$/.test(address)) {
-                        msg = "Invalid Tron Address (Must start with T and contain 33 alphanumeric characters)";
+                        msg =
+                            "Invalid Tron Address (Must start with T and contain 33 alphanumeric characters)";
                     }
                     break;
-                case 'SOL': 
+                case "SOL":
                     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
-                        msg = "Invalid Solana Address (Base58, 32-44 characters)";
+                        msg =
+                            "Invalid Solana Address (Base58, 32-44 characters)";
                     }
                     break;
             }
@@ -366,12 +396,16 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
             }));
             setIsConvertModalOpen(true);
         } else if (actionName === "Deposit") {
-            // Open Deposit Fiat Modal if applicable (Funding Wallet)
+            // Open Deposit Selection Modal if applicable (Funding Wallet)
             if (normalizedWalletType === "Funding") {
-                // Update default currency selection based on current page if relevant, else default to USD
-                const defaultCurrency = currency === "EUR" ? "EUR" : "USD";
-                setDepositData("currency", defaultCurrency);
-                setIsDepositFiatModalOpen(true);
+                if (["USD", "EUR"].includes(currency)) {
+                    // For Fiat, go directly to Fiat Deposit
+                    setDepositData("currency", currency);
+                    setIsDepositFiatModalOpen(true);
+                } else {
+                    // For Crypto, show selection
+                    setIsDepositSelectionModalOpen(true);
+                }
             } else {
                 alert("Crypto Deposit Feature coming soon.");
             }
@@ -463,7 +497,12 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                 </p>
                             </div>
                             <Link
-                                href={route("accounts.show", account.id)}
+                                href={route("accounts.show", {
+                                    account: account.id,
+                                    tab: walletType
+                                        ? walletType.toLowerCase()
+                                        : "spot",
+                                })}
                                 className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-bold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150"
                             >
                                 &larr; Back to Wallet
@@ -569,6 +608,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 "Withdraw",
                                                 "Earn",
                                                 "Redeem",
+                                                "Trade",
                                             ].includes(action.name)
                                         )
                                             return false;
@@ -2978,6 +3018,373 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             </button>
                                         </div>
                                     </form>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Deposit Selection Modal */}
+            <Transition appear show={isDepositSelectionModalOpen} as={Fragment}>
+                <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setIsDepositSelectionModalOpen(false)}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" />
+                    </Transition.Child>
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 mb-6"
+                                    >
+                                        {" "}
+                                        Select Deposit Method{" "}
+                                    </Dialog.Title>
+                                    <div className="space-y-4">
+                                        <button
+                                            onClick={() => {
+                                                setIsDepositSelectionModalOpen(
+                                                    false
+                                                );
+                                                setIsDepositCryptoModalOpen(
+                                                    true
+                                                );
+                                                setSelectedDepositNetwork(
+                                                    blockchainNetworks[0].id
+                                                );
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                                                    <svg
+                                                        className="w-5 h-5"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="block font-bold text-gray-900 group-hover:text-orange-600">
+                                                        {" "}
+                                                        Deposit Crypto{" "}
+                                                    </span>
+                                                    <span className="block text-xs text-gray-500">
+                                                        {" "}
+                                                        Deposit via Blockchain
+                                                        (BTC, ETH, etc.){" "}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <svg
+                                                className="w-5 h-5 text-gray-400 group-hover:text-orange-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setIsDepositSelectionModalOpen(
+                                                    false
+                                                );
+                                                const defaultCurrency =
+                                                    currency === "EUR"
+                                                        ? "EUR"
+                                                        : "USD";
+                                                setDepositData(
+                                                    "currency",
+                                                    defaultCurrency
+                                                );
+                                                setIsDepositFiatModalOpen(true);
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                                                    <svg
+                                                        className="w-5 h-5"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="block font-bold text-gray-900 group-hover:text-green-600">
+                                                        {" "}
+                                                        Deposit Fiat{" "}
+                                                    </span>
+                                                    <span className="block text-xs text-gray-500">
+                                                        {" "}
+                                                        Bank Transfer / Credit
+                                                        Card{" "}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <svg
+                                                className="w-5 h-5 text-gray-400 group-hover:text-green-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div className="mt-6">
+                                        <button
+                                            type="button"
+                                            className="w-full inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
+                                            onClick={() =>
+                                                setIsDepositSelectionModalOpen(
+                                                    false
+                                                )
+                                            }
+                                        >
+                                            {" "}
+                                            Cancel{" "}
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Deposit Crypto Modal */}
+            <Transition appear show={isDepositCryptoModalOpen} as={Fragment}>
+                <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setIsDepositCryptoModalOpen(false)}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" />
+                    </Transition.Child>
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                                            <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        Deposit {currency}
+                                    </Dialog.Title>
+                                    <div className="mt-4 space-y-4">
+                                        <div className="bg-yellow-50 text-yellow-800 text-xs p-3 rounded-lg border border-yellow-100">
+                                            <span className="font-bold">
+                                                Important:
+                                            </span>{" "}
+                                            Send only{" "}
+                                            <strong>{currency}</strong> to this
+                                            deposit address. Sending any other
+                                            coin or token to this address may
+                                            result in the loss of your deposit.
+                                        </div>
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                {" "}
+                                                Network{" "}
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={
+                                                        selectedDepositNetwork
+                                                    }
+                                                    onChange={(e) =>
+                                                        setSelectedDepositNetwork(
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                    className="block w-full rounded-xl border-gray-300 focus:border-orange-500 focus:ring-orange-500 py-3 font-medium text-gray-800 appearance-none bg-none"
+                                                >
+                                                    {blockchainNetworks.map(
+                                                        (net) => (
+                                                            <option
+                                                                key={net.id}
+                                                                value={net.id}
+                                                            >
+                                                                {" "}
+                                                                {net.name}{" "}
+                                                            </option>
+                                                        )
+                                                    )}
+                                                </select>
+                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                                    <svg
+                                                        className="fill-current h-4 w-4"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-center justify-center p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                                            <div className="w-40 h-40 bg-white rounded-lg mb-4 flex items-center justify-center text-gray-900 border-2 border-gray-900 p-1">
+                                                <svg
+                                                    className="w-full h-full"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h4v4H7V7zm6 0h4v4h-4V7zM7 13h4v4H7v-4zm6 0h4v4h-4v-4z" />
+                                                </svg>
+                                            </div>
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2 w-full text-left">
+                                                {" "}
+                                                Address{" "}
+                                            </label>
+                                            <div className="w-full relative group">
+                                                <input
+                                                    type="text"
+                                                    readOnly
+                                                    value={depositAddress}
+                                                    className="block w-full rounded-xl border-gray-300 bg-gray-50 py-3 pr-10 font-mono text-xs md:text-sm text-gray-600 truncate cursor-pointer hover:bg-gray-100"
+                                                    onClick={(e) => {
+                                                        navigator.clipboard.writeText(
+                                                            depositAddress
+                                                        );
+                                                        e.target.select();
+                                                        alert(
+                                                            "Address copied to clipboard!"
+                                                        );
+                                                    }}
+                                                />
+                                                <button
+                                                    className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(
+                                                            depositAddress
+                                                        );
+                                                        alert(
+                                                            "Address copied to clipboard!"
+                                                        );
+                                                    }}
+                                                >
+                                                    <svg
+                                                        className="w-5 h-5"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 flex justify-between text-xs text-gray-500">
+                                            <span>Expected Arrival</span>
+                                            <span className="font-bold text-gray-700">
+                                                {" "}
+                                                {blockchainNetworks.find(
+                                                    (n) =>
+                                                        n.id ===
+                                                        selectedDepositNetwork
+                                                )?.delay || "10 mins"}{" "}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6">
+                                        <button
+                                            type="button"
+                                            className="w-full inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
+                                            onClick={() =>
+                                                setIsDepositCryptoModalOpen(
+                                                    false
+                                                )
+                                            }
+                                        >
+                                            {" "}
+                                            Close{" "}
+                                        </button>
+                                    </div>
                                 </Dialog.Panel>
                             </Transition.Child>
                         </div>

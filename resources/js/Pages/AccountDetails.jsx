@@ -31,7 +31,18 @@ export default function AccountDetails({
     recipientAccounts = [],
 }) {
     const isFiat = account.account_type === "fiat";
-    const [activeTab, setActiveTab] = useState(isFiat ? "fiat" : "spot");
+    // Initialize active tab from URL param or default
+    const [activeTab, setActiveTab] = useState(() => {
+        if (isFiat) return "fiat";
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get("tab");
+            if (tab && ["spot", "funding", "earn"].includes(tab)) {
+                return tab;
+            }
+        }
+        return "spot";
+    });
     const [displayCurrency, setDisplayCurrency] = useState(
         isFiat ? "USD" : "BTC"
     );
