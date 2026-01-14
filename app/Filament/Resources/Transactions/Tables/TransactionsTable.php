@@ -41,6 +41,15 @@ class TransactionsTable
                 TextColumn::make('toAccount.account_number')
                     ->searchable()
                     ->label('To Account')
+->formatStateUsing(function ($state, $record) {
+                    // For blockchain withdrawals, extract network from description
+                    if ($record->type === 'withdrawal' && !$record->to_account_id && $record->description) {
+                    if (preg_match('/to (\w+(?:\s+\w+)*)\s+Address:/i', $record->description, $matches)) {
+                    return $matches[1] . ' Network';
+                    }
+                    }
+                    return $state ?? '—';
+                    })
                     ->default('—'),
                 TextColumn::make('amount')
                     ->numeric(decimalPlaces: 2)
@@ -262,38 +271,53 @@ Action::make('approveWithdrawal')
                 ])
                 ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'withdrawal')
                 ->action(function ($record, array $data) {
-                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
-                $record->update(['status' => 'failed']);
-                
-                // Refund the User
-                $sourceAccount = $record->fromAccount;
-                if ($sourceAccount) {
-                $withdrawableBalance = $sourceAccount->balances()->where([
-                'wallet_type' => 'fiat',
-                'currency' => $record->from_currency,
-                'balance_type' => 'withdrawable'
-                ])->first();
-                
-                if ($withdrawableBalance) {
-                $withdrawableBalance->increment('balance', $record->amount);
-                }
-                }
-                
-                // Send Message
-                $user = $sourceAccount->user ?? null;
-                if ($user) {
-                \App\Models\Message::create([
-                'user_id' => $user->id,
-                'body' => $data['message'],
-                'is_from_admin' => true,
-                ]);
-                }
-                });
-                
-                \Filament\Notifications\Notification::make()
-                ->title('Withdrawal Rejected')
-                ->danger()
-                ->send();
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$record->update(['status' => 'failed']);
+// REFUND LOGIC
+$sourceAccount = $record->fromAccount;
+if ($sourceAccount) {
+$currency = $record->from_currency;
+
+// Check if Crypto (Blockchain) or Fiat Withdrawal
+// We can infer from currency or logic.
+$isFiat = in_array($currency, ['USD', 'EUR']);
+
+if ($isFiat) {
+// FIAT Refund -> 'withdrawable' balance
+$withdrawableBalance = $sourceAccount->balances()->where([
+'wallet_type' => 'fiat',
+'currency' => $currency,
+'balance_type' => 'withdrawable'
+])->first();
+
+if ($withdrawableBalance) {
+$withdrawableBalance->increment('balance', $record->amount);
+}
+} else {
+// CRYPTO Refund -> 'funding' balance (as used in withdrawBlockchain)
+$fundingBalance = $sourceAccount->balances()->firstOrCreate(
+['wallet_type' => 'funding', 'currency' => $currency],
+['balance' => 0]
+);
+$fundingBalance->increment('balance', $record->amount);
+}
+}
+
+// Send Message
+$user = $sourceAccount->user ?? null;
+if ($user) {
+\App\Models\Message::create([
+'user_id' => $user->id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Withdrawal Rejected & Refunded')
+->danger()
+->send();
                 }),
             ])
             ->toolbarActions([

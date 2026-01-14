@@ -1084,4 +1084,72 @@ return back()->with('success', 'Withdrawal request submitted.');
 
         return back();
     }
+public function withdrawBlockchain(Request $request, \App\Models\Account $account)
+{
+$user = $request->user();
+if ($account->user_id !== $user->id) abort(403);
+
+$request->validate([
+'amount' => 'required|numeric|min:0.00000001',
+'currency' => 'required|string',
+'address' => 'required|string',
+'network' => 'required|string',
+'memo' => 'nullable|string',
+]);
+
+return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $account, $user) {
+$currency = $request->currency;
+$amount = (float) $request->amount;
+$address = $request->address;
+$network = $request->network;
+$memo = $request->memo;
+
+// 1. Source: Funding Wallet Balance
+$fundingBalance = $account->balances()
+->where('wallet_type', 'funding')
+->where('currency', $currency)
+->lockForUpdate()
+->first();
+
+if (!$fundingBalance || $fundingBalance->balance < $amount) { throw
+    \Illuminate\Validation\ValidationException::withMessages([ 'amount'=> ["Insufficient {$currency} balance in Funding
+    Wallet."],
+    ]);
+    }
+
+    // Deduct Balance Immediately (Locking funds)
+    $fundingBalance->decrement('balance', $amount);
+
+    $description = "Blockchain Withdrawal to {$network} Address: {$address}";
+    if ($memo) {
+    $description .= " (Memo: {$memo})";
+    }
+
+    // Create Transaction Record
+    \App\Models\Transaction::create([
+    'from_account_id' => $account->id,
+    'to_account_id' => null, // External
+    'type' => 'withdrawal',
+    'from_currency' => $currency,
+    'to_currency' => $currency,
+    'amount' => $amount,
+    'converted_amount' => $amount,
+    'status' => 'pending', // Pending Admin Approval
+    'description' => $description,
+    'reference_number' => \Illuminate\Support\Str::uuid(),
+    'created_by' => $user->id,
+    ]);
+
+    // Create Notification
+    \App\Models\Message::create([
+    'user_id' => $user->id,
+    'body' => "Withdrawal Pending: Your blockchain withdrawal request for {$amount} {$currency} via {$network} has been
+    submitted for approval.",
+    'is_from_admin' => true,
+    ]);
+    });
+
+    return back()->with('success', 'Blockchain withdrawal request submitted.');
+    }
 }
+

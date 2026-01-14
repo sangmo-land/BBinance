@@ -5,6 +5,19 @@ import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
 import { Head, Link } from '@inertiajs/react';
 
+const blockchainNetworks = [
+    { id: "Morph", name: "Morph L2", fee: 0.1, delay: "≈ 5 mins" },
+    { id: "TRC20", name: "Tron (TRC20)", fee: 1.0, delay: "≈ 2 mins" },
+    {
+        id: "BEP20",
+        name: "BNB Smart Chain (BEP20)",
+        fee: 0.29,
+        delay: "≈ 2 mins",
+    },
+    { id: "ERC20", name: "Ethereum (ERC20)", fee: 6.5, delay: "≈ 10 mins" },
+    { id: "SOL", name: "Solana", fee: 0.01, delay: "≈ 1 min" },
+];
+
 function formatNumber(value, fractionDigits = 8) {
   const n = Number(value);
   const parsed = Number.isFinite(n) ? n : 0;
@@ -86,75 +99,167 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     let [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
     let [isDepositFiatModalOpen, setIsDepositFiatModalOpen] = useState(false); // New Modal state for Fiat Deposit
     let [isWithdrawFundingModalOpen, setIsWithdrawFundingModalOpen] = useState(false); // New Modal for Funding Withdraw
+    let [isWithdrawSelectionModalOpen, setIsWithdrawSelectionModalOpen] =
+        useState(false); // New Selection Modal for Withdraw
+    let [isWithdrawBlockchainModalOpen, setIsWithdrawBlockchainModalOpen] =
+        useState(false); // New Modal for Blockchain Withdraw
 
     // Form handling for Deposit Fiat
-    const { 
-        data: depositData, 
-        setData: setDepositData, 
-        post: postDeposit, 
-        processing: processingDeposit, 
-        errors: errorsDeposit, 
-        reset: resetDeposit 
+    const {
+        data: depositData,
+        setData: setDepositData,
+        post: postDeposit,
+        processing: processingDeposit,
+        errors: errorsDeposit,
+        reset: resetDeposit,
     } = useForm({
-        amount: '',
-        currency: 'USD',
+        amount: "",
+        currency: "USD",
     });
+
+    // Form handling for Withdraw Blockchain
+    const {
+        data: withdrawBlockchainData,
+        setData: setWithdrawBlockchainData,
+        post: postWithdrawBlockchain,
+        processing: processingWithdrawBlockchain,
+        errors: errorsWithdrawBlockchain,
+        reset: resetWithdrawBlockchain,
+    } = useForm({
+        address: "",
+        network: "",
+        amount: "",
+        memo: "",
+        currency: currency,
+    });
+
+    const [addressValidationError, setAddressValidationError] = useState("");
+
+    // Real-time Address Validation
+    useEffect(() => {
+        const { address, network } = withdrawBlockchainData;
+        let msg = "";
+
+        if (address && network) {
+            switch (network) {
+                case 'Morph': 
+                case 'BEP20': 
+                case 'ERC20': 
+                    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+                        msg = "Invalid EVM Address (Must start with 0x and contain 40 hex characters)";
+                    }
+                    break;
+                case 'TRC20': 
+                    if (!/^T[a-zA-Z1-9]{33}$/.test(address)) {
+                        msg = "Invalid Tron Address (Must start with T and contain 33 alphanumeric characters)";
+                    }
+                    break;
+                case 'SOL': 
+                    if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+                        msg = "Invalid Solana Address (Base58, 32-44 characters)";
+                    }
+                    break;
+            }
+        }
+        setAddressValidationError(msg);
+    }, [withdrawBlockchainData.address, withdrawBlockchainData.network]);
+
+    const [feeValidationError, setFeeValidationError] = useState("");
+
+    // Real-time Fee Validation
+    useEffect(() => {
+        const { amount, network } = withdrawBlockchainData;
+        let msg = "";
+
+        if (amount && network) {
+            const selectedNetwork = blockchainNetworks.find(
+                (n) => n.id === network
+            );
+            if (selectedNetwork) {
+                const amountNum = parseFloat(amount);
+                // Ensure amount is valid number and check against fee
+                if (!isNaN(amountNum) && amountNum <= selectedNetwork.fee) {
+                    msg = `Amount must be greater than network fee (${selectedNetwork.fee} ${currency})`;
+                }
+            }
+        }
+        setFeeValidationError(msg);
+    }, [
+        withdrawBlockchainData.amount,
+        withdrawBlockchainData.network,
+        currency,
+    ]);
 
     // Form handling for Withdraw Funding
-    const { 
-        data: withdrawFundingData, 
-        setData: setWithdrawFundingData, 
-        post: postWithdrawFunding, 
-        processing: processingWithdrawFunding, 
-        errors: errorsWithdrawFunding, 
-        reset: resetWithdrawFunding 
+    const {
+        data: withdrawFundingData,
+        setData: setWithdrawFundingData,
+        post: postWithdrawFunding,
+        processing: processingWithdrawFunding,
+        errors: errorsWithdrawFunding,
+        reset: resetWithdrawFunding,
     } = useForm({
-        amount: '',
-        currency: 'USD',
+        amount: "",
+        currency: "USD",
     });
-    
-    // Selection States
-    let [selectedPairId, setSelectedPairId] = useState(tradingPairs.length > 0 ? tradingPairs[0].id : null);
-    let [inputAmount, setInputAmount] = useState('');
 
-    const selectedPair = tradingPairs.find(p => p.id == selectedPairId) || tradingPairs[0] || null;
+    // Selection States
+    let [selectedPairId, setSelectedPairId] = useState(
+        tradingPairs.length > 0 ? tradingPairs[0].id : null
+    );
+    let [inputAmount, setInputAmount] = useState("");
+
+    const selectedPair =
+        tradingPairs.find((p) => p.id == selectedPairId) ||
+        tradingPairs[0] ||
+        null;
 
     // Helper to calculate trade details
     // Now that backend guarantees tradingPairs are formated as [from: Other, to: Currency]
     // Rate is "Amount of Currency (to) per 1 Other (from)"
-    const getTradeDetails = (type) => { 
+    const getTradeDetails = (type) => {
         if (!selectedPair) return {};
-        
-        if (type === 'BUY') {
+
+        if (type === "BUY") {
             // BUY Action: "Buy the First Crypto (from) using Currency (to)"
-            // Example: Pair USDT/ETH. "Buy USDT". 
+            // Example: Pair USDT/ETH. "Buy USDT".
             // We Spend ETH (to). We Receive USDT (from).
             return {
-                spending: selectedPair.to, 
-                receiving: selectedPair.from, 
-                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
-                quotePrice: selectedPair.rate, 
-                isInverted: false // Input (Spend To) / Rate = Output (Get From)
+                spending: selectedPair.to,
+                receiving: selectedPair.from,
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(
+                    selectedPair.rate,
+                    selectedPair.rate < 1 ? 6 : 2
+                )} ${selectedPair.to}`,
+                quotePrice: selectedPair.rate,
+                isInverted: false, // Input (Spend To) / Rate = Output (Get From)
             };
-        } else { 
+        } else {
             // SELL Action: "Sell the First Crypto (from) for Currency (to)"
             // Example: Pair USDT/ETH. "Sell USDT".
             // We Spend USDT (from). We Receive ETH (to).
             return {
-                spending: selectedPair.from, 
-                receiving: selectedPair.to, 
-                rateLabel: `1 ${selectedPair.from} = ${formatNumber(selectedPair.rate, selectedPair.rate < 1 ? 6 : 2)} ${selectedPair.to}`,
+                spending: selectedPair.from,
+                receiving: selectedPair.to,
+                rateLabel: `1 ${selectedPair.from} = ${formatNumber(
+                    selectedPair.rate,
+                    selectedPair.rate < 1 ? 6 : 2
+                )} ${selectedPair.to}`,
                 quotePrice: selectedPair.rate,
-                isInverted: true // Input (Spend From) * Rate = Output (Get To)
+                isInverted: true, // Input (Spend From) * Rate = Output (Get To)
             };
         }
     };
 
-    const tradeDetailsBuy = getTradeDetails('BUY');
-    const tradeDetailsSell = getTradeDetails('SELL');
-    
+    const tradeDetailsBuy = getTradeDetails("BUY");
+    const tradeDetailsSell = getTradeDetails("SELL");
+
     // Determine which calculation to use based on open modal
-    const activeDetails = isBuyModalOpen ? tradeDetailsBuy : (isSellModalOpen ? tradeDetailsSell : {});
+    const activeDetails = isBuyModalOpen
+        ? tradeDetailsBuy
+        : isSellModalOpen
+        ? tradeDetailsSell
+        : {};
 
     // Sync form data
     React.useEffect(() => {
@@ -164,59 +269,59 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                 pair_id: selectedPair.id,
                 amount: inputAmount,
                 spending_currency: details.spending,
-                receiving_currency: details.receiving
+                receiving_currency: details.receiving,
             };
-            
+
             if (isBuyModalOpen) setBuyData(payload);
             if (isSellModalOpen) setSellData(payload);
         }
     }, [inputAmount, selectedPairId, isBuyModalOpen, isSellModalOpen]);
 
     const handleBuySubmit = () => {
-        postBuy(route('accounts.buy-crypto', account.id), {
+        postBuy(route("accounts.buy-crypto", account.id), {
             preserveScroll: true,
             onSuccess: () => {
                 setIsBuyModalOpen(false);
-                setInputAmount('');
-            }
+                setInputAmount("");
+            },
         });
     };
-    
+
     const handleSellSubmit = () => {
-        postSell(route('accounts.sell-crypto', account.id), {
+        postSell(route("accounts.sell-crypto", account.id), {
             preserveScroll: true,
             onSuccess: () => {
                 setIsSellModalOpen(false);
-                setInputAmount('');
-            }
+                setInputAmount("");
+            },
         });
     };
 
     const handleTransferSubmit = (e) => {
         e.preventDefault();
-        postTransfer(route('accounts.transfer-crypto', account.id), {
+        postTransfer(route("accounts.transfer-crypto", account.id), {
             preserveScroll: true,
             onSuccess: () => {
                 setIsTransferModalOpen(false);
                 resetTransfer();
-            }
+            },
         });
     };
 
     const handleConvertSubmit = (e) => {
         e.preventDefault();
-        postConvert(route('accounts.convert-crypto-action', account.id), {
+        postConvert(route("accounts.convert-crypto-action", account.id), {
             preserveScroll: true,
             onSuccess: () => {
                 setIsConvertModalOpen(false);
                 resetConvert();
-            }
+            },
         });
     };
 
     const handleDepositSubmit = (e) => {
         e.preventDefault();
-        postDeposit(route('accounts.deposit-fiat-funding', account.id), {
+        postDeposit(route("accounts.deposit-fiat-funding", account.id), {
             onSuccess: () => {
                 setIsDepositFiatModalOpen(false);
                 resetDeposit();
@@ -226,7 +331,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
 
     const handleWithdrawFundingSubmit = (e) => {
         e.preventDefault();
-        postWithdrawFunding(route('accounts.withdraw-funding', account.id), {
+        postWithdrawFunding(route("accounts.withdraw-funding", account.id), {
             onSuccess: () => {
                 setIsWithdrawFundingModalOpen(false);
                 resetWithdrawFunding();
@@ -235,55 +340,82 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     };
 
     const handleActionClick = (actionName) => {
-        if (actionName === 'Buy') {
-             // Default to buying Current Currency with something (default USDT if available, or first pair)
-             // But 'Buy' modal logic relies on 'selectedPair'.
-             // We need to set active state.
-             setIsBuyModalOpen(true);
-        } else if (actionName === 'Sell') {
-             setIsSellModalOpen(true);
-        } else if (actionName === 'Transfer') {
-             // Reset form data for Transfer when opening modal
-             setTransferData('to_wallet', normalizedWalletType === 'Spot' ? 'Funding' : 'Spot');
-             setTransferData('amount', '');
-             setIsTransferModalOpen(true);
-        } else if (actionName === 'Convert') {
-             // Reset form data for Convert when opening modal
-             // ... logic if needed
-             setConvertData(data => ({ ...data, amount: '', to_currency: '', wallet_type: normalizedWalletType }));
-             setIsConvertModalOpen(true);
-        } else if (actionName === 'Deposit') {
-             // Open Deposit Fiat Modal if applicable (Funding Wallet)
-             if (normalizedWalletType === 'Funding') {
-                 // Update default currency selection based on current page if relevant, else default to USD
-                 const defaultCurrency = (currency === 'EUR') ? 'EUR' : 'USD';
-                 setDepositData('currency', defaultCurrency);
-                 setIsDepositFiatModalOpen(true);
-             } else {
-                 alert("Crypto Deposit Feature coming soon.");
-             }
-        } else if (actionName === 'Withdraw') {
-             if (normalizedWalletType === 'Funding') {
-                 const defaultCurrency = (currency === 'EUR') ? 'EUR' : 'USD';
-                 setWithdrawFundingData('currency', defaultCurrency);
-                 setIsWithdrawFundingModalOpen(true);
-             } else {
-                 // Standard withdrawal or alert
-                 alert("Standard withdrawal for Spot/Earn currently disabled or handled elsewhere.");
-             }
+        if (actionName === "Buy") {
+            // Default to buying Current Currency with something (default USDT if available, or first pair)
+            // But 'Buy' modal logic relies on 'selectedPair'.
+            // We need to set active state.
+            setIsBuyModalOpen(true);
+        } else if (actionName === "Sell") {
+            setIsSellModalOpen(true);
+        } else if (actionName === "Transfer") {
+            // Reset form data for Transfer when opening modal
+            setTransferData(
+                "to_wallet",
+                normalizedWalletType === "Spot" ? "Funding" : "Spot"
+            );
+            setTransferData("amount", "");
+            setIsTransferModalOpen(true);
+        } else if (actionName === "Convert") {
+            // Reset form data for Convert when opening modal
+            // ... logic if needed
+            setConvertData((data) => ({
+                ...data,
+                amount: "",
+                to_currency: "",
+                wallet_type: normalizedWalletType,
+            }));
+            setIsConvertModalOpen(true);
+        } else if (actionName === "Deposit") {
+            // Open Deposit Fiat Modal if applicable (Funding Wallet)
+            if (normalizedWalletType === "Funding") {
+                // Update default currency selection based on current page if relevant, else default to USD
+                const defaultCurrency = currency === "EUR" ? "EUR" : "USD";
+                setDepositData("currency", defaultCurrency);
+                setIsDepositFiatModalOpen(true);
+            } else {
+                alert("Crypto Deposit Feature coming soon.");
+            }
+        } else if (actionName === "Withdraw") {
+            if (normalizedWalletType === "Funding") {
+                setIsWithdrawSelectionModalOpen(true);
+            } else {
+                // Standard withdrawal or alert
+                alert(
+                    "Standard withdrawal for Spot/Earn currently disabled or handled elsewhere."
+                );
+            }
         }
+    };
+
+    const handleWithdrawBlockchainSubmit = (e) => {
+        e.preventDefault();
+
+        if (addressValidationError || feeValidationError) {
+            return;
+        }
+
+        postWithdrawBlockchain(
+            route("accounts.withdraw-blockchain", account.id),
+            {
+                onSuccess: () => {
+                    setIsWithdrawBlockchainModalOpen(false);
+                    resetWithdrawBlockchain();
+                },
+                preserveScroll: true,
+            }
+        );
     };
 
     // Calculation Logic
     let rawReceive = 0;
     if (activeDetails.spending && inputAmount && selectedPair) {
-         if (activeDetails.isInverted) {
-             // Spending Base. Receive Quote.
-             rawReceive = parseFloat(inputAmount) * selectedPair.rate;
-         } else {
-             // Spending Quote. Receive Base.
-             rawReceive = parseFloat(inputAmount) / selectedPair.rate;
-         }
+        if (activeDetails.isInverted) {
+            // Spending Base. Receive Quote.
+            rawReceive = parseFloat(inputAmount) * selectedPair.rate;
+        } else {
+            // Spending Quote. Receive Base.
+            rawReceive = parseFloat(inputAmount) / selectedPair.rate;
+        }
     }
 
     const feeAmount = rawReceive * (tradingFeePercent / 100);
@@ -291,11 +423,18 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
 
     // Calculate Available Balance for Spending
     // We spend the 'spending' currency from activeDetails
-    const spendingCurrency = activeDetails.spending || '';
-    const spendingBalanceObj = spotBalances.find(b => b.currency === spendingCurrency);
-    const spendingBalance = spendingBalanceObj ? Number(spendingBalanceObj.balance) : 0;
-    const isInsufficientBalance = spendingCurrency && inputAmount && (parseFloat(inputAmount) > spendingBalance);
-    
+    const spendingCurrency = activeDetails.spending || "";
+    const spendingBalanceObj = spotBalances.find(
+        (b) => b.currency === spendingCurrency
+    );
+    const spendingBalance = spendingBalanceObj
+        ? Number(spendingBalanceObj.balance)
+        : 0;
+    const isInsufficientBalance =
+        spendingCurrency &&
+        inputAmount &&
+        parseFloat(inputAmount) > spendingBalance;
+
     // Processing state
     const isProcessing = processingBuy || processingSell;
 
@@ -476,7 +615,7 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         >
                                             {/* Decorative Background Blob on Hover */}
                                             <div className="absolute inset-0 bg-gradient-to-br from-amber-200/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                                            
+
                                             <svg
                                                 className="w-6 h-6 relative z-10"
                                                 fill="none"
@@ -522,8 +661,14 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     {topPairs.map((pair) => (
                                         <div
                                             key={pair.id}
-                                            onClick={() => setSelectedPairId(pair.id)}
-                                            className={`bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 border-2 text-left cursor-pointer rounded-xl p-1.5 shadow-[0_4px_10px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden ${selectedPairId === pair.id ? 'border-amber-500' : 'border-gray-300 hover:border-amber-400'}`}
+                                            onClick={() =>
+                                                setSelectedPairId(pair.id)
+                                            }
+                                            className={`bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300 border-2 text-left cursor-pointer rounded-xl p-1.5 shadow-[0_4px_10px_rgb(0,0,0,0.1)] hover:shadow-[0_8px_20px_rgb(0,0,0,0.15)] hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden ${
+                                                selectedPairId === pair.id
+                                                    ? "border-amber-500"
+                                                    : "border-gray-300 hover:border-amber-400"
+                                            }`}
                                         >
                                             {/* Decorative Background Blob on Hover */}
                                             <div className="absolute -right-6 -top-6 w-16 h-16 bg-gradient-to-br from-amber-200/50 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity blur-lg"></div>
@@ -532,10 +677,16 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 <div className="flex items-center gap-2">
                                                     <div className="flex -space-x-2">
                                                         <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[8px] font-black text-gray-700 border border-gray-200 shadow-sm z-10">
-                                                            {pair.from.substring(0, 1)}
+                                                            {pair.from.substring(
+                                                                0,
+                                                                1
+                                                            )}
                                                         </div>
                                                         <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-500 border border-gray-200 shadow-inner">
-                                                            {pair.to.substring(0, 1)}
+                                                            {pair.to.substring(
+                                                                0,
+                                                                1
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <span className="font-extrabold text-gray-800 text-xs group-hover:text-amber-800 transition-colors">
@@ -543,10 +694,13 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     </span>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="flex items-baseline gap-1 relative z-10">
                                                 <span className="text-lg font-black text-gray-900 tracking-tight group-hover:text-amber-900 transition-colors">
-                                                    {formatNumber(pair.rate, pair.rate < 1 ? 6 : 2)}
+                                                    {formatNumber(
+                                                        pair.rate,
+                                                        pair.rate < 1 ? 6 : 2
+                                                    )}
                                                 </span>
                                             </div>
                                         </div>
@@ -620,43 +774,82 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
                                         <ul className="divide-y divide-gray-50">
                                             {transactions.data.map((tx) => {
-                                                let isInflow = tx.to_currency === currency;
+                                                let isInflow =
+                                                    tx.to_currency === currency;
+
+                                                // Explicitly handle Withdrawal as Outflow
+                                                if (
+                                                    tx.type === "withdrawal" ||
+                                                    tx.type === "Withdrawal"
+                                                ) {
+                                                    isInflow = false;
+                                                }
 
                                                 // Handle Internal Transfers (Same Account, Different Wallet)
                                                 // We need to check description to determine direction relative to current wallet
-                                                if (tx.from_account_id === tx.to_account_id) {
-                                                     if (tx.type === 'Transfer' || tx.type === 'transfer') {
-                                                         // Try to parse "from X to Y"
-                                                         const match = tx.description?.match(/from (\w+) to (\w+)/i);
-                                                         if (match) {
-                                                             const fromWallet = match[1]; // e.g. Spot
-                                                             const toWallet = match[2];   // e.g. Funding
-                                                             
-                                                             // Normalize current wallet type for comparison
-                                                             // normalizedWalletType is already Title Case (Spot, Funding, Earn) due to useMemo
-                                                             
-                                                             if (normalizedWalletType.toLowerCase() === fromWallet.toLowerCase()) {
-                                                                 isInflow = false; // Sent from current wallet
-                                                             } else if (normalizedWalletType.toLowerCase() === toWallet.toLowerCase()) {
-                                                                 isInflow = true; // Received in current wallet
-                                                             }
-                                                         }
-                                                     } else if (tx.type === 'conversion' || tx.type === 'Conversion') {
-                                                         // Conversions happen WITHIN same wallet (except advanced cases not yet implemented)
-                                                         // OR across currencies.
-                                                         // Logic: if current currency is FromCurrency -> Outflow.
-                                                         //        if current currency is ToCurrency   -> Inflow.
-                                                         
-                                                         // The default "tx.to_currency === currency" check at top is usually sufficient for Conversions
-                                                         // because conversions change currency.
-                                                         // Example: Convert BTC to USDT.
-                                                         // Page BTC: tx.to=USDT != BTC. isInflow=False. Correct.
-                                                         // Page USDT: tx.to=USDT == USDT. isInflow=True. Correct.
-                                                         
-                                                         // Explicit check just to be safe
-                                                         if (tx.from_currency === currency) isInflow = false;
-                                                         if (tx.to_currency === currency) isInflow = true;
-                                                     }
+                                                if (
+                                                    tx.from_account_id ===
+                                                    tx.to_account_id
+                                                ) {
+                                                    if (
+                                                        tx.type ===
+                                                            "Transfer" ||
+                                                        tx.type === "transfer"
+                                                    ) {
+                                                        // Try to parse "from X to Y"
+                                                        const match =
+                                                            tx.description?.match(
+                                                                /from (\w+) to (\w+)/i
+                                                            );
+                                                        if (match) {
+                                                            const fromWallet =
+                                                                match[1]; // e.g. Spot
+                                                            const toWallet =
+                                                                match[2]; // e.g. Funding
+
+                                                            // Normalize current wallet type for comparison
+                                                            // normalizedWalletType is already Title Case (Spot, Funding, Earn) due to useMemo
+
+                                                            if (
+                                                                normalizedWalletType.toLowerCase() ===
+                                                                fromWallet.toLowerCase()
+                                                            ) {
+                                                                isInflow = false; // Sent from current wallet
+                                                            } else if (
+                                                                normalizedWalletType.toLowerCase() ===
+                                                                toWallet.toLowerCase()
+                                                            ) {
+                                                                isInflow = true; // Received in current wallet
+                                                            }
+                                                        }
+                                                    } else if (
+                                                        tx.type ===
+                                                            "conversion" ||
+                                                        tx.type === "Conversion"
+                                                    ) {
+                                                        // Conversions happen WITHIN same wallet (except advanced cases not yet implemented)
+                                                        // OR across currencies.
+                                                        // Logic: if current currency is FromCurrency -> Outflow.
+                                                        //        if current currency is ToCurrency   -> Inflow.
+
+                                                        // The default "tx.to_currency === currency" check at top is usually sufficient for Conversions
+                                                        // because conversions change currency.
+                                                        // Example: Convert BTC to USDT.
+                                                        // Page BTC: tx.to=USDT != BTC. isInflow=False. Correct.
+                                                        // Page USDT: tx.to=USDT == USDT. isInflow=True. Correct.
+
+                                                        // Explicit check just to be safe
+                                                        if (
+                                                            tx.from_currency ===
+                                                            currency
+                                                        )
+                                                            isInflow = false;
+                                                        if (
+                                                            tx.to_currency ===
+                                                            currency
+                                                        )
+                                                            isInflow = true;
+                                                    }
                                                 }
 
                                                 const isTrade = [
@@ -767,7 +960,12 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                                         : "-"}
                                                                     {formatNumber(
                                                                         isInflow
-                                                                            ? (Number(tx.converted_amount) > 0 ? tx.converted_amount : tx.amount)
+                                                                            ? Number(
+                                                                                  tx.converted_amount
+                                                                              ) >
+                                                                              0
+                                                                                ? tx.converted_amount
+                                                                                : tx.amount
                                                                             : tx.amount,
                                                                         8
                                                                     )}{" "}
@@ -2090,10 +2288,16 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                         "USDC",
                                                         "BNB",
                                                     ];
-                                                    
+
                                                     // Add Fiat for Funding Transaction
-                                                    if (convertData.wallet_type === "Funding") {
-                                                        baseCurrencies.push("USD", "EUR");
+                                                    if (
+                                                        convertData.wallet_type ===
+                                                        "Funding"
+                                                    ) {
+                                                        baseCurrencies.push(
+                                                            "USD",
+                                                            "EUR"
+                                                        );
                                                     }
 
                                                     return baseCurrencies;
@@ -2292,16 +2496,32 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
                                     >
                                         <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                            <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                                                />
                                             </svg>
                                         </div>
                                         Deposit Fiat to Funding
                                     </Dialog.Title>
 
-                                    <form onSubmit={handleDepositSubmit} className="mt-4 space-y-4">
+                                    <form
+                                        onSubmit={handleDepositSubmit}
+                                        className="mt-4 space-y-4"
+                                    >
                                         <div className="text-sm text-gray-500 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
-                                            Transfer funds from your internal <strong>Fiat Account</strong> to your <strong>Funding Wallet</strong>.
+                                            Transfer funds from your internal{" "}
+                                            <strong>Fiat Account</strong> to
+                                            your <strong>Funding Wallet</strong>
+                                            .
                                         </div>
 
                                         {/* Currency Selection */}
@@ -2311,11 +2531,20 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             </label>
                                             <select
                                                 value={depositData.currency}
-                                                onChange={(e) => setDepositData("currency", e.target.value)}
+                                                onChange={(e) =>
+                                                    setDepositData(
+                                                        "currency",
+                                                        e.target.value
+                                                    )
+                                                }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 py-3 font-bold text-gray-800"
                                             >
-                                                <option value="USD">USD - US Dollar</option>
-                                                <option value="EUR">EUR - Euro</option>
+                                                <option value="USD">
+                                                    USD - US Dollar
+                                                </option>
+                                                <option value="EUR">
+                                                    EUR - Euro
+                                                </option>
                                             </select>
                                         </div>
 
@@ -2329,7 +2558,13 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                     {depositData.currency}
                                                 </span>
                                                 <span className="text-xs font-bold text-gray-500">
-                                                    Available: {formatNumber(fiatBalances[depositData.currency] || 0, 2)}
+                                                    Available:{" "}
+                                                    {formatNumber(
+                                                        fiatBalances[
+                                                            depositData.currency
+                                                        ] || 0,
+                                                        2
+                                                    )}
                                                 </span>
                                             </div>
                                         </div>
@@ -2337,10 +2572,18 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         {/* Amount Input */}
                                         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                                             {(() => {
-                                                const maxAmount = parseFloat(fiatBalances[depositData.currency] || 0);
-                                                const currentAmount = parseFloat(depositData.amount || 0);
-                                                const isExceeding = currentAmount > maxAmount;
-                                                
+                                                const maxAmount = parseFloat(
+                                                    fiatBalances[
+                                                        depositData.currency
+                                                    ] || 0
+                                                );
+                                                const currentAmount =
+                                                    parseFloat(
+                                                        depositData.amount || 0
+                                                    );
+                                                const isExceeding =
+                                                    currentAmount > maxAmount;
+
                                                 return (
                                                     <>
                                                         <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
@@ -2349,29 +2592,51 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                         <div className="relative rounded-md shadow-sm">
                                                             <input
                                                                 type="number"
-                                                                value={depositData.amount}
-                                                                onChange={(e) => setDepositData("amount", e.target.value)}
+                                                                value={
+                                                                    depositData.amount
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setDepositData(
+                                                                        "amount",
+                                                                        e.target
+                                                                            .value
+                                                                    )
+                                                                }
                                                                 className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500 sm:text-lg font-bold ${
-                                                                    isExceeding ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500" : ""
+                                                                    isExceeding
+                                                                        ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
+                                                                        : ""
                                                                 }`}
                                                                 placeholder="0.00"
                                                                 min="0.01"
                                                                 step="any"
                                                             />
                                                             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                                                                <span className={`${isExceeding ? "text-red-500" : "text-gray-500"} sm:text-sm font-bold`}>
-                                                                    {depositData.currency}
+                                                                <span
+                                                                    className={`${
+                                                                        isExceeding
+                                                                            ? "text-red-500"
+                                                                            : "text-gray-500"
+                                                                    } sm:text-sm font-bold`}
+                                                                >
+                                                                    {
+                                                                        depositData.currency
+                                                                    }
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         {isExceeding && (
                                                             <p className="mt-1 text-xs text-red-600 font-bold">
-                                                                Amount exceeds available balance.
+                                                                Amount exceeds
+                                                                available
+                                                                balance.
                                                             </p>
                                                         )}
                                                         {errorsDeposit.amount && (
                                                             <p className="mt-1 text-xs text-red-600 font-bold">
-                                                                {errorsDeposit.amount}
+                                                                {
+                                                                    errorsDeposit.amount
+                                                                }
                                                             </p>
                                                         )}
                                                     </>
@@ -2383,22 +2648,56 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             <button
                                                 type="button"
                                                 className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
-                                                onClick={() => setIsDepositFiatModalOpen(false)}
+                                                onClick={() =>
+                                                    setIsDepositFiatModalOpen(
+                                                        false
+                                                    )
+                                                }
                                             >
                                                 Cancel
                                             </button>
                                             <button
                                                 type="submit"
-                                                disabled={processingDeposit || !depositData.amount || (parseFloat(depositData.amount || 0) > parseFloat(fiatBalances[depositData.currency] || 0))}
+                                                disabled={
+                                                    processingDeposit ||
+                                                    !depositData.amount ||
+                                                    parseFloat(
+                                                        depositData.amount || 0
+                                                    ) >
+                                                        parseFloat(
+                                                            fiatBalances[
+                                                                depositData
+                                                                    .currency
+                                                            ] || 0
+                                                        )
+                                                }
                                                 className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
                                             >
                                                 {processingDeposit ? (
                                                     <>
-                                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        <svg
+                                                            className="animate-spin h-4 w-4 text-white"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                className="opacity-25"
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                stroke="currentColor"
+                                                                strokeWidth="4"
+                                                            ></circle>
+                                                            <path
+                                                                className="opacity-75"
+                                                                fill="currentColor"
+                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                            ></path>
                                                         </svg>
-                                                        <span>Depositing...</span>
+                                                        <span>
+                                                            Depositing...
+                                                        </span>
                                                     </>
                                                 ) : (
                                                     "Confirm Deposit"
@@ -2448,16 +2747,32 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
                                     >
                                         <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                            <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M5 10l7-7m0 0l7 7m-7-7v18"
+                                                />
                                             </svg>
                                         </div>
                                         Withdraw from Funding
                                     </Dialog.Title>
 
-                                    <form onSubmit={handleWithdrawFundingSubmit} className="mt-4 space-y-4">
+                                    <form
+                                        onSubmit={handleWithdrawFundingSubmit}
+                                        className="mt-4 space-y-4"
+                                    >
                                         <div className="text-sm text-gray-500 bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
-                                            Withdraw funds from your <strong>Funding Wallet</strong> back to your <strong>Fiat Account</strong>.
+                                            Withdraw funds from your{" "}
+                                            <strong>Funding Wallet</strong> back
+                                            to your{" "}
+                                            <strong>Fiat Account</strong>.
                                         </div>
 
                                         {/* Currency Selection */}
@@ -2466,12 +2781,23 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                 Select Currency
                                             </label>
                                             <select
-                                                value={withdrawFundingData.currency}
-                                                onChange={(e) => setWithdrawFundingData("currency", e.target.value)}
+                                                value={
+                                                    withdrawFundingData.currency
+                                                }
+                                                onChange={(e) =>
+                                                    setWithdrawFundingData(
+                                                        "currency",
+                                                        e.target.value
+                                                    )
+                                                }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-3 font-bold text-gray-800"
                                             >
-                                                <option value="USD">USD - US Dollar</option>
-                                                <option value="EUR">EUR - Euro</option>
+                                                <option value="USD">
+                                                    USD - US Dollar
+                                                </option>
+                                                <option value="EUR">
+                                                    EUR - Euro
+                                                </option>
                                             </select>
                                         </div>
 
@@ -2482,15 +2808,26 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             </label>
                                             <div className="flex justify-between items-center">
                                                 <span className="font-bold text-gray-900 text-lg">
-                                                    {withdrawFundingData.currency}
+                                                    {
+                                                        withdrawFundingData.currency
+                                                    }
                                                 </span>
                                                 <span className="text-xs font-bold text-gray-500">
                                                     {(() => {
-                                                        const bal = allCurrencyBalances.find(b => 
-                                                            b.wallet_type.toLowerCase() === 'funding' && 
-                                                            b.currency === withdrawFundingData.currency
-                                                        );
-                                                        return `Available: ${formatNumber(bal ? bal.balance : 0, 2)}`;
+                                                        const bal =
+                                                            allCurrencyBalances.find(
+                                                                (b) =>
+                                                                    b.wallet_type.toLowerCase() ===
+                                                                        "funding" &&
+                                                                    b.currency ===
+                                                                        withdrawFundingData.currency
+                                                            );
+                                                        return `Available: ${formatNumber(
+                                                            bal
+                                                                ? bal.balance
+                                                                : 0,
+                                                            2
+                                                        )}`;
                                                     })()}
                                                 </span>
                                             </div>
@@ -2499,14 +2836,25 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         {/* Amount Input */}
                                         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                                             {(() => {
-                                                const balObj = allCurrencyBalances.find(b => 
-                                                    b.wallet_type.toLowerCase() === 'funding' && 
-                                                    b.currency === withdrawFundingData.currency
-                                                );
-                                                const maxAmount = balObj ? parseFloat(balObj.balance) : 0;
-                                                const currentAmount = parseFloat(withdrawFundingData.amount || 0);
-                                                const isExceeding = currentAmount > maxAmount;
-                                                
+                                                const balObj =
+                                                    allCurrencyBalances.find(
+                                                        (b) =>
+                                                            b.wallet_type.toLowerCase() ===
+                                                                "funding" &&
+                                                            b.currency ===
+                                                                withdrawFundingData.currency
+                                                    );
+                                                const maxAmount = balObj
+                                                    ? parseFloat(balObj.balance)
+                                                    : 0;
+                                                const currentAmount =
+                                                    parseFloat(
+                                                        withdrawFundingData.amount ||
+                                                            0
+                                                    );
+                                                const isExceeding =
+                                                    currentAmount > maxAmount;
+
                                                 return (
                                                     <>
                                                         <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
@@ -2515,29 +2863,51 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                                         <div className="relative rounded-md shadow-sm">
                                                             <input
                                                                 type="number"
-                                                                value={withdrawFundingData.amount}
-                                                                onChange={(e) => setWithdrawFundingData("amount", e.target.value)}
+                                                                value={
+                                                                    withdrawFundingData.amount
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setWithdrawFundingData(
+                                                                        "amount",
+                                                                        e.target
+                                                                            .value
+                                                                    )
+                                                                }
                                                                 className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-orange-500 focus:ring-orange-500 sm:text-lg font-bold ${
-                                                                    isExceeding ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500" : ""
+                                                                    isExceeding
+                                                                        ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
+                                                                        : ""
                                                                 }`}
                                                                 placeholder="0.00"
                                                                 min="0.01"
                                                                 step="any"
                                                             />
                                                             <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                                                                <span className={`${isExceeding ? "text-red-500" : "text-gray-500"} sm:text-sm font-bold`}>
-                                                                    {withdrawFundingData.currency}
+                                                                <span
+                                                                    className={`${
+                                                                        isExceeding
+                                                                            ? "text-red-500"
+                                                                            : "text-gray-500"
+                                                                    } sm:text-sm font-bold`}
+                                                                >
+                                                                    {
+                                                                        withdrawFundingData.currency
+                                                                    }
                                                                 </span>
                                                             </div>
                                                         </div>
                                                         {isExceeding && (
                                                             <p className="mt-1 text-xs text-red-600 font-bold">
-                                                                Amount exceeds available balance.
+                                                                Amount exceeds
+                                                                available
+                                                                balance.
                                                             </p>
                                                         )}
                                                         {errorsWithdrawFunding.amount && (
                                                             <p className="mt-1 text-xs text-red-600 font-bold">
-                                                                {errorsWithdrawFunding.amount}
+                                                                {
+                                                                    errorsWithdrawFunding.amount
+                                                                }
                                                             </p>
                                                         )}
                                                     </>
@@ -2549,28 +2919,626 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                             <button
                                                 type="button"
                                                 className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
-                                                onClick={() => setIsWithdrawFundingModalOpen(false)}
+                                                onClick={() =>
+                                                    setIsWithdrawFundingModalOpen(
+                                                        false
+                                                    )
+                                                }
                                             >
                                                 Cancel
                                             </button>
                                             <button
                                                 type="submit"
-                                                disabled={processingWithdrawFunding || !withdrawFundingData.amount || (
-                                                    parseFloat(withdrawFundingData.amount || 0) > 
-                                                    (allCurrencyBalances.find(b => b.wallet_type.toLowerCase() === 'funding' && b.currency === withdrawFundingData.currency)?.balance || 0)
-                                                )}
+                                                disabled={
+                                                    processingWithdrawFunding ||
+                                                    !withdrawFundingData.amount ||
+                                                    parseFloat(
+                                                        withdrawFundingData.amount ||
+                                                            0
+                                                    ) >
+                                                        (allCurrencyBalances.find(
+                                                            (b) =>
+                                                                b.wallet_type.toLowerCase() ===
+                                                                    "funding" &&
+                                                                b.currency ===
+                                                                    withdrawFundingData.currency
+                                                        )?.balance || 0)
+                                                }
                                                 className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-orange-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
                                             >
                                                 {processingWithdrawFunding ? (
                                                     <>
-                                                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                        <svg
+                                                            className="animate-spin h-4 w-4 text-white"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                className="opacity-25"
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                stroke="currentColor"
+                                                                strokeWidth="4"
+                                                            ></circle>
+                                                            <path
+                                                                className="opacity-75"
+                                                                fill="currentColor"
+                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                            ></path>
                                                         </svg>
-                                                        <span>Withdrawing...</span>
+                                                        <span>
+                                                            Withdrawing...
+                                                        </span>
                                                     </>
                                                 ) : (
                                                     "Confirm Withdraw"
+                                                )}
+                                            </button>
+                                        </div>
+                                    </form>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Withdraw Selection Modal */}
+            <Transition
+                appear
+                show={isWithdrawSelectionModalOpen}
+                as={Fragment}
+            >
+                <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setIsWithdrawSelectionModalOpen(false)}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 mb-6"
+                                    >
+                                        Select Withdrawal Method
+                                    </Dialog.Title>
+
+                                    <div className="space-y-4">
+                                        <button
+                                            onClick={() => {
+                                                setIsWithdrawSelectionModalOpen(
+                                                    false
+                                                );
+                                                setIsWithdrawBlockchainModalOpen(
+                                                    true
+                                                );
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                                    <svg
+                                                        className="w-5 h-5"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="block font-bold text-gray-900 group-hover:text-blue-600">
+                                                        Withdraw to Blockchain
+                                                    </span>
+                                                    <span className="block text-xs text-gray-500">
+                                                        Send crypto to external
+                                                        address
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <svg
+                                                className="w-5 h-5 text-gray-400 group-hover:text-blue-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                setIsWithdrawSelectionModalOpen(
+                                                    false
+                                                );
+                                                // Prepare existing Fiat Withdraw modal state logic
+                                                const defaultCurrency =
+                                                    currency === "EUR"
+                                                        ? "EUR"
+                                                        : "USD";
+                                                setWithdrawFundingData(
+                                                    "currency",
+                                                    defaultCurrency
+                                                );
+                                                setIsWithdrawFundingModalOpen(
+                                                    true
+                                                );
+                                            }}
+                                            className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                                                    <svg
+                                                        className="w-5 h-5"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="text-left">
+                                                    <span className="block font-bold text-gray-900 group-hover:text-green-600">
+                                                        Withdraw to Fiat
+                                                    </span>
+                                                    <span className="block text-xs text-gray-500">
+                                                        Transfer to your Fiat
+                                                        Account
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <svg
+                                                className="w-5 h-5 text-gray-400 group-hover:text-green-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <button
+                                            type="button"
+                                            className="w-full inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
+                                            onClick={() =>
+                                                setIsWithdrawSelectionModalOpen(
+                                                    false
+                                                )
+                                            }
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
+
+            {/* Withdraw Blockchain Modal (New Feature) */}
+            <Transition
+                appear
+                show={isWithdrawBlockchainModalOpen}
+                as={Fragment}
+            >
+                <Dialog
+                    as="div"
+                    className="relative z-50"
+                    onClose={() => setIsWithdrawBlockchainModalOpen(false)}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900 flex items-center gap-2 mb-4"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                            <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                                                />
+                                            </svg>
+                                        </div>
+                                        Withdraw {currency} to Blockchain
+                                    </Dialog.Title>
+
+                                    <form
+                                        onSubmit={
+                                            handleWithdrawBlockchainSubmit
+                                        }
+                                        className="mt-4 space-y-4"
+                                    >
+                                        <div className="text-sm text-gray-500 bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+                                            Send standard blockchain transaction
+                                            to an external wallet address.
+                                            Network fees may apply.
+                                        </div>
+
+                                        {/* Currency Readonly */}
+                                        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-gray-500 uppercase">
+                                                    Asset
+                                                </span>
+                                                <span className="font-bold text-gray-900">
+                                                    {currency}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Address Input */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                Recipient Address
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={
+                                                    withdrawBlockchainData.address
+                                                }
+                                                onChange={(e) =>
+                                                    setWithdrawBlockchainData(
+                                                        "address",
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="block w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-3 font-medium text-gray-800"
+                                                placeholder={`Paste ${currency} Address`}
+                                            />
+                                            {errorsWithdrawBlockchain.address && (
+                                                <p className="mt-1 text-xs text-red-600 font-bold">
+                                                    {
+                                                        errorsWithdrawBlockchain.address
+                                                    }
+                                                </p>
+                                            )}
+                                            {addressValidationError &&
+                                                !errorsWithdrawBlockchain.address && (
+                                                    <p className="mt-1 text-xs text-red-600 font-bold">
+                                                        {addressValidationError}
+                                                    </p>
+                                                )}
+                                        </div>
+
+                                        {/* Network Selection */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                Network
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={
+                                                        withdrawBlockchainData.network
+                                                    }
+                                                    onChange={(e) =>
+                                                        setWithdrawBlockchainData(
+                                                            "network",
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                    className="block w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-3 font-medium text-gray-800 appearance-none bg-none"
+                                                >
+                                                    <option value="" disabled>
+                                                        Select Network
+                                                    </option>
+                                                    {blockchainNetworks.map(
+                                                        (net) => (
+                                                            <option
+                                                                key={net.id}
+                                                                value={net.id}
+                                                            >
+                                                                {net.name}
+                                                            </option>
+                                                        )
+                                                    )}
+                                                </select>
+                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                                    <svg
+                                                        className="fill-current h-4 w-4"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                            {/* Network Details Display */}
+                                            {withdrawBlockchainData.network &&
+                                                (() => {
+                                                    const selected =
+                                                        blockchainNetworks.find(
+                                                            (n) =>
+                                                                n.id ===
+                                                                withdrawBlockchainData.network
+                                                        );
+                                                    if (!selected) return null;
+
+                                                    return (
+                                                        <div className="mt-3 grid grid-cols-2 gap-4 text-xs">
+                                                            <div className="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                                                <span className="text-gray-500 block">
+                                                                    Network Fee
+                                                                </span>
+                                                                <span className="font-bold text-gray-800">
+                                                                    {
+                                                                        selected.fee
+                                                                    }{" "}
+                                                                    {currency}
+                                                                </span>
+                                                            </div>
+                                                            <div className="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                                                <span className="text-gray-500 block">
+                                                                    Arrival Time
+                                                                </span>
+                                                                <span className="font-bold text-gray-800">
+                                                                    {
+                                                                        selected.delay
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                        </div>
+
+                                        {/* Amount Input */}
+                                        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                                            <label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+                                                Withdraw Amount
+                                            </label>
+                                            {(() => {
+                                                const balObj =
+                                                    allCurrencyBalances.find(
+                                                        (b) =>
+                                                            b.wallet_type.toLowerCase() ===
+                                                                "funding" &&
+                                                            b.currency ===
+                                                                currency
+                                                    );
+                                                const maxAmount = balObj
+                                                    ? parseFloat(balObj.balance)
+                                                    : 0;
+                                                const currentAmount =
+                                                    parseFloat(
+                                                        withdrawBlockchainData.amount ||
+                                                            0
+                                                    );
+                                                const isExceeding =
+                                                    currentAmount > maxAmount;
+
+                                                return (
+                                                    <>
+                                                        <div className="relative rounded-md shadow-sm">
+                                                            <input
+                                                                type="number"
+                                                                value={
+                                                                    withdrawBlockchainData.amount
+                                                                }
+                                                                onChange={(e) =>
+                                                                    setWithdrawBlockchainData(
+                                                                        "amount",
+                                                                        e.target
+                                                                            .value
+                                                                    )
+                                                                }
+                                                                className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
+                                                                    isExceeding
+                                                                        ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
+                                                                        : ""
+                                                                }`}
+                                                                placeholder="0.00"
+                                                                min="0.00000001"
+                                                                step="any"
+                                                            />
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                                <span
+                                                                    className={`${
+                                                                        isExceeding
+                                                                            ? "text-red-500"
+                                                                            : "text-gray-500"
+                                                                    } sm:text-sm font-bold`}
+                                                                >
+                                                                    {currency}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="mt-1 flex justify-between text-xs">
+                                                            <span className="text-red-600 font-bold h-4 block">
+                                                                {isExceeding
+                                                                    ? "Insufficient balance"
+                                                                    : feeValidationError
+                                                                    ? feeValidationError
+                                                                    : errorsWithdrawBlockchain.amount ||
+                                                                      ""}
+                                                            </span>
+                                                            <span className="text-gray-500">
+                                                                Available:{" "}
+                                                                <span
+                                                                    className="font-bold cursor-pointer hover:text-blue-600"
+                                                                    onClick={() =>
+                                                                        setWithdrawBlockchainData(
+                                                                            "amount",
+                                                                            maxAmount
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {formatNumber(
+                                                                        maxAmount,
+                                                                        8
+                                                                    )}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+
+                                        {/* Fee Summary */}
+                                        {withdrawBlockchainData.amount &&
+                                            withdrawBlockchainData.network &&
+                                            (() => {
+                                                const selected =
+                                                    blockchainNetworks.find(
+                                                        (n) =>
+                                                            n.id ===
+                                                            withdrawBlockchainData.network
+                                                    );
+                                                const fee = selected
+                                                    ? selected.fee
+                                                    : 0;
+                                                const total =
+                                                    parseFloat(
+                                                        withdrawBlockchainData.amount
+                                                    ) - fee;
+
+                                                // Ensure user understands they receive less
+                                                return (
+                                                    <div className="flex justify-between items-center text-sm font-bold bg-blue-50 p-3 rounded-xl text-blue-800">
+                                                        <span>
+                                                            Receive Amount
+                                                        </span>
+                                                        <span>
+                                                            {total > 0
+                                                                ? formatNumber(
+                                                                      total,
+                                                                      8
+                                                                  )
+                                                                : 0}{" "}
+                                                            {currency}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
+
+                                        <div className="mt-6 flex justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
+                                                onClick={() =>
+                                                    setIsWithdrawBlockchainModalOpen(
+                                                        false
+                                                    )
+                                                }
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                disabled={
+                                                    processingWithdrawBlockchain ||
+                                                    !withdrawBlockchainData.amount ||
+                                                    !withdrawBlockchainData.address ||
+                                                    !!addressValidationError ||
+                                                    !!feeValidationError
+                                                }
+                                                className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
+                                            >
+                                                {processingWithdrawBlockchain ? (
+                                                    <>
+                                                        <svg
+                                                            className="animate-spin h-4 w-4 text-white"
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <circle
+                                                                className="opacity-25"
+                                                                cx="12"
+                                                                cy="12"
+                                                                r="10"
+                                                                stroke="currentColor"
+                                                                strokeWidth="4"
+                                                            ></circle>
+                                                            <path
+                                                                className="opacity-75"
+                                                                fill="currentColor"
+                                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                            ></path>
+                                                        </svg>
+                                                        <span>
+                                                            Submitting...
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    "Withdraw to Blockchain"
                                                 )}
                                             </button>
                                         </div>
