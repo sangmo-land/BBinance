@@ -105,8 +105,8 @@ export default function Login({ status, canResetPassword }) {
                             </h2>
                             <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
                                 <p>
-                                    Access global markets with advanced tools and
-                                    rock-solid security.
+                                    Access global markets with advanced tools
+                                    and rock-solid security.
                                 </p>
                                 <ul className="space-y-3 mt-4 text-white/80">
                                     <li className="flex items-center gap-3">
@@ -127,7 +127,7 @@ export default function Login({ status, canResetPassword }) {
                     </div>
 
                     <div className="relative z-10 text-xs text-zinc-600">
-                        &copy; {new Date().getFullYear()} BBinance.
+                        &copy; {new Date().getFullYear()} Civicon Exchange.
                     </div>
                 </div>
 

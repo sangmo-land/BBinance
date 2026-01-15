@@ -167,7 +167,7 @@ export default function Register() {
                             <div className="space-y-4 text-zinc-400 text-sm leading-relaxed">
                                 <p>
                                     Join millions of users worldwide who trust
-                                    BBinance for their crypto journey.
+                                    Civicon Exchange for their crypto journey.
                                 </p>
                                 <ul className="space-y-3 mt-4 text-white/80">
                                     <li className="flex items-center gap-3">
@@ -188,7 +188,7 @@ export default function Register() {
                     </div>
 
                     <div className="relative z-10 text-xs text-zinc-600">
-                        &copy; {new Date().getFullYear()} BBinance.
+                        &copy; {new Date().getFullYear()} Civicon Exchange.
                     </div>
                 </div>
 
@@ -519,7 +519,11 @@ export default function Register() {
                                             className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
                                             autoComplete="tel"
                                             onChange={(e) => {
-                                                const value = e.target.value.replace(/[^0-9+() -]/g, '');
+                                                const value =
+                                                    e.target.value.replace(
+                                                        /[^0-9+() -]/g,
+                                                        ""
+                                                    );
                                                 setData("phone", value);
                                             }}
                                             required
@@ -743,23 +747,43 @@ export default function Register() {
                                             value={data.date_of_birth}
                                             className="block w-full rounded-xl border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 px-4 py-3 pl-11 text-black dark:text-white shadow-sm focus:border-[#FF2D20] focus:ring-1 focus:ring-[#FF2D20] sm:text-sm placeholder:text-zinc-400"
                                             onChange={(e) => {
-                                                const selectedDate = e.target.value; // YYYY-MM-DD
-                                                
+                                                const selectedDate =
+                                                    e.target.value; // YYYY-MM-DD
+
                                                 // Calculate 18 years ago from today
                                                 const today = new Date();
-                                                const cutoffDate = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
-                                                
+                                                const cutoffDate = new Date(
+                                                    today.getFullYear() - 18,
+                                                    today.getMonth(),
+                                                    today.getDate()
+                                                );
+
                                                 // Format cutoffDate to YYYY-MM-DD (Local time)
-                                                const year = cutoffDate.getFullYear();
-                                                const month = String(cutoffDate.getMonth() + 1).padStart(2, '0');
-                                                const day = String(cutoffDate.getDate()).padStart(2, '0');
+                                                const year =
+                                                    cutoffDate.getFullYear();
+                                                const month = String(
+                                                    cutoffDate.getMonth() + 1
+                                                ).padStart(2, "0");
+                                                const day = String(
+                                                    cutoffDate.getDate()
+                                                ).padStart(2, "0");
                                                 const maxDateString = `${year}-${month}-${day}`;
 
-                                                if (selectedDate > maxDateString) {
-                                                    alert("You must be at least 18 years old to register.");
-                                                    setData("date_of_birth", "");
+                                                if (
+                                                    selectedDate > maxDateString
+                                                ) {
+                                                    alert(
+                                                        "You must be at least 18 years old to register."
+                                                    );
+                                                    setData(
+                                                        "date_of_birth",
+                                                        ""
+                                                    );
                                                 } else {
-                                                    setData("date_of_birth", selectedDate);
+                                                    setData(
+                                                        "date_of_birth",
+                                                        selectedDate
+                                                    );
                                                 }
                                             }}
                                             required
@@ -1021,7 +1045,9 @@ export default function Register() {
                                     <Checkbox
                                         name="terms"
                                         checked={data.terms}
-                                        onChange={(e) => setData('terms', e.target.checked)}
+                                        onChange={(e) =>
+                                            setData("terms", e.target.checked)
+                                        }
                                         className="mt-1 text-[#FF2D20] focus:ring-[#FF2D20] border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                                         required
                                     />
@@ -1072,7 +1098,7 @@ export default function Register() {
                                             ></path>
                                         </svg>
                                     )}
-                                    {processing ? 'Registering...' : 'Register'}
+                                    {processing ? "Registering..." : "Register"}
                                 </button>
                             </div>
                         </form>

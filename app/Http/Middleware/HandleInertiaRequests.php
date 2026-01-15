@@ -52,7 +52,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'), // Or 'errors' bag if using validate()
             ],
             'adminContact' => [
-                'email' => $admin?->email ?? 'support@bbinance.com',
+'email' => $admin?->email ?? 'support@civicon.com',
                 'phone' => $admin?->phone ?? '+1 (555) 123-4567',
             ],
         ];

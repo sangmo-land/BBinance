@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SEO Configuration for BBinance
+* SEO Configuration for Civicon Exchange
  * 
  * This file contains SEO best practices and settings
  */
@@ -11,10 +11,10 @@ return [
      * Organization Information
      */
     'organization' => [
-        'name' => 'HSBC',
+'name' => 'Civicon Exchange',
         'description' => 'The future of digital banking with secure, instant multi-currency transfers',
         'url' => env('APP_URL', 'http://localhost:8000'),
-        'logo' => env('APP_URL', 'http://localhost:8000') . '/hsbc-logo.png',
+'logo' => env('APP_URL', 'http://localhost:8000') . '/images/logo.png',
         'type' => 'FinancialService',
     ],
 
@@ -22,19 +22,19 @@ return [
      * Social Media Profiles for structured data
      */
     'social' => [
-        'facebook' => 'https://facebook.com/hsbc',
-        'twitter' => 'https://twitter.com/hsbc',
-        'linkedin' => 'https://linkedin.com/company/hsbc',
-        'instagram' => 'https://instagram.com/hsbc',
-        'youtube' => 'https://youtube.com/@hsbc',
+'facebook' => 'https://facebook.com/civiconexchange',
+        'twitter' => 'https://twitter.com/civiconexchange',
+        'linkedin' => 'https://linkedin.com/company/civiconexchange',
+        'instagram' => 'https://instagram.com/civiconexchange',
+        'youtube' => 'https://youtube.com/@civiconexchange',
     ],
 
     /**
      * Contact Information
      */
     'contact' => [
-        'email' => env('MAIL_FROM_ADDRESS', 'support@hsbc.com'),
-        'phone' => '+1-800-HSBC',
+'email' => env('MAIL_FROM_ADDRESS', 'support@civicon.com'),
+        'phone' => '+1-800-CIVICON',
         'address' => [
             'streetAddress' => '123 Finance Street',
             'addressLocality' => 'San Francisco',
@@ -48,11 +48,12 @@ return [
      * Default Meta Tags
      */
     'meta' => [
-        'title' => 'HSBC - The Future of Digital Banking',
-        'description' => 'Experience secure, instant multi-currency transfers with HSBC. Competitive exchange rates, real-time updates, and 99.98% uptime.',
+'title' => 'Civicon Exchange - The Future of Digital Banking',
+        'description' => 'Experience secure, instant multi-currency transfers with Civicon Exchange. Competitive exchange rates,
+        real-time updates, and 99.98% uptime.',
         'keywords' => 'digital banking, money transfer, cryptocurrency exchange, secure transfers, financial services, multi-currency',
         'ogImage' => env('APP_URL', 'http://localhost:8000') . '/og-image.jpg',
-        'twitterHandle' => '@HSBC',
+'twitterHandle' => '@CiviconExchange',
     ],
 
     /**
@@ -92,7 +93,7 @@ return [
     'opengraph' => [
         'enabled' => true,
         'locale' => 'en_US',
-        'site_name' => 'HSBC',
+'site_name' => 'Civicon Exchange',
     ],
 
     /**
@@ -101,7 +102,7 @@ return [
     'twitter' => [
         'enabled' => true,
         'card_type' => 'summary_large_image',
-        'creator' => '@HSBC',
+'creator' => '@CiviconExchange',
     ],
 
     /**

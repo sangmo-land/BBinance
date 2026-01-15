@@ -21,7 +21,7 @@
 
                 <div class="flex-1">
 <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-                        Welcome to <span class="text-red-600">HSBC</span> Administration
+Welcome to <span class="text-red-600">Civicon</span> Administration
 </h2>
 </div>
                 

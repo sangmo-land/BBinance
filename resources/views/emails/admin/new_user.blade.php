@@ -5,7 +5,7 @@
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <h1 style="color: #2c3e50;">New User Registration</h1>
-<p>A new user has registered on HSBC.</p>
+<p>A new user has registered on Civicon Exchange.</p>
     
     <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
         <p><strong>Name:</strong> {{ $user->name }} {{ $user->surname }}</p>
