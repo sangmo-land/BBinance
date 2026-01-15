@@ -21,9 +21,7 @@ class AccountForm
                 TextInput::make('account_number')
                     ->required()
                     ->unique(ignoreRecord: true)
-                    ->default(fn () => 'ACC' . strtoupper(uniqid()))
-                    ->disabled()
-                    ->dehydrated(),
+->default(fn () => 'ACC' . strtoupper(uniqid())),
                 Select::make('account_type')
                     ->required()
                     ->options([
@@ -46,12 +44,43 @@ class AccountForm
                     ->searchable()
                     ->default('USD'),
                 TextInput::make('balance')
-                    ->required()
-                    ->numeric()
-                    ->minValue(0)
-                    ->step(0.01)
+->disabled()
+                    ->dehydrated(false)
+                    ->formatStateUsing(function ($record) {
+                    if (! $record) {
+                    return 0;
+                    }
+                    
+                    if ($record->account_type === 'fiat') {
+                    $totalUsd = 0;
+                    foreach ($record->balances as $balance) {
+                    $rate = \App\Models\ExchangeRate::getRateBidirectional($balance->currency, 'USD');
+                    if ($rate !== null) {
+                    $totalUsd += $balance->balance * $rate;
+                    }
+                    }
+                    return number_format($totalUsd, 2);
+                    }
+                    
+                    if ($record->account_type === 'crypto') {
+                    $totalUsdt = 0;
+                    foreach ($record->balances as $balance) {
+                    $rate = \App\Models\ExchangeRate::getRateBidirectional($balance->currency, 'USDT');
+                    if ($rate !== null) {
+                    $totalUsdt += $balance->balance * $rate;
+                    }
+                    }
+                    return number_format($totalUsdt, 2);
+                    }
+                    
+                    return $record->balance;
+                    })
                     ->default(0)
-                    ->prefix('$'),
+->prefix(fn ($record) => match ($record?->account_type) {
+                    'fiat' => 'USD',
+                    'crypto' => 'USDT',
+                    default => $record?->currency ?? '$',
+                    }),
                 Toggle::make('is_active')
                     ->default(true)
                     ->required(),

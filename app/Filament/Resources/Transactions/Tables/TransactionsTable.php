@@ -258,12 +258,515 @@ Action::make('approveWithdrawal')
                 });
                 
                 \Filament\Notifications\Notification::make()
-                ->title('Withdrawal Approved')
-                ->success()
-                ->send();
-                }),
+->title('Withdrawal Approved')
+->success()
+->send();
+}),
+Action::make('approveConversion')
+->label('Approve Conversion')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Message to User')
+->placeholder('Optional message')
+->rows(2),
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'conversion')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$fromAccount = \App\Models\Account::find($record->from_account_id);
+$toAccount = \App\Models\Account::find($record->to_account_id);
+
+if (!$fromAccount || !$toAccount) {
+throw new \Exception("Account not found.");
+}
+
+// 1. Deduct from Fiat Locked
+$lockedBalance = $fromAccount->balances()
+->where('wallet_type', 'fiat')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Add to Crypto Spot (Available)
+$spotBalance = $toAccount->balances()->firstOrCreate(
+['wallet_type' => 'spot', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$spotBalance->increment('balance', $record->converted_amount);
+
+// 3. Update Transaction
+$record->update(['status' => 'completed']);
+
+// 4. Message
+if (!empty($data['message']) && $fromAccount->user_id) {
+\App\Models\Message::create([
+'user_id' => $fromAccount->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Conversion Approved')
+->success()
+->send();
+}),
+
+Action::make('rejectConversion')
+->label('Reject Conversion')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Reason for Rejection')
+->required()
+->rows(2),
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'conversion')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$fromAccount = \App\Models\Account::find($record->from_account_id);
+
+if ($fromAccount) {
+// 1. Deduct from Fiat Locked
+$lockedBalance = $fromAccount->balances()
+->where('wallet_type', 'fiat')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Refund to Fiat Available
+$availableBalance = $fromAccount->balances()
+->where('wallet_type', 'fiat')
+->where('currency', $record->from_currency)
+->where('balance_type', 'available')
+->first();
+
+if (!$availableBalance) {
+$availableBalance = $fromAccount->balances()->create([
+'wallet_type' => 'fiat',
+'currency' => $record->from_currency,
+'balance_type' => 'available',
+'balance' => 0
+]);
+}
+$availableBalance->increment('balance', $record->amount);
+}
+
+// 3. Update Transaction
+$record->update(['status' => 'failed']);
+
+// 4. Message
+if (!empty($data['message']) && $fromAccount->user_id) {
+\App\Models\Message::create([
+'user_id' => $fromAccount->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Conversion Rejected')
+->success()
+->send();
+}),
+
+Action::make('approveBuyCrypto')
+->label('Approve Buy Crypto')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Message')
+->rows(2)
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Buy Crypto')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+$lockedBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+$cryptoBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'Spot', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$cryptoBalance->increment('balance', $record->converted_amount);
+
+$record->update(['status' => 'completed']);
+
+if (!empty($data['message']) && $account->user_id) {
+\App\Models\Message::create([
+'user_id' => $account->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Trade Approved')
+->success()
+->send();
+}),
+
+Action::make('rejectBuyCrypto')
+->label('Reject Buy Crypto')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Reason')
+->required()
+->rows(2)
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Buy Crypto')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+$lockedBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+$availBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'available')
+->first();
+
+if (!$availBalance) {
+$availBalance = $account->balances()->create([
+'wallet_type' => 'Spot',
+'currency' => $record->from_currency,
+'balance_type' => 'available',
+'balance' => 0
+]);
+}
+$availBalance->increment('balance', $record->amount);
+
+$record->update(['status' => 'failed']);
+
+if (!empty($data['message']) && $account->user_id) {
+\App\Models\Message::create([
+'user_id' => $account->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Trade Rejected')
+->danger()
+->send();
+}),
+
+Action::make('approveSellCrypto')
+->label('Approve Sell Crypto')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Message to User (Optional)')
+->rows(2)
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Sell Crypto')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+// 1. Remove from Locked Crypto
+$lockedBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Add to Available Fiat (receiving currency)
+$fiatBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'Spot', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$fiatBalance->increment('balance', $record->converted_amount);
+
+// 3. Mark Completed
+$record->update(['status' => 'completed']);
+
+if (!empty($data['message']) && $account->user_id) {
+\App\Models\Message::create([
+'user_id' => $account->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Sell Approved')
+->success()
+->send();
+}),
+
+Action::make('rejectSellCrypto')
+->label('Reject Sell Crypto')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Reason')
+->required()
+->rows(2)
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Sell Crypto')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+// 1. Remove from Locked Crypto
+$lockedBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Refund to Available Crypto
+$availBalance = $account->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'available')
+->first();
+
+if (!$availBalance) {
+$availBalance = $account->balances()->create([
+'wallet_type' => 'Spot',
+'currency' => $record->from_currency,
+'balance_type' => 'available',
+'balance' => 0
+]);
+}
+$availBalance->increment('balance', $record->amount);
+
+// 3. Mark Failed
+$record->update(['status' => 'failed']);
+
+if (!empty($data['message']) && $account->user_id) {
+\App\Models\Message::create([
+'user_id' => $account->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Sell Rejected')
+->danger()
+->send();
+}),
+
+Action::make('approveTransfer')
+->label('Approve Transfer')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Transfer')
+->action(function ($record) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+// Parse Wallets from Description: "Transfer [Spot->Funding]: ..."
+$desc = $record->description;
+$fromWallet = 'Spot';
+$toWallet = 'Funding';
+
+if (preg_match('/\[(.*?)\->(.*?)\]/', $desc, $matches)) {
+$fromWallet = $matches[1];
+$toWallet = $matches[2];
+}
+
+// 1. Remove from Locked (Source)
+$lockedBalance = $account->balances()
+->where('wallet_type', $fromWallet)
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Add to Destination Available
+$destBalance = $account->balances()->firstOrCreate(
+['wallet_type' => $toWallet, 'currency' => $record->to_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$destBalance->increment('balance', $record->amount);
+
+$record->update(['status' => 'completed']);
+});
+
+\Filament\Notifications\Notification::make()->title('Transfer Approved')->success()->send();
+}),
+
+Action::make('rejectTransfer')
+->label('Reject Transfer')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Transfer')
+->action(function ($record) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+$desc = $record->description;
+$fromWallet = 'Spot';
+
+if (preg_match('/\[(.*?)\->(.*?)\]/', $desc, $matches)) {
+$fromWallet = $matches[1];
+}
+
+// 1. Remove from Locked
+$lockedBalance = $account->balances()
+->where('wallet_type', $fromWallet)
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Refund to Available
+$availBalance = $account->balances()->firstOrCreate(
+['wallet_type' => $fromWallet, 'currency' => $record->from_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$availBalance->increment('balance', $record->amount);
+
+$record->update(['status' => 'failed']);
+});
+\Filament\Notifications\Notification::make()->title('Transfer Rejected')->danger()->send();
+}),
+
+Action::make('approveConvertCrypto')
+->label('Approve Convert')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Convert Crypto')
+->action(function ($record) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+// Parse Wallet: "[Spot] Conversion..."
+$walletType = 'Spot';
+if (preg_match('/^\[(.*?)\]/', $record->description, $matches)) {
+$walletType = $matches[1];
+}
+
+// 1. Remove Source Locked
+$lockedBalance = $account->balances()
+->where('wallet_type', $walletType)
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Add Destination Available
+$destBalance = $account->balances()->firstOrCreate(
+['wallet_type' => $walletType, 'currency' => $record->to_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$destBalance->increment('balance', $record->converted_amount);
+
+$record->update(['status' => 'completed']);
+});
+\Filament\Notifications\Notification::make()->title('Conversion Approved')->success()->send();
+}),
+
+Action::make('rejectConvertCrypto')
+->label('Reject Convert')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Convert Crypto')
+->action(function ($record) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+$walletType = 'Spot';
+if (preg_match('/^\[(.*?)\]/', $record->description, $matches)) {
+$walletType = $matches[1];
+}
+
+// 1. Remove Source Locked
+$lockedBalance = $account->balances()
+->where('wallet_type', $walletType)
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Refund Source Available
+$availBalance = $account->balances()->firstOrCreate(
+['wallet_type' => $walletType, 'currency' => $record->from_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$availBalance->increment('balance', $record->amount);
+
+$record->update(['status' => 'failed']);
+});
+\Filament\Notifications\Notification::make()->title('Conversion Rejected')->danger()->send();
+}),
                 Action::make('rejectWithdrawal')
-                ->label('Reject Withdrawal')
+->label('Reject Withdrawal')
                 ->icon('heroicon-m-x-mark')
                 ->color('danger')
                 ->requiresConfirmation()

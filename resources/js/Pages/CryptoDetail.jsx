@@ -19,77 +19,159 @@ const blockchainNetworks = [
 ];
 
 function formatNumber(value, fractionDigits = 8) {
-  const n = Number(value);
-  const parsed = Number.isFinite(n) ? n : 0;
-  return parsed.toLocaleString('en-US', {
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  });
+    const n = Number(value);
+    const parsed = Number.isFinite(n) ? n : 0;
+    // Use toFixed to avoid localized grouping separators if strict formatting is needed,
+    // or use toLocaleString with forced digits as before but user asked to not round up.
+    // Standard float representation is best.
+    // "Do not round up" implies floor or just showing high precision.
+    // Let's ensure high precision by default.
+
+    if (fractionDigits <= 2) {
+        // For prices/fiat, standard rounding usually ok, but let's stick to 8 if generic
+        // But function has default 8.
+
+        // If the User specifically meant "don't round up visually", floor might be safer,
+        // but let's assume standard display behavior with max fraction digits.
+        return parsed.toLocaleString("en-US", {
+            minimumFractionDigits: fractionDigits,
+            maximumFractionDigits: fractionDigits,
+        });
+    }
+
+    // To strictly cut off without rounding up at the last digit?
+    // e.g. 0.123456789 -> 0.12345678
+    const factor = Math.pow(10, fractionDigits);
+    const truncated = Math.floor(parsed * factor) / factor;
+
+    return truncated.toLocaleString("en-US", {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+        useGrouping: true,
+    });
 }
 
-export default function CryptoDetail({ account, currency, balances, spotBalances = [], allCurrencyBalances = [], rateToUsd, walletType, tradingPairs = [], tradingFeePercent = 0.1, transactions = [], fiatBalances = {} }) {
-    // Calculate total balance across all types (available, locked, etc) for this currency
-    const totalBalance = balances.reduce((sum, b) => sum + Number(b.balance), 0);
+export default function CryptoDetail({
+    account,
+    currency,
+    balances,
+    spotBalances = [],
+    allCurrencyBalances = [],
+    rateToUsd,
+    walletType,
+    tradingPairs = [],
+    tradingFeePercent = 0.1,
+    transactions = [],
+    fiatBalances = {},
+}) {
+    // Calculate total spendable balance (available only, exclude locked/pending)
+    const totalBalance = balances
+        .filter(
+            (b) => b.balance_type !== "locked" && b.balance_type !== "pending"
+        )
+        .reduce((sum, b) => sum + Number(b.balance), 0);
+
+    // Calculate locked balance separately
+    const lockedBalance = balances
+        .filter(
+            (b) => b.balance_type === "locked" || b.balance_type === "pending"
+        )
+        .reduce((sum, b) => sum + Number(b.balance), 0);
+
     const usdEquivalent = totalBalance * (rateToUsd || 0);
-    
+
     // Sort pairs to prioritize ones where this currency is the Quote (e.g. BTC/USDT if we are on USDT page)
     const sortedPairs = [...tradingPairs].sort((a, b) => {
         // Simple heuristic: specific common pairs first, or just alphabetical
         return (a.from + a.to).localeCompare(b.from + b.to);
     });
-    
+
     const topPairs = sortedPairs.slice(0, 6);
     const otherPairs = sortedPairs.slice(6);
 
     // Form handling for Buy
-    const { data: buyData, setData: setBuyData, post: postBuy, processing: processingBuy, errors: errorsBuy, reset: resetBuy } = useForm({
-        pair_id: '',
-        amount: '',
-        spending_currency: '',
-        receiving_currency: ''
+    const {
+        data: buyData,
+        setData: setBuyData,
+        post: postBuy,
+        processing: processingBuy,
+        errors: errorsBuy,
+        reset: resetBuy,
+    } = useForm({
+        pair_id: "",
+        amount: "",
+        spending_currency: "",
+        receiving_currency: "",
     });
 
     // Form handling for Sell
-    const { data: sellData, setData: setSellData, post: postSell, processing: processingSell, errors: errorsSell, reset: resetSell } = useForm({
-        pair_id: '',
-        amount: '',
-        spending_currency: '',
-        receiving_currency: ''
+    const {
+        data: sellData,
+        setData: setSellData,
+        post: postSell,
+        processing: processingSell,
+        errors: errorsSell,
+        reset: resetSell,
+    } = useForm({
+        pair_id: "",
+        amount: "",
+        spending_currency: "",
+        receiving_currency: "",
     });
 
     // Normalize wallet type from URL to match Title Case DB values (Spot, Funding, Earn)
     const normalizedWalletType = React.useMemo(() => {
-        if (!walletType) return 'Spot';
+        if (!walletType) return "Spot";
         const w = walletType.toLowerCase();
-        if (w === 'earning' || w === 'earn') return 'Earn';
+        if (w === "earning" || w === "earn") return "Earn";
         return w.charAt(0).toUpperCase() + w.slice(1);
     }, [walletType]);
 
     // Form handling for Transfer
-    const { data: transferData, setData: setTransferData, post: postTransfer, processing: processingTransfer, errors: errorsTransfer, reset: resetTransfer } = useForm({
-        amount: '',
+    const {
+        data: transferData,
+        setData: setTransferData,
+        post: postTransfer,
+        processing: processingTransfer,
+        errors: errorsTransfer,
+        reset: resetTransfer,
+    } = useForm({
+        amount: "",
         from_wallet: normalizedWalletType,
-        to_wallet: normalizedWalletType === 'Spot' ? 'Funding' : 'Spot',
-        currency: currency
+        to_wallet: normalizedWalletType === "Spot" ? "Funding" : "Spot",
+        currency: currency,
     });
 
     // Update form default if URL changes while component is mounted
     useEffect(() => {
-        setTransferData('from_wallet', normalizedWalletType);
-        setTransferData('to_wallet', normalizedWalletType === 'Spot' ? 'Funding' : 'Spot');
+        setTransferData("from_wallet", normalizedWalletType);
+        setTransferData(
+            "to_wallet",
+            normalizedWalletType === "Spot" ? "Funding" : "Spot"
+        );
     }, [normalizedWalletType]);
 
     // Form handling for Convert
-    const { data: convertData, setData: setConvertData, post: postConvert, processing: processingConvert, errors: errorsConvert, reset: resetConvert } = useForm({
+    const {
+        data: convertData,
+        setData: setConvertData,
+        post: postConvert,
+        processing: processingConvert,
+        errors: errorsConvert,
+        reset: resetConvert,
+    } = useForm({
         from_currency: currency,
-        to_currency: '',
-        amount: '',
-        wallet_type: normalizedWalletType
+        to_currency: "",
+        amount: "",
+        wallet_type: normalizedWalletType,
     });
 
     // Update wallet type in convert form when it changes
     useEffect(() => {
-        setConvertData(data => ({ ...data, wallet_type: normalizedWalletType }));
+        setConvertData((data) => ({
+            ...data,
+            wallet_type: normalizedWalletType,
+        }));
     }, [normalizedWalletType]);
 
     // Modal States
@@ -98,7 +180,8 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
     let [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     let [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
     let [isDepositFiatModalOpen, setIsDepositFiatModalOpen] = useState(false); // New Modal state for Fiat Deposit
-    let [isWithdrawFundingModalOpen, setIsWithdrawFundingModalOpen] = useState(false); // New Modal for Funding Withdraw
+    let [isWithdrawFundingModalOpen, setIsWithdrawFundingModalOpen] =
+        useState(false); // New Modal for Funding Withdraw
     let [isWithdrawSelectionModalOpen, setIsWithdrawSelectionModalOpen] =
         useState(false); // New Selection Modal for Withdraw
     let [isWithdrawBlockchainModalOpen, setIsWithdrawBlockchainModalOpen] =
@@ -516,7 +599,9 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
 
                             <div className="relative z-10">
                                 <h2 className="text-gray-400 font-bold text-xs uppercase tracking-[0.2em] mb-4">
-                                    Total Balance
+                                    {walletType
+                                        ? `${walletType} Available`
+                                        : "Total Available"}
                                 </h2>
                                 <div className="flex flex-col md:flex-row items-baseline gap-4">
                                     <span className="text-5xl md:text-6xl font-black tracking-tighter text-white">
@@ -526,6 +611,12 @@ export default function CryptoDetail({ account, currency, balances, spotBalances
                                         {currency}
                                     </span>
                                 </div>
+                                {lockedBalance > 0 && (
+                                    <div className="mt-2 text-sm text-gray-400 font-medium">
+                                        Locked: {formatNumber(lockedBalance, 8)}{" "}
+                                        {currency}
+                                    </div>
+                                )}
 
                                 <div className="mt-6 flex items-center gap-3">
                                     <div className="px-4 py-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner flex items-center gap-2">
