@@ -114,11 +114,6 @@ export default function DemoDashboard() {
                   {form.processing && (
                       <span className="ml-2 text-sm">Processing...</span>
                   )}
-                  {props.flash?.status && (
-                      <p className="text-green-600 mt-2">
-                          {props.flash.status}
-                      </p>
-                  )}
               </form>
               <p className="text-xs text-gray-500 mt-2">
                   Note: Transfers require matching currencies. Use admin panel

@@ -65,17 +65,11 @@ export default function AppLayout({ children }) {
 
     // Handle Flash Messages
     useEffect(() => {
-        if (flash?.success) {
-            setToast({
-                message: flash.success,
-                type: "success",
-                visible: true,
-            });
-        } else if (flash?.error) {
+        if (flash?.error) {
             setToast({ message: flash.error, type: "error", visible: true });
         }
 
-        if (flash?.success || flash?.error) {
+        if (flash?.error) {
             const timer = setTimeout(() => {
                 setToast((prev) => ({ ...prev, visible: false }));
             }, 4000);
