@@ -292,19 +292,17 @@ return \Inertia\Inertia::render('RedeemPage', [
                  ]);
             }
 
-            // Deduct from Fiat
+// Deduct from Fiat Available
             $fiatBalance->decrement('balance', $amount);
             
-            // Credit Funding Wallet
-            $fundingBalance = $account->balances()
-                ->firstOrCreate(
-                    ['wallet_type' => 'funding', 'currency' => $currency],
-                    ['balance' => 0]
-                );
-            
-            $fundingBalance->increment('balance', $amount);
+// Add to Fiat Locked (Holding for approval)
+            $fiatLocked = $fiatAccount->balances()->firstOrCreate(
+            ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'locked'],
+            ['balance' => 0]
+            );
+$fiatLocked->increment('balance', $amount);
 
-            // Record Transaction
+// Record Transaction (Pending)
             \App\Models\Transaction::create([
                  'from_account_id' => $fiatAccount->id,
                  'to_account_id' => $account->id,
@@ -312,9 +310,11 @@ return \Inertia\Inertia::render('RedeemPage', [
                  'from_currency' => $currency,
                  'to_currency' => $currency,
                  'amount' => $amount,
-                 'status' => 'completed',
+'converted_amount' => $amount,
+                'status' => 'pending',
                  'description' => "Deposit {$amount} {$currency} from Fiat Account to Funding Wallet",
                  'created_by' => $user->id,
+'reference_number' => 'DEP-' . strtoupper(uniqid()),
             ]);
 
 return redirect()->back();

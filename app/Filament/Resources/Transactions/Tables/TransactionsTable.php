@@ -104,6 +104,7 @@ if (preg_match('/to (\w+(?:\s+\w+)*)\s+Address:/i', $record->description, $match
                         'admin_credit' => 'Admin Credit',
                         'conversion' => 'Conversion',
                         'deposit' => 'Deposit',
+'Deposit to Funding' => 'Deposit to Funding',
                         'withdrawal' => 'Withdrawal',
                     ]),
                 SelectFilter::make('status')
@@ -115,6 +116,97 @@ if (preg_match('/to (\w+(?:\s+\w+)*)\s+Address:/i', $record->description, $match
             ])
             ->recordActions([
                 ViewAction::make(),
+Action::make('approveFundingDeposit')
+                ->label('Approve')
+                ->icon('heroicon-m-check')
+                ->color('success')
+                ->requiresConfirmation()
+                ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Deposit to Funding')
+                ->action(function ($record) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+                $record->update(['status' => 'completed']);
+                
+                // 1. Remove from FromAccount Locked Balance (Fiat)
+                $fromAccount = \App\Models\Account::find($record->from_account_id);
+                if ($fromAccount) {
+                $lockedBalance = $fromAccount->balances()
+                ->where('wallet_type', 'fiat')
+                ->where('currency', $record->from_currency)
+                ->where('balance_type', 'locked')
+                ->first();
+                if ($lockedBalance) {
+                $lockedBalance->decrement('balance', $record->amount);
+                }
+                }
+                
+                // 2. Add to ToAccount (Crypto Account) Funding Wallet
+                $toAccount = \App\Models\Account::find($record->to_account_id);
+                if ($toAccount) {
+                // We assume balance_type is 'available' to match standard practice
+                $fundingBalance = $toAccount->balances()->firstOrCreate(
+                ['wallet_type' => 'funding', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+                ['balance' => 0]
+                );
+                $fundingBalance->increment('balance', $record->amount);
+                }
+                });
+                
+                \Filament\Notifications\Notification::make()
+                ->title('Deposit Approved')
+                ->success()
+                ->send();
+                }),
+                Action::make('rejectFundingDeposit')
+                ->label('Reject')
+                ->icon('heroicon-m-x-mark')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->form([
+                Textarea::make('message')
+                ->label('Reason for Rejection')
+                ->placeholder('Explain why the deposit was rejected')
+                ->required()
+                ->rows(3),
+                ])
+                ->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Deposit to Funding')
+                ->action(function ($record, array $data) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+                $record->update(['status' => 'failed']);
+                
+                // 1. Move back from Locked to Available in FromAccount (Fiat)
+                $fromAccount = \App\Models\Account::find($record->from_account_id);
+                if ($fromAccount) {
+                $lockedBalance = $fromAccount->balances()
+                ->where('wallet_type', 'fiat')
+                ->where('currency', $record->from_currency)
+                ->where('balance_type', 'locked')
+                ->first();
+                if ($lockedBalance) {
+                $lockedBalance->decrement('balance', $record->amount);
+                }
+                
+                $availableBalance = $fromAccount->balances()->firstOrCreate(
+                ['wallet_type' => 'fiat', 'currency' => $record->from_currency, 'balance_type' => 'available'],
+                ['balance' => 0]
+                );
+                $availableBalance->increment('balance', $record->amount);
+                }
+                
+                // 2. Message
+                if (!empty($data['message']) && $record->fromAccount && $record->fromAccount->user_id) {
+                \App\Models\Message::create([
+                'user_id' => $record->fromAccount->user_id,
+                'body' => "Funding Deposit Rejected: " . $data['message'],
+                'is_from_admin' => true,
+                ]);
+                }
+                });
+                
+                \Filament\Notifications\Notification::make()
+                ->title('Deposit Rejected')
+                ->success() // Green toast even for rejection, or use danger()
+                ->send();
+                }),
                 Action::make('approveDeposit')
                     ->label('Approve')
                     ->icon('heroicon-m-check')
