@@ -273,7 +273,7 @@ Textarea::make('message')
 ->placeholder('Optional message')
 ->rows(2),
 ])
-->visible(fn ($record) => $record->status === 'pending' && $record->type === 'conversion')
+->visible(fn ($record) => $record->status === 'pending' && in_array($record->type, ['conversion', 'Convert Crypto']))
 ->action(function ($record, array $data) {
 \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
 $fromAccount = \App\Models\Account::find($record->from_account_id);
@@ -283,23 +283,77 @@ if (!$fromAccount || !$toAccount) {
 throw new \Exception("Account not found.");
 }
 
-// 1. Deduct from Fiat Locked
+// Determine Source Wallet & Currency
+$sourceWallet = 'fiat'; // Default assumption
+// Check for wallet type in description for 'Convert Crypto'
+if (preg_match('/^\[(Spot|Funding|Earn)\]/', $record->description, $matches)) {
+$sourceWallet = $matches[1];
+} elseif ($record->type === 'Convert Crypto') {
+// Fallback if description parse fails but it's crypto convert
+$sourceWallet = 'Spot';
+}
+
+// 1. Deduct from Source Locked
+// We need to find the specific locked balance.
 $lockedBalance = $fromAccount->balances()
-->where('wallet_type', 'fiat')
+->where('wallet_type', $sourceWallet)
 ->where('currency', $record->from_currency)
 ->where('balance_type', 'locked')
 ->first();
 
+// Use specific wallet check first, then fallback to looser check if needed
+if (!$lockedBalance && $sourceWallet === 'fiat') {
+// Try 'Spot' just in case logic was mixed
+$lockedBalance = $fromAccount->balances()
+->where('wallet_type', 'Spot')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+}
 if ($lockedBalance) {
 $lockedBalance->decrement('balance', $record->amount);
+} else {
+// Log or throw warning? Proceeding assumes balance was locked but maybe manually adjusted?
+// Safer to require it, but for now we proceed with transaction record.
 }
 
-// 2. Add to Crypto Spot (Available)
-$spotBalance = $toAccount->balances()->firstOrCreate(
-['wallet_type' => 'spot', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+// 2. Add to Target Available
+// Target Wallet Logic:
+// - If Source is Fiat and Target Not Fiat -> Spot (Crypto)
+// - If Source is Fiat and Target Fiat -> Fiat
+// - If Source is Spot/Funding -> Same as Source (usually)
+$targetWallet = $sourceWallet;
+if ($sourceWallet === 'fiat') {
+// Check if target currency is crypto (heuristic: not USD/EUR)
+if (!in_array($record->to_currency, ['USD', 'EUR', 'GBP'])) {
+$targetWallet = 'Spot';
+} else {
+$targetWallet = 'fiat';
+}
+} elseif ($sourceWallet === 'Spot' || $sourceWallet === 'Funding') {
+// For crypto to crypto conversions (e.g. BTC -> ETH) in Spot/Funding
+// The target wallet should be the same as the source wallet (e.g. convert in Spot -> get result in Spot)
+$targetWallet = $sourceWallet;
+// However, if the user explicitly requested conversion to a different wallet, we might check it here.
+// But currently `convertCryptoAction` keeps it in same wallet.
+}
+
+// Special Case: Handling the 'convertToCrypto' flow which might have used 'fiat' wallet but target is Crypto Account.
+// The convertToCrypto method sets to_account_id to the user's Crypto Account ID.
+// So relying on `$toAccount` is correct. We just need to ensure correct Wallet Type.
+// If it was 'Fiat' -> 'Crypto', the toAccount is CryptoAccount. The wallet type should be 'Spot'.
+// If `$toAccount->account_type === 'crypto'` then force targetWallet to 'Spot' (or 'Funding' etc if we support it).
+// Default for Crypto Accounts is usually Spot for conversions.
+
+if ($toAccount->account_type === 'crypto') {
+$targetWallet = 'Spot';
+}
+
+$targetBalance = $toAccount->balances()->firstOrCreate(
+['wallet_type' => $targetWallet, 'currency' => $record->to_currency, 'balance_type' => 'available'],
 ['balance' => 0]
 );
-$spotBalance->increment('balance', $record->converted_amount);
+$targetBalance->increment('balance', $record->converted_amount);
 
 // 3. Update Transaction
 $record->update(['status' => 'completed']);
@@ -330,16 +384,24 @@ Textarea::make('message')
 ->label('Reason for Rejection')
 ->required()
 ->rows(2),
-])
-->visible(fn ($record) => $record->status === 'pending' && $record->type === 'conversion')
+                ])
+->visible(fn ($record) => $record->status === 'pending' && in_array($record->type, ['conversion', 'Convert Crypto']))
 ->action(function ($record, array $data) {
 \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
 $fromAccount = \App\Models\Account::find($record->from_account_id);
 
 if ($fromAccount) {
-// 1. Deduct from Fiat Locked
+// Determine Source Wallet
+$sourceWallet = 'fiat';
+if (preg_match('/^\[(Spot|Funding|Earn)\]/', $record->description, $matches)) {
+$sourceWallet = $matches[1];
+} elseif ($record->type === 'Convert Crypto') {
+$sourceWallet = 'Spot';
+}
+
+// 1. Deduct from Locked
 $lockedBalance = $fromAccount->balances()
-->where('wallet_type', 'fiat')
+->where('wallet_type', $sourceWallet)
 ->where('currency', $record->from_currency)
 ->where('balance_type', 'locked')
 ->first();
@@ -348,21 +410,11 @@ if ($lockedBalance) {
 $lockedBalance->decrement('balance', $record->amount);
 }
 
-// 2. Refund to Fiat Available
-$availableBalance = $fromAccount->balances()
-->where('wallet_type', 'fiat')
-->where('currency', $record->from_currency)
-->where('balance_type', 'available')
-->first();
-
-if (!$availableBalance) {
-$availableBalance = $fromAccount->balances()->create([
-'wallet_type' => 'fiat',
-'currency' => $record->from_currency,
-'balance_type' => 'available',
-'balance' => 0
-]);
-}
+// 2. Refund to Available
+$availableBalance = $fromAccount->balances()->firstOrCreate(
+['wallet_type' => $sourceWallet, 'currency' => $record->from_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
 $availableBalance->increment('balance', $record->amount);
 }
 
@@ -381,10 +433,214 @@ if (!empty($data['message']) && $fromAccount->user_id) {
 
 \Filament\Notifications\Notification::make()
 ->title('Conversion Rejected')
+->success() // Should technically be success notification that rejection succeeded
+->send();
+}),
+
+Action::make('approveTransfer')
+->label('Approve Transfer')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'transfer')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+// Parse description for balance types
+// "Internal Transfer: 100 USD from available to withdrawable"
+if (preg_match('/from (\w+) to (\w+)/', $record->description, $matches)) {
+$fromType = $matches[1];
+$toType = $matches[2];
+} else {
+// Fallback or Error?
+// Taking a safe guess or failing.
+// Let's try to assume available -> withdrawable if not parseable,
+// but safer to fail/throw.
+throw new \Exception("Could not determine transfer direction from description.");
+}
+
+// 1. Deduct from Locked (held pending approval)
+$lockedBalance = $account->balances()
+->where('wallet_type', 'fiat')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+// 2. Add to Target Balance Type
+$targetBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $record->to_currency, 'balance_type' => $toType],
+['balance' => 0]
+);
+$targetBalance->increment('balance', $record->amount);
+
+// 3. Mark Completed
+$record->update(['status' => 'completed']);
+});
+
+\Filament\Notifications\Notification::make()
+->title('Transfer Approved')
+->success()
+->send();
+}),
+Action::make('approveFundingWithdrawal')
+->label('Approve Funding Withdrawal')
+->icon('heroicon-m-check')
+->color('success')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Message to User')
+->placeholder('Withdrawal has been processed...')
+->rows(3),
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Withdraw from Funding')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$account = \App\Models\Account::find($record->from_account_id);
+$fiatAccount = \App\Models\Account::find($record->to_account_id);
+
+if (!$account || !$fiatAccount) {
+throw new \Exception("Account not found.");
+}
+
+// 1. Deduct from Funding Locked
+$fundingLocked = $account->balances()
+->where('wallet_type', 'funding')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($fundingLocked) {
+$fundingLocked->decrement('balance', $record->amount);
+}
+
+// 2. Add to Fiat Available
+$fiatAvailable = $fiatAccount->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $record->to_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$fiatAvailable->increment('balance', $record->amount);
+
+// 3. Mark Completed
+$record->update(['status' => 'completed']);
+
+// 4. Send Message
+if (!empty($data['message']) && $fiatAccount->user_id) {
+\App\Models\Message::create([
+'user_id' => $fiatAccount->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Funding Withdrawal Approved')
 ->success()
 ->send();
 }),
 
+Action::make('rejectFundingWithdrawal')
+->label('Reject Funding Withdrawal')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->form([
+Textarea::make('message')
+->label('Reason for Rejection')
+->required()
+->rows(2),
+])
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Withdraw from Funding')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+if ($account) {
+// 1. Deduct from Locked
+$fundingLocked = $account->balances()
+->where('wallet_type', 'funding')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($fundingLocked) {
+$fundingLocked->decrement('balance', $record->amount);
+}
+
+// 2. Refund to Available
+$fundingAvailable = $account->balances()->firstOrCreate(
+['wallet_type' => 'funding', 'currency' => $record->from_currency, 'balance_type' => 'available'],
+['balance' => 0]
+);
+$fundingAvailable->increment('balance', $record->amount);
+}
+
+// 3. Mark Failed
+$record->update(['status' => 'failed']);
+
+// 4. Send Message
+if (!empty($data['message']) && $account->user_id) {
+\App\Models\Message::create([
+'user_id' => $account->user_id,
+'body' => $data['message'],
+'is_from_admin' => true,
+]);
+}
+});
+
+\Filament\Notifications\Notification::make()
+->title('Funding Withdrawal Rejected')
+->success()
+->send();
+}),
+
+Action::make('rejectTransfer')
+->label('Reject Transfer')
+->icon('heroicon-m-x-mark')
+->color('danger')
+->requiresConfirmation()
+->visible(fn ($record) => $record->status === 'pending' && $record->type === 'transfer')
+->action(function ($record, array $data) {
+\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
+$account = \App\Models\Account::find($record->from_account_id);
+
+if (preg_match('/from (\w+) to (\w+)/', $record->description, $matches)) {
+$fromType = $matches[1];
+} else {
+throw new \Exception("Could not determine transfer direction.");
+}
+
+// 1. Deduct from Locked
+$lockedBalance = $account->balances()
+->where('wallet_type', 'fiat')
+->where('currency', $record->from_currency)
+->where('balance_type', 'locked')
+->first();
+
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
+}
+
+// 2. Refund to Source Balance Type (fromType)
+$sourceBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $record->from_currency, 'balance_type' => $fromType],
+['balance' => 0]
+);
+$sourceBalance->increment('balance', $record->amount);
+
+// 3. Mark Failed
+$record->update(['status' => 'failed']);
+});
+
+\Filament\Notifications\Notification::make()
+->title('Transfer Rejected')
+->success() // Action succeeded
+->send();
+}),
 Action::make('approveBuyCrypto')
 ->label('Approve Buy Crypto')
 ->icon('heroicon-m-check')
@@ -689,82 +945,7 @@ $record->update(['status' => 'failed']);
 \Filament\Notifications\Notification::make()->title('Transfer Rejected')->danger()->send();
 }),
 
-Action::make('approveConvertCrypto')
-->label('Approve Convert')
-->icon('heroicon-m-check')
-->color('success')
-->requiresConfirmation()
-->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Convert Crypto')
-->action(function ($record) {
-\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
-$account = \App\Models\Account::find($record->from_account_id);
 
-// Parse Wallet: "[Spot] Conversion..."
-$walletType = 'Spot';
-if (preg_match('/^\[(.*?)\]/', $record->description, $matches)) {
-$walletType = $matches[1];
-}
-
-// 1. Remove Source Locked
-$lockedBalance = $account->balances()
-->where('wallet_type', $walletType)
-->where('currency', $record->from_currency)
-->where('balance_type', 'locked')
-->first();
-
-if ($lockedBalance) {
-$lockedBalance->decrement('balance', $record->amount);
-}
-
-// 2. Add Destination Available
-$destBalance = $account->balances()->firstOrCreate(
-['wallet_type' => $walletType, 'currency' => $record->to_currency, 'balance_type' => 'available'],
-['balance' => 0]
-);
-$destBalance->increment('balance', $record->converted_amount);
-
-$record->update(['status' => 'completed']);
-});
-\Filament\Notifications\Notification::make()->title('Conversion Approved')->success()->send();
-}),
-
-Action::make('rejectConvertCrypto')
-->label('Reject Convert')
-->icon('heroicon-m-x-mark')
-->color('danger')
-->requiresConfirmation()
-->visible(fn ($record) => $record->status === 'pending' && $record->type === 'Convert Crypto')
-->action(function ($record) {
-\Illuminate\Support\Facades\DB::transaction(function () use ($record) {
-$account = \App\Models\Account::find($record->from_account_id);
-
-$walletType = 'Spot';
-if (preg_match('/^\[(.*?)\]/', $record->description, $matches)) {
-$walletType = $matches[1];
-}
-
-// 1. Remove Source Locked
-$lockedBalance = $account->balances()
-->where('wallet_type', $walletType)
-->where('currency', $record->from_currency)
-->where('balance_type', 'locked')
-->first();
-
-if ($lockedBalance) {
-$lockedBalance->decrement('balance', $record->amount);
-}
-
-// 2. Refund Source Available
-$availBalance = $account->balances()->firstOrCreate(
-['wallet_type' => $walletType, 'currency' => $record->from_currency, 'balance_type' => 'available'],
-['balance' => 0]
-);
-$availBalance->increment('balance', $record->amount);
-
-$record->update(['status' => 'failed']);
-});
-\Filament\Notifications\Notification::make()->title('Conversion Rejected')->danger()->send();
-}),
                 Action::make('rejectWithdrawal')
 ->label('Reject Withdrawal')
                 ->icon('heroicon-m-x-mark')

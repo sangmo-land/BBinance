@@ -47,12 +47,19 @@ class AccountController extends Controller
             ->take(10)
             ->get();
 
+// Load Crypto Account for Fiat View (for conversion purposes)
+$cryptoAccount = null;
+if ($account->account_type === 'fiat') {
+$cryptoAccount = $user->cryptoAccount()->with('balances')->first();
+}
 $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
         ->where('id', '!=', $account->id)
         ->with('user:id,name')
         ->get(['id', 'account_number', 'user_id']);
+
         return \Inertia\Inertia::render('AccountDetails', [
             'account' => $account,
+'cryptoAccount' => $cryptoAccount,
             'rates' => $exchangeRates,
             'cryptoConversionFeePercent' => $feePercent,
             'transactions' => $transactions,
@@ -143,6 +150,12 @@ $query->where('wallet_type', $w);
         // Fetch all balances for this currency (for Transfer modal)
         $allCurrencyBalances = $account->balances()->where('currency', $currency)->get();
 
+// Fetch Funding Fiat Balances (USD/EUR) for Withdraw Funding
+$fundingFiatBalances = \App\Models\AccountBalance::where('account_id', $account->id)
+->where('wallet_type', 'funding')
+->whereIn('currency', ['USD', 'EUR'])
+->pluck('balance', 'currency')
+->toArray();
         // Fetch Trading Fee
         $tradingFeePercent = (float)(\App\Models\SystemSetting::where('key', 'trading_fee_percent')->value('value') ?? 0.1);
 
@@ -155,6 +168,29 @@ $query->where('wallet_type', $w);
                 $q->where('from_currency', $currency)
                   ->orWhere('to_currency', $currency);
             })
+->where(function ($q) use ($walletType) {
+// Default to Spot if not specified
+$targetWallet = 'Spot';
+if ($walletType) {
+$w = strtolower($walletType);
+if (str_contains($w, 'fund')) $targetWallet = 'Funding';
+elseif (str_contains($w, 'earn')) $targetWallet = 'Earn';
+}
+
+if ($targetWallet === 'Spot') {
+$q->whereIn('type', ['Buy Crypto', 'Sell Crypto', 'Convert Crypto'])
+->orWhere('description', 'LIKE', '%[Spot%')
+->orWhere('description', 'LIKE', '%->Spot]%');
+} elseif ($targetWallet === 'Funding') {
+$q->whereIn('type', ['Deposit to Funding', 'Withdraw from Funding'])
+->orWhere('description', 'LIKE', '%Funding Wallet%')
+->orWhere('description', 'LIKE', '%[Funding%')
+->orWhere('description', 'LIKE', '%->Funding]%');
+} elseif ($targetWallet === 'Earn') {
+$q->where('description', 'LIKE', '%[Earn%')
+->orWhere('description', 'LIKE', '%->Earn]%');
+}
+})
             ->orderBy('created_at', 'desc')
             ->paginate(5)
             ->withQueryString();
@@ -176,9 +212,49 @@ $query->where('wallet_type', $w);
                     ->where('balance_type', 'available')
                     ->mapWithKeys(fn($b) => [$b->currency => $b->balance]) 
                 : [],
-        ]);
-    }
+'fundingFiatBalances' => $fundingFiatBalances,
+]);
+}
 
+public function showEarnPage(Request $request, \App\Models\Account $account, string $currency)
+{
+$user = $request->user();
+if ($account->user_id !== $user->id && !$user->is_admin) {
+abort(403);
+}
+
+$account->load('user');
+
+$messageSetting = \App\Models\SystemSetting::where('key', 'earning_page_message')->first();
+$message = $messageSetting ? $messageSetting->value : 'Earn functionality is currently under maintenance. Please check
+back later.';
+
+return \Inertia\Inertia::render('EarnPage', [
+'account' => $account,
+'currency' => $currency,
+'message' => $message,
+]);
+}
+
+public function showRedeemPage(Request $request, \App\Models\Account $account, string $currency)
+{
+$user = $request->user();
+if ($account->user_id !== $user->id && !$user->is_admin) {
+abort(403);
+}
+
+$account->load('user');
+
+$messageSetting = \App\Models\SystemSetting::where('key', 'redeem_page_message')->first();
+$message = $messageSetting ? $messageSetting->value : 'Redeem functionality is currently under maintenance. Please check
+back later.';
+
+return \Inertia\Inertia::render('RedeemPage', [
+'account' => $account,
+'currency' => $currency,
+'message' => $message,
+]);
+}
     public function depositFiatToFunding(Request $request, \App\Models\Account $account)
     {
         $user = $request->user();
@@ -548,33 +624,34 @@ return redirect()->back();
         $toAmount = $amount * $conversionRate;
 
         \Illuminate\Support\Facades\DB::transaction(function () use ($account, $fromBalance, $toCurrency, $fromCurrency, $amount, $toAmount, $conversionRate) {
+// 1. Deduct from Available
             $fromBalance->decrement('balance', $amount);
             
-            $toBalance = $account->balances()->firstOrCreate(
-                ['wallet_type' => 'fiat', 'currency' => $toCurrency, 'balance_type' => 'available'],
+// 2. Add to Locked (Holding for approval)
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $fromCurrency, 'balance_type' => 'locked'],
                 ['balance' => 0]
             );
-            
-           $toBalance->increment('balance', $toAmount);
+$lockedBalance->increment('balance', $amount);
 
-           // Record Transaction
-           \App\Models\Transaction::create([
-               'from_account_id' => $account->id,
-               'to_account_id' => $account->id, // Same account for internal fiat conversion
-               'type' => 'conversion',
-               'from_currency' => $fromCurrency,
-               'to_currency' => $toCurrency,
-               'amount' => $amount,
-               'exchange_rate' => $conversionRate,
-               'converted_amount' => $toAmount,
-               'status' => 'completed',
-               'description' => "Converted {$amount} {$fromCurrency} to {$toAmount} {$toCurrency}",
-               'reference_number' => \Illuminate\Support\Str::uuid(),
-               'created_by' => auth()->id(),
-           ]);
+// Record Pending Transaction
+\App\Models\Transaction::create([
+'from_account_id' => $account->id,
+'to_account_id' => $account->id, // Same account for internal fiat conversion
+'type' => 'conversion',
+'from_currency' => $fromCurrency,
+'to_currency' => $toCurrency,
+'amount' => $amount,
+'exchange_rate' => $conversionRate,
+'converted_amount' => $toAmount,
+'status' => 'pending',
+'description' => "Conversion Request: {$amount} {$fromCurrency} to {$toAmount} {$toCurrency}",
+'reference_number' => \Illuminate\Support\Str::uuid(),
+'created_by' => auth()->id(),
+]);
         });
 
-return back();
+return back()->with('success', 'Fiat conversion submitted successfully. Pending Admin Approval.');
     }
 
     public function convertToCrypto(Request $request, \App\Models\Account $account)
@@ -703,7 +780,7 @@ $lockedBalance->increment('balance', $amount);
              ]);
         });
 
-return back();
+return back()->with('success', "Conversion submitted successfully. Pending Admin Approval.");
     }
 
     public function convertCryptoAction(Request $request, \App\Models\Account $account)
@@ -854,16 +931,21 @@ return redirect()->back();
                 throw \Illuminate\Validation\ValidationException::withMessages(['amount' => "Insufficient {$fromType} balance."]);
             }
 
-            // Get Destination Balance
-            $destBalance = $account->balances()->firstOrCreate(
-                ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => $toType],
-                ['balance' => 0]
+// Get Destination Balance (Not crediting yet, waiting for approval)
+// But we need to lock the funds from source.
+$sourceBalance->decrement('balance', $amount);
+// Move to Locked (in same wallet type 'fiat' but balance_type 'locked')
+// Note: This logic assumes 'locked' is a valid balance_type for fiat.
+// When admin approves, it needs to move from 'fiat/locked' to 'fiat/withdrawable' (or available).
+// However, to keep it simple and trackable, we can just lock it in 'locked' balance type.
+
+$lockedBalance = $account->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'locked'],
+['balance' => 0]
             );
+$lockedBalance->increment('balance', $amount);
 
-            $sourceBalance->decrement('balance', $amount);
-            $destBalance->increment('balance', $amount);
-
-            // Record Internal Transaction
+// Record Internal Transaction (Pending)
             \App\Models\Transaction::create([
                 'from_account_id' => $account->id,
                 'to_account_id'   => $account->id,
@@ -873,14 +955,15 @@ return redirect()->back();
                 'amount' => $amount,
                 'converted_amount' => $amount,
                 'exchange_rate' => 1.0,
-                'status' => 'completed',
-                'description' => "Internal Transfer: {$amount} {$currency} from " . ucfirst($fromType) . " to " . ucfirst($toType),
+'status' => 'pending',
+'description' => "Internal Transfer Request: {$amount} {$currency} from " . ucfirst($fromType) . " to " .
+ucfirst($toType),
                 'reference_number' => \Illuminate\Support\Str::uuid(),
                 'created_by' => auth()->id(),
             ]);
         });
 
-return back();
+return back()->with('success', 'Transfer submitted successfully. Pending Admin Approval.');
     }
 
     /**
@@ -984,6 +1067,7 @@ return back();
             $fundingBalance = $account->balances()
                 ->where('wallet_type', 'funding')
                 ->where('currency', $currency)
+->where('balance_type', 'available')
                 ->lockForUpdate()
                 ->first();
 
@@ -993,7 +1077,7 @@ return back();
                  ]);
             }
 
-            // 2. Destination: User's Fiat Account -> Available Balance
+// 2. Destination: User's Fiat Account
             $fiatAccount = $user->fiatAccount;
             if (!$fiatAccount) {
                  throw \Illuminate\Validation\ValidationException::withMessages([
@@ -1001,33 +1085,32 @@ return back();
                  ]);
             }
 
-            $fiatAvailableBalance = $fiatAccount->balances()->firstOrCreate(
-                ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'available'],
+// 3. Move to Locked in Funding Wallet (Holding for approval)
+            $fundingBalance->decrement('balance', $amount);
+            
+            $fundingLocked = $account->balances()->firstOrCreate(
+            ['wallet_type' => 'funding', 'currency' => $currency, 'balance_type' => 'locked'],
                 ['balance' => 0]
             );
+$fundingLocked->increment('balance', $amount);
 
-            // 3. Execute Transfer
-            $fundingBalance->decrement('balance', $amount);
-            $fiatAvailableBalance->increment('balance', $amount);
-
-            // 4. Record Transaction
+// 4. Record Transaction (Pending)
              \App\Models\Transaction::create([
                 'from_account_id' => $account->id, // Crypto Account
                 'to_account_id' => $fiatAccount->id, // Fiat Account
-                'type' => 'transfer', 
+'type' => 'Withdraw from Funding',
                 'from_currency' => $currency,
                 'to_currency' => $currency,
                 'amount' => $amount,
                 'converted_amount' => $amount,
                 'exchange_rate' => 1.0,
-                'status' => 'completed',
+'status' => 'pending',
                 'description' => "Withdrawal from Funding Wallet to Fiat Balance",
                 'reference_number' => \Illuminate\Support\Str::uuid(),
                 'created_by' => $user->id,
             ]);
-        });
-
-return back();
+return back(); // No success popup requested
+});
     }
 
     public function deposit(Request $request, \App\Models\Account $account)

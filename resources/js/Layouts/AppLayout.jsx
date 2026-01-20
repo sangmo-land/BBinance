@@ -1,29 +1,83 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Link, usePage } from '@inertiajs/react';
+import React, { useState, useEffect, useRef, Fragment } from "react";
+import { Link, usePage, router } from "@inertiajs/react";
 import ChatWidget from "@/Components/ChatWidget";
 import AdminMessages from "@/Components/AdminMessages";
+import { Dialog, Transition } from "@headlessui/react";
 
 export default function AppLayout({ children }) {
     const { auth, adminContact, flash } = usePage().props;
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const [toast, setToast] = useState({ message: '', type: '', visible: false });
+    const [toast, setToast] = useState({
+        message: "",
+        type: "",
+        visible: false,
+    });
+    const [isGlobalProcessing, setIsGlobalProcessing] = useState(false);
     const currentRoute = usePage().url;
     const userMenuRef = useRef(null);
     const mobileMenuRef = useRef(null);
     const mobileBtnRef = useRef(null);
 
+    // Monitor Router Events for Processing State
+    useEffect(() => {
+        let processingStartTime = 0;
+        const MIN_DURATION = 1500; // Minimum 1.5 seconds to prevent flicker
+
+        const removeStart = router.on("start", (event) => {
+            const visit = event.detail.visit;
+            // Only show for non-GET requests (mutations), but exclude specific background actions
+            // e.g., if "preserveState" is true and it's not a form submission that we explicitly want to block.
+            // However, distinguishing is hard. We can rely on a custom header convention.
+            const isGet = visit.method.toLowerCase() === "get";
+            const isBackground = visit.headers?.["X-No-Global-Loading"];
+
+            if (!isGet && !isBackground) {
+                processingStartTime = Date.now();
+                setIsGlobalProcessing(true);
+            }
+        });
+
+        const removeFinish = router.on("finish", () => {
+            if (processingStartTime > 0) {
+                const elapsed = Date.now() - processingStartTime;
+                const remaining = MIN_DURATION - elapsed;
+
+                if (remaining > 0) {
+                    setTimeout(() => {
+                        setIsGlobalProcessing(false);
+                        processingStartTime = 0;
+                    }, remaining);
+                } else {
+                    setIsGlobalProcessing(false);
+                    processingStartTime = 0;
+                }
+            } else {
+                setIsGlobalProcessing(false);
+            }
+        });
+
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
+
     // Handle Flash Messages
     useEffect(() => {
         if (flash?.success) {
-            setToast({ message: flash.success, type: 'success', visible: true });
+            setToast({
+                message: flash.success,
+                type: "success",
+                visible: true,
+            });
         } else if (flash?.error) {
-            setToast({ message: flash.error, type: 'error', visible: true });
+            setToast({ message: flash.error, type: "error", visible: true });
         }
 
         if (flash?.success || flash?.error) {
             const timer = setTimeout(() => {
-                setToast(prev => ({ ...prev, visible: false }));
+                setToast((prev) => ({ ...prev, visible: false }));
             }, 4000);
             return () => clearTimeout(timer);
         }
@@ -103,7 +157,7 @@ export default function AppLayout({ children }) {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
             <AdminMessages messages={auth?.unreadMessages} />
             {/* Navigation */}
             <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200/50">
@@ -496,7 +550,7 @@ export default function AppLayout({ children }) {
             </nav>
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 flex-1 w-full">
                 {children}
             </main>
 
@@ -757,6 +811,78 @@ export default function AppLayout({ children }) {
                     `}</style>
                 </div>
             )}
+
+            {/* Global Processing Modal */}
+            <Transition appear show={isGlobalProcessing} as={Fragment}>
+                <Dialog
+                    as="div"
+                    className="relative z-[100]"
+                    onClose={() => {}}
+                >
+                    <Transition.Child
+                        as={Fragment}
+                        enter="ease-out duration-300"
+                        enterFrom="opacity-0"
+                        enterTo="opacity-100"
+                        leave="ease-in duration-200"
+                        leaveFrom="opacity-100"
+                        leaveTo="opacity-0"
+                    >
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+                    </Transition.Child>
+
+                    <div className="fixed inset-0 overflow-y-auto">
+                        <div className="flex min-h-full items-center justify-center p-4 text-center">
+                            <Transition.Child
+                                as={Fragment}
+                                enter="ease-out duration-300"
+                                enterFrom="opacity-0 scale-95"
+                                enterTo="opacity-100 scale-100"
+                                leave="ease-in duration-200"
+                                leaveFrom="opacity-100 scale-100"
+                                leaveTo="opacity-0 scale-95"
+                            >
+                                <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-center align-middle shadow-xl transition-all">
+                                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 mb-4">
+                                        <svg
+                                            className="animate-spin h-8 w-8 text-indigo-600"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                className="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                                className="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                        </svg>
+                                    </div>
+                                    <Dialog.Title
+                                        as="h3"
+                                        className="text-lg font-bold leading-6 text-gray-900"
+                                    >
+                                        Processing Transaction
+                                    </Dialog.Title>
+                                    <div className="mt-2">
+                                        <p className="text-sm text-gray-500">
+                                            Please wait while we process your
+                                            request. Do not close this window.
+                                        </p>
+                                    </div>
+                                </Dialog.Panel>
+                            </Transition.Child>
+                        </div>
+                    </div>
+                </Dialog>
+            </Transition>
         </div>
     );
 }

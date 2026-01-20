@@ -18,10 +18,17 @@ export default function AdminMessages({ messages }) {
         // setVisibleMessages(prev => prev.filter(m => m.id !== id));
         
         // Mark as read in backend
-        router.post(route('messages.read', id), {}, {
-            preserveScroll: true,
-            // preserveState: true, // Let state refresh from props
-        });
+        router.post(
+            route("messages.read", id),
+            {},
+            {
+                preserveScroll: true,
+                headers: {
+                    "X-No-Global-Loading": "1",
+                },
+                // preserveState: true, // Let state refresh from props
+            },
+        );
     };
 
     const toggleMinimize = (id) => {

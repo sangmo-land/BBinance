@@ -3,7 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
 import AppLayout from '@/Layouts/AppLayout';
 import SEOHead from '@/Components/SEOHead';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from "@inertiajs/react";
 
 const blockchainNetworks = [
     { id: "Morph", name: "Morph L2", fee: 0.1, delay: "≈ 5 mins" },
@@ -63,18 +63,22 @@ export default function CryptoDetail({
     tradingFeePercent = 0.1,
     transactions = [],
     fiatBalances = {},
+    fundingFiatBalances = {},
 }) {
     // Calculate total spendable balance (available only, exclude locked/pending)
     const totalBalance = balances
         .filter(
-            (b) => b.balance_type !== "locked" && b.balance_type !== "pending"
+            (b) => b.balance_type !== "locked" && b.balance_type !== "pending",
         )
         .reduce((sum, b) => sum + Number(b.balance), 0);
+
+    // DEBUG: Log fundingFiatBalances to check if data is arriving
+    console.log("Funding Fiat Balances Prop:", fundingFiatBalances);
 
     // Calculate locked balance separately
     const lockedBalance = balances
         .filter(
-            (b) => b.balance_type === "locked" || b.balance_type === "pending"
+            (b) => b.balance_type === "locked" || b.balance_type === "pending",
         )
         .reduce((sum, b) => sum + Number(b.balance), 0);
 
@@ -147,7 +151,7 @@ export default function CryptoDetail({
         setTransferData("from_wallet", normalizedWalletType);
         setTransferData(
             "to_wallet",
-            normalizedWalletType === "Spot" ? "Funding" : "Spot"
+            normalizedWalletType === "Spot" ? "Funding" : "Spot",
         );
     }, [normalizedWalletType]);
 
@@ -195,14 +199,14 @@ export default function CryptoDetail({
     const depositAddress = React.useMemo(() => {
         if (!account || !account.account_number) return "Loading...";
         const prefix = ["Morph", "BEP20", "ERC20"].includes(
-            selectedDepositNetwork
+            selectedDepositNetwork,
         )
             ? "0x71C9"
             : selectedDepositNetwork === "TRC20"
-            ? "TKr9X"
-            : selectedDepositNetwork === "SOL"
-            ? "8xP2q"
-            : "1A1zP";
+              ? "TKr9X"
+              : selectedDepositNetwork === "SOL"
+                ? "8xP2q"
+                : "1A1zP";
         // Generate a pseudo-static part from account number
         const hash = account.account_number
             .split("")
@@ -241,7 +245,16 @@ export default function CryptoDetail({
         amount: "",
         memo: "",
         currency: currency,
+        wallet_type: normalizedWalletType,
     });
+
+    // Update wallet type in blockchain withdraw form when it changes
+    useEffect(() => {
+        setWithdrawBlockchainData((data) => ({
+            ...data,
+            wallet_type: normalizedWalletType,
+        }));
+    }, [normalizedWalletType]);
 
     const [addressValidationError, setAddressValidationError] = useState("");
 
@@ -286,7 +299,7 @@ export default function CryptoDetail({
 
         if (amount && network) {
             const selectedNetwork = blockchainNetworks.find(
-                (n) => n.id === network
+                (n) => n.id === network,
             );
             if (selectedNetwork) {
                 const amountNum = parseFloat(amount);
@@ -318,7 +331,7 @@ export default function CryptoDetail({
 
     // Selection States
     let [selectedPairId, setSelectedPairId] = useState(
-        tradingPairs.length > 0 ? tradingPairs[0].id : null
+        tradingPairs.length > 0 ? tradingPairs[0].id : null,
     );
     let [inputAmount, setInputAmount] = useState("");
 
@@ -342,7 +355,7 @@ export default function CryptoDetail({
                 receiving: selectedPair.from,
                 rateLabel: `1 ${selectedPair.from} = ${formatNumber(
                     selectedPair.rate,
-                    selectedPair.rate < 1 ? 6 : 2
+                    selectedPair.rate < 1 ? 6 : 2,
                 )} ${selectedPair.to}`,
                 quotePrice: selectedPair.rate,
                 isInverted: false, // Input (Spend To) / Rate = Output (Get From)
@@ -356,7 +369,7 @@ export default function CryptoDetail({
                 receiving: selectedPair.to,
                 rateLabel: `1 ${selectedPair.from} = ${formatNumber(
                     selectedPair.rate,
-                    selectedPair.rate < 1 ? 6 : 2
+                    selectedPair.rate < 1 ? 6 : 2,
                 )} ${selectedPair.to}`,
                 quotePrice: selectedPair.rate,
                 isInverted: true, // Input (Spend From) * Rate = Output (Get To)
@@ -371,8 +384,8 @@ export default function CryptoDetail({
     const activeDetails = isBuyModalOpen
         ? tradeDetailsBuy
         : isSellModalOpen
-        ? tradeDetailsSell
-        : {};
+          ? tradeDetailsSell
+          : {};
 
     // Sync form data
     React.useEffect(() => {
@@ -464,7 +477,7 @@ export default function CryptoDetail({
             // Reset form data for Transfer when opening modal
             setTransferData(
                 "to_wallet",
-                normalizedWalletType === "Spot" ? "Funding" : "Spot"
+                normalizedWalletType === "Spot" ? "Funding" : "Spot",
             );
             setTransferData("amount", "");
             setIsTransferModalOpen(true);
@@ -479,8 +492,11 @@ export default function CryptoDetail({
             }));
             setIsConvertModalOpen(true);
         } else if (actionName === "Deposit") {
-            // Open Deposit Selection Modal if applicable (Funding Wallet)
-            if (normalizedWalletType === "Funding") {
+            // Open Deposit Selection Modal if applicable (Funding or Spot Wallet)
+            if (
+                normalizedWalletType === "Funding" ||
+                normalizedWalletType === "Spot"
+            ) {
                 if (["USD", "EUR"].includes(currency)) {
                     // For Fiat, go directly to Fiat Deposit
                     setDepositData("currency", currency);
@@ -492,13 +508,20 @@ export default function CryptoDetail({
             } else {
                 alert("Crypto Deposit Feature coming soon.");
             }
+        } else if (actionName === "Earn") {
+            router.get(route("accounts.crypto.earn", [account.id, currency]));
+        } else if (actionName === "Redeem") {
+            router.get(route("accounts.crypto.redeem", [account.id, currency]));
         } else if (actionName === "Withdraw") {
-            if (normalizedWalletType === "Funding") {
+            if (
+                normalizedWalletType === "Funding" ||
+                normalizedWalletType === "Spot"
+            ) {
                 setIsWithdrawSelectionModalOpen(true);
             } else {
                 // Standard withdrawal or alert
                 alert(
-                    "Standard withdrawal for Spot/Earn currently disabled or handled elsewhere."
+                    "Standard withdrawal for Spot/Earn currently disabled or handled elsewhere.",
                 );
             }
         }
@@ -519,7 +542,7 @@ export default function CryptoDetail({
                     resetWithdrawBlockchain();
                 },
                 preserveScroll: true,
-            }
+            },
         );
     };
 
@@ -542,7 +565,7 @@ export default function CryptoDetail({
     // We spend the 'spending' currency from activeDetails
     const spendingCurrency = activeDetails.spending || "";
     const spendingBalanceObj = spotBalances.find(
-        (b) => b.currency === spendingCurrency
+        (b) => b.currency === spendingCurrency,
     );
     const spendingBalance = spendingBalanceObj
         ? Number(spendingBalanceObj.balance)
@@ -553,7 +576,14 @@ export default function CryptoDetail({
         parseFloat(inputAmount) > spendingBalance;
 
     // Processing state
-    const isProcessing = processingBuy || processingSell;
+    const isProcessing =
+        processingBuy ||
+        processingSell ||
+        processingTransfer ||
+        processingConvert ||
+        processingDeposit ||
+        processingWithdrawBlockchain ||
+        processingWithdrawFunding;
 
     return (
         <AppLayout>
@@ -692,11 +722,9 @@ export default function CryptoDetail({
                                     // Default (Safe) normalizedWalletType is 'Spot'
 
                                     if (normalizedWalletType === "Spot") {
-                                        // Spot: Hide Deposit, Withdraw, Earn
+                                        // Spot: Hide Earn, Redeem, Trade. Show Deposit & Withdraw
                                         if (
                                             [
-                                                "Deposit",
-                                                "Withdraw",
                                                 "Earn",
                                                 "Redeem",
                                                 "Trade",
@@ -810,13 +838,13 @@ export default function CryptoDetail({
                                                         <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[8px] font-black text-gray-700 border border-gray-200 shadow-sm z-10">
                                                             {pair.from.substring(
                                                                 0,
-                                                                1
+                                                                1,
                                                             )}
                                                         </div>
                                                         <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-gray-500 border border-gray-200 shadow-inner">
                                                             {pair.to.substring(
                                                                 0,
-                                                                1
+                                                                1,
                                                             )}
                                                         </div>
                                                     </div>
@@ -830,7 +858,7 @@ export default function CryptoDetail({
                                                 <span className="text-lg font-black text-gray-900 tracking-tight group-hover:text-amber-900 transition-colors">
                                                     {formatNumber(
                                                         pair.rate,
-                                                        pair.rate < 1 ? 6 : 2
+                                                        pair.rate < 1 ? 6 : 2,
                                                     )}
                                                 </span>
                                             </div>
@@ -846,7 +874,7 @@ export default function CryptoDetail({
                                                 // Handle navigation or display in future
                                                 console.log(
                                                     "Selected pair:",
-                                                    e.target.value
+                                                    e.target.value,
                                                 );
                                             }}
                                         >
@@ -862,7 +890,7 @@ export default function CryptoDetail({
                                                     {pair.from}/{pair.to} •{" "}
                                                     {formatNumber(
                                                         pair.rate,
-                                                        pair.rate < 1 ? 6 : 2
+                                                        pair.rate < 1 ? 6 : 2,
                                                     )}
                                                 </option>
                                             ))}
@@ -911,7 +939,9 @@ export default function CryptoDetail({
                                                 // Explicitly handle Withdrawal as Outflow
                                                 if (
                                                     tx.type === "withdrawal" ||
-                                                    tx.type === "Withdrawal"
+                                                    tx.type === "Withdrawal" ||
+                                                    tx.type ===
+                                                        "Withdraw from Funding"
                                                 ) {
                                                     isInflow = false;
                                                 }
@@ -930,7 +960,7 @@ export default function CryptoDetail({
                                                         // Try to parse "from X to Y"
                                                         const match =
                                                             tx.description?.match(
-                                                                /from (\w+) to (\w+)/i
+                                                                /from (\w+) to (\w+)/i,
                                                             );
                                                         if (match) {
                                                             const fromWallet =
@@ -1004,12 +1034,12 @@ export default function CryptoDetail({
                                                     grossReceived =
                                                         Number(tx.amount) /
                                                         Number(
-                                                            tx.exchange_rate
+                                                            tx.exchange_rate,
                                                         );
                                                     feeAmount =
                                                         grossReceived -
                                                         Number(
-                                                            tx.converted_amount
+                                                            tx.converted_amount,
                                                         );
                                                 }
 
@@ -1065,7 +1095,7 @@ export default function CryptoDetail({
                                                                     </p>
                                                                     <p className="text-xs text-gray-400">
                                                                         {new Date(
-                                                                            tx.created_at
+                                                                            tx.created_at,
                                                                         ).toLocaleString(
                                                                             "en-US",
                                                                             {
@@ -1073,7 +1103,7 @@ export default function CryptoDetail({
                                                                                     "medium",
                                                                                 timeStyle:
                                                                                     "short",
-                                                                            }
+                                                                            },
                                                                         )}
                                                                     </p>
                                                                 </div>
@@ -1092,13 +1122,13 @@ export default function CryptoDetail({
                                                                     {formatNumber(
                                                                         isInflow
                                                                             ? Number(
-                                                                                  tx.converted_amount
+                                                                                  tx.converted_amount,
                                                                               ) >
                                                                               0
                                                                                 ? tx.converted_amount
                                                                                 : tx.amount
                                                                             : tx.amount,
-                                                                        8
+                                                                        8,
                                                                     )}{" "}
                                                                     {isInflow
                                                                         ? tx.to_currency
@@ -1120,7 +1150,7 @@ export default function CryptoDetail({
                                                                     <span className="font-bold text-gray-700">
                                                                         {formatNumber(
                                                                             tx.amount,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             tx.from_currency
@@ -1140,7 +1170,7 @@ export default function CryptoDetail({
                                                                         ≈{" "}
                                                                         {formatNumber(
                                                                             tx.exchange_rate,
-                                                                            2
+                                                                            2,
                                                                         )}{" "}
                                                                         {
                                                                             tx.from_currency
@@ -1155,7 +1185,7 @@ export default function CryptoDetail({
                                                                     <span className="font-bold text-gray-700">
                                                                         {formatNumber(
                                                                             grossReceived,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             tx.to_currency
@@ -1171,7 +1201,7 @@ export default function CryptoDetail({
                                                                         -
                                                                         {formatNumber(
                                                                             feeAmount,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             tx.to_currency
@@ -1244,7 +1274,7 @@ export default function CryptoDetail({
                                                                     {transactions.links.map(
                                                                         (
                                                                             link,
-                                                                            k
+                                                                            k,
                                                                         ) => {
                                                                             // Use a span for links without URLs (ellipsis, current page, disabled)
                                                                             // Use Link only when a URL exists
@@ -1292,7 +1322,7 @@ export default function CryptoDetail({
                                                                                     ></span>
                                                                                 </Component>
                                                                             );
-                                                                        }
+                                                                        },
                                                                     )}
                                                                 </nav>
                                                             </div>
@@ -1369,7 +1399,7 @@ export default function CryptoDetail({
                                                 value={selectedPairId || ""}
                                                 onChange={(e) =>
                                                     setSelectedPairId(
-                                                        e.target.value
+                                                        e.target.value,
                                                     )
                                                 }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-3 font-bold text-gray-800"
@@ -1385,7 +1415,7 @@ export default function CryptoDetail({
                                                             pair.rate,
                                                             pair.rate < 1
                                                                 ? 6
-                                                                : 2
+                                                                : 2,
                                                         )}
                                                         )
                                                     </option>
@@ -1420,7 +1450,7 @@ export default function CryptoDetail({
                                                                 Available:{" "}
                                                                 {formatNumber(
                                                                     spendingBalance,
-                                                                    2
+                                                                    2,
                                                                 )}{" "}
                                                                 {
                                                                     spendingCurrency
@@ -1436,10 +1466,10 @@ export default function CryptoDetail({
                                                                 onChange={(e) =>
                                                                     setInputAmount(
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 focus:ring-indigo-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 focus:ring-indigo-500 sm:text-lg font-bold ${
                                                                     isInsufficientBalance
                                                                         ? "border-red-300 text-red-900 placeholder-red-300 focus:border-red-500"
                                                                         : "border-gray-300 focus:border-indigo-500"
@@ -1447,7 +1477,18 @@ export default function CryptoDetail({
                                                                 placeholder="0.00"
                                                                 step="any"
                                                             />
-                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setInputAmount(
+                                                                            spendingBalance,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isInsufficientBalance
@@ -1498,7 +1539,7 @@ export default function CryptoDetail({
                                                         </div>
 
                                                         {parseFloat(
-                                                            inputAmount
+                                                            inputAmount,
                                                         ) > 0 && (
                                                             <div className="mb-2 px-2 py-1 bg-gray-50 rounded text-xs text-gray-500 flex flex-col gap-1">
                                                                 <div className="flex justify-between">
@@ -1509,7 +1550,7 @@ export default function CryptoDetail({
                                                                     <span className="font-mono">
                                                                         {formatNumber(
                                                                             rawReceive,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1528,7 +1569,7 @@ export default function CryptoDetail({
                                                                         -
                                                                         {formatNumber(
                                                                             feeAmount,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1543,7 +1584,7 @@ export default function CryptoDetail({
                                                                     <span>
                                                                         {formatNumber(
                                                                             estimatedReceive,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1557,7 +1598,7 @@ export default function CryptoDetail({
                                                             <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
                                                                 {formatNumber(
                                                                     estimatedReceive,
-                                                                    8
+                                                                    8,
                                                                 )}
                                                             </div>
                                                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
@@ -1701,7 +1742,7 @@ export default function CryptoDetail({
                                                 value={selectedPairId || ""}
                                                 onChange={(e) =>
                                                     setSelectedPairId(
-                                                        e.target.value
+                                                        e.target.value,
                                                     )
                                                 }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 py-3 font-bold text-gray-800"
@@ -1717,7 +1758,7 @@ export default function CryptoDetail({
                                                             pair.rate,
                                                             pair.rate < 1
                                                                 ? 6
-                                                                : 2
+                                                                : 2,
                                                         )}
                                                         )
                                                     </option>
@@ -1753,7 +1794,7 @@ export default function CryptoDetail({
                                                                 Available:{" "}
                                                                 {formatNumber(
                                                                     spendingBalance,
-                                                                    2
+                                                                    2,
                                                                 )}{" "}
                                                                 {
                                                                     spendingCurrency
@@ -1769,10 +1810,10 @@ export default function CryptoDetail({
                                                                 onChange={(e) =>
                                                                     setInputAmount(
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 focus:ring-red-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 focus:ring-red-500 sm:text-lg font-bold ${
                                                                     isInsufficientBalance
                                                                         ? "border-red-300 text-red-900 placeholder-red-300 focus:border-red-500"
                                                                         : "border-gray-300 focus:border-red-500"
@@ -1780,7 +1821,18 @@ export default function CryptoDetail({
                                                                 placeholder="0.00"
                                                                 step="any"
                                                             />
-                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setInputAmount(
+                                                                            spendingBalance,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isInsufficientBalance
@@ -1830,7 +1882,7 @@ export default function CryptoDetail({
                                                         </div>
 
                                                         {parseFloat(
-                                                            inputAmount
+                                                            inputAmount,
                                                         ) > 0 && (
                                                             <div className="mb-2 px-2 py-1 bg-gray-50 rounded text-xs text-gray-500 flex flex-col gap-1">
                                                                 <div className="flex justify-between">
@@ -1841,7 +1893,7 @@ export default function CryptoDetail({
                                                                     <span className="font-mono">
                                                                         {formatNumber(
                                                                             rawReceive,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1860,7 +1912,7 @@ export default function CryptoDetail({
                                                                         -
                                                                         {formatNumber(
                                                                             feeAmount,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1875,7 +1927,7 @@ export default function CryptoDetail({
                                                                     <span>
                                                                         {formatNumber(
                                                                             estimatedReceive,
-                                                                            8
+                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1889,7 +1941,7 @@ export default function CryptoDetail({
                                                             <div className="block w-full rounded-xl bg-gray-100 border-transparent pl-4 pr-16 py-3 text-gray-500 sm:text-lg font-bold">
                                                                 {formatNumber(
                                                                     estimatedReceive,
-                                                                    8
+                                                                    8,
                                                                 )}
                                                             </div>
                                                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
@@ -2040,7 +2092,7 @@ export default function CryptoDetail({
                                                     onChange={(e) =>
                                                         setTransferData(
                                                             "from_wallet",
-                                                            e.target.value
+                                                            e.target.value,
                                                         )
                                                     }
                                                     className="w-full bg-transparent border-none p-0 font-bold text-gray-800 focus:ring-0 text-sm"
@@ -2089,7 +2141,7 @@ export default function CryptoDetail({
                                                     onChange={(e) =>
                                                         setTransferData(
                                                             "to_wallet",
-                                                            e.target.value
+                                                            e.target.value,
                                                         )
                                                     }
                                                     className="w-full bg-transparent border-none p-0 font-bold text-gray-800 focus:ring-0 text-sm text-right"
@@ -2121,16 +2173,17 @@ export default function CryptoDetail({
                                                     allCurrencyBalances.find(
                                                         (b) =>
                                                             b.wallet_type.toLowerCase() ===
-                                                            transferData.from_wallet.toLowerCase()
+                                                            transferData.from_wallet.toLowerCase(),
                                                     );
                                                 const maxTransfer = sourceWallet
                                                     ? parseFloat(
-                                                          sourceWallet.balance
+                                                          sourceWallet.balance,
                                                       )
                                                     : 0;
                                                 const currentAmount =
                                                     parseFloat(
-                                                        transferData.amount || 0
+                                                        transferData.amount ||
+                                                            0,
                                                     );
                                                 const isExceeding =
                                                     currentAmount > maxTransfer;
@@ -2155,7 +2208,7 @@ export default function CryptoDetail({
                                                                 ):{" "}
                                                                 {formatNumber(
                                                                     maxTransfer,
-                                                                    8
+                                                                    8,
                                                                 )}{" "}
                                                                 {currency}
                                                             </span>
@@ -2170,10 +2223,10 @@ export default function CryptoDetail({
                                                                     setTransferData(
                                                                         "amount",
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
                                                                     isExceeding
                                                                         ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
                                                                         : ""
@@ -2181,7 +2234,19 @@ export default function CryptoDetail({
                                                                 placeholder="0.00"
                                                                 step="any"
                                                             />
-                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setTransferData(
+                                                                            "amount",
+                                                                            maxTransfer,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isExceeding
@@ -2220,16 +2285,17 @@ export default function CryptoDetail({
                                                     allCurrencyBalances.find(
                                                         (b) =>
                                                             b.wallet_type.toLowerCase() ===
-                                                            transferData.from_wallet.toLowerCase()
+                                                            transferData.from_wallet.toLowerCase(),
                                                     );
                                                 const maxTransfer = sourceWallet
                                                     ? parseFloat(
-                                                          sourceWallet.balance
+                                                          sourceWallet.balance,
                                                       )
                                                     : 0;
                                                 const currentAmount =
                                                     parseFloat(
-                                                        transferData.amount || 0
+                                                        transferData.amount ||
+                                                            0,
                                                     );
                                                 const isValid =
                                                     !processingTransfer &&
@@ -2261,7 +2327,7 @@ export default function CryptoDetail({
                                                 className="flex-shrink-0 justify-center rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                                                 onClick={() =>
                                                     setIsTransferModalOpen(
-                                                        false
+                                                        false,
                                                     )
                                                 }
                                             >
@@ -2348,9 +2414,9 @@ export default function CryptoDetail({
                                                         allCurrencyBalances.find(
                                                             (b) =>
                                                                 b.wallet_type.toLowerCase() ===
-                                                                convertData.wallet_type.toLowerCase()
+                                                                convertData.wallet_type.toLowerCase(),
                                                         )?.balance || 0,
-                                                        8
+                                                        8,
                                                     )}
                                                 </span>
                                             </div>
@@ -2378,7 +2444,7 @@ export default function CryptoDetail({
                                                                 tradingPairs.find(
                                                                     (p) =>
                                                                         p.from ===
-                                                                        convertData.to_currency
+                                                                        convertData.to_currency,
                                                                 );
                                                             if (pair) {
                                                                 const rate =
@@ -2388,7 +2454,7 @@ export default function CryptoDetail({
                                                                     rate,
                                                                     rate < 1
                                                                         ? 6
-                                                                        : 2
+                                                                        : 2,
                                                                 )} ${
                                                                     convertData.to_currency
                                                                 }`;
@@ -2403,7 +2469,7 @@ export default function CryptoDetail({
                                                 onChange={(e) =>
                                                     setConvertData(
                                                         "to_currency",
-                                                        e.target.value
+                                                        e.target.value,
                                                     )
                                                 }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 py-3 font-bold text-gray-800"
@@ -2427,14 +2493,14 @@ export default function CryptoDetail({
                                                     ) {
                                                         baseCurrencies.push(
                                                             "USD",
-                                                            "EUR"
+                                                            "EUR",
                                                         );
                                                     }
 
                                                     return baseCurrencies;
                                                 })()
                                                     .filter(
-                                                        (c) => c !== currency
+                                                        (c) => c !== currency,
                                                     )
                                                     .map((c) => (
                                                         <option
@@ -2459,16 +2525,16 @@ export default function CryptoDetail({
                                                     allCurrencyBalances.find(
                                                         (b) =>
                                                             b.wallet_type.toLowerCase() ===
-                                                            convertData.wallet_type.toLowerCase()
+                                                            convertData.wallet_type.toLowerCase(),
                                                     );
                                                 const maxAmount = sourceWallet
                                                     ? parseFloat(
-                                                          sourceWallet.balance
+                                                          sourceWallet.balance,
                                                       )
                                                     : 0;
                                                 const currentAmount =
                                                     parseFloat(
-                                                        convertData.amount || 0
+                                                        convertData.amount || 0,
                                                     );
                                                 const isExceeding =
                                                     currentAmount > maxAmount;
@@ -2491,10 +2557,10 @@ export default function CryptoDetail({
                                                                     setConvertData(
                                                                         "amount",
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-16 py-3 border-gray-300 focus:border-purple-500 focus:ring-purple-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 border-gray-300 focus:border-purple-500 focus:ring-purple-500 sm:text-lg font-bold ${
                                                                     isExceeding
                                                                         ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
                                                                         : ""
@@ -2502,7 +2568,19 @@ export default function CryptoDetail({
                                                                 placeholder="0.00"
                                                                 step="any"
                                                             />
-                                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setConvertData(
+                                                                            "amount",
+                                                                            maxAmount,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded hover:bg-purple-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isExceeding
@@ -2539,16 +2617,16 @@ export default function CryptoDetail({
                                                     allCurrencyBalances.find(
                                                         (b) =>
                                                             b.wallet_type.toLowerCase() ===
-                                                            convertData.wallet_type.toLowerCase()
+                                                            convertData.wallet_type.toLowerCase(),
                                                     );
                                                 const maxAmount = sourceWallet
                                                     ? parseFloat(
-                                                          sourceWallet.balance
+                                                          sourceWallet.balance,
                                                       )
                                                     : 0;
                                                 const currentAmount =
                                                     parseFloat(
-                                                        convertData.amount || 0
+                                                        convertData.amount || 0,
                                                     );
                                                 const isValid =
                                                     !processingConvert &&
@@ -2665,7 +2743,7 @@ export default function CryptoDetail({
                                                 onChange={(e) =>
                                                     setDepositData(
                                                         "currency",
-                                                        e.target.value
+                                                        e.target.value,
                                                     )
                                                 }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 py-3 font-bold text-gray-800"
@@ -2694,7 +2772,7 @@ export default function CryptoDetail({
                                                         fiatBalances[
                                                             depositData.currency
                                                         ] || 0,
-                                                        2
+                                                        2,
                                                     )}
                                                 </span>
                                             </div>
@@ -2706,11 +2784,11 @@ export default function CryptoDetail({
                                                 const maxAmount = parseFloat(
                                                     fiatBalances[
                                                         depositData.currency
-                                                    ] || 0
+                                                    ] || 0,
                                                 );
                                                 const currentAmount =
                                                     parseFloat(
-                                                        depositData.amount || 0
+                                                        depositData.amount || 0,
                                                     );
                                                 const isExceeding =
                                                     currentAmount > maxAmount;
@@ -2730,10 +2808,10 @@ export default function CryptoDetail({
                                                                     setDepositData(
                                                                         "amount",
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 border-gray-300 focus:border-teal-500 focus:ring-teal-500 sm:text-lg font-bold ${
                                                                     isExceeding
                                                                         ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
                                                                         : ""
@@ -2742,7 +2820,19 @@ export default function CryptoDetail({
                                                                 min="0.01"
                                                                 step="any"
                                                             />
-                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setDepositData(
+                                                                            "amount",
+                                                                            maxAmount,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded hover:bg-teal-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isExceeding
@@ -2781,7 +2871,7 @@ export default function CryptoDetail({
                                                 className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
                                                 onClick={() =>
                                                     setIsDepositFiatModalOpen(
-                                                        false
+                                                        false,
                                                     )
                                                 }
                                             >
@@ -2793,13 +2883,13 @@ export default function CryptoDetail({
                                                     processingDeposit ||
                                                     !depositData.amount ||
                                                     parseFloat(
-                                                        depositData.amount || 0
+                                                        depositData.amount || 0,
                                                     ) >
                                                         parseFloat(
                                                             fiatBalances[
                                                                 depositData
                                                                     .currency
-                                                            ] || 0
+                                                            ] || 0,
                                                         )
                                                 }
                                                 className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-teal-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-teal-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
@@ -2918,7 +3008,7 @@ export default function CryptoDetail({
                                                 onChange={(e) =>
                                                     setWithdrawFundingData(
                                                         "currency",
-                                                        e.target.value
+                                                        e.target.value,
                                                     )
                                                 }
                                                 className="w-full rounded-xl border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 py-3 font-bold text-gray-800"
@@ -2945,19 +3035,21 @@ export default function CryptoDetail({
                                                 </span>
                                                 <span className="text-xs font-bold text-gray-500">
                                                     {(() => {
-                                                        const bal =
-                                                            allCurrencyBalances.find(
-                                                                (b) =>
-                                                                    b.wallet_type.toLowerCase() ===
-                                                                        "funding" &&
-                                                                    b.currency ===
-                                                                        withdrawFundingData.currency
-                                                            );
+                                                        const cur =
+                                                            withdrawFundingData.currency;
+                                                        // Ensure we treat as object or array logic safety
+                                                        const balVal =
+                                                            fundingFiatBalances &&
+                                                            fundingFiatBalances[
+                                                                cur
+                                                            ];
+                                                        const bal = parseFloat(
+                                                            balVal || "0",
+                                                        );
+
                                                         return `Available: ${formatNumber(
-                                                            bal
-                                                                ? bal.balance
-                                                                : 0,
-                                                            2
+                                                            bal,
+                                                            2,
                                                         )}`;
                                                     })()}
                                                 </span>
@@ -2967,21 +3059,19 @@ export default function CryptoDetail({
                                         {/* Amount Input */}
                                         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
                                             {(() => {
-                                                const balObj =
-                                                    allCurrencyBalances.find(
-                                                        (b) =>
-                                                            b.wallet_type.toLowerCase() ===
-                                                                "funding" &&
-                                                            b.currency ===
-                                                                withdrawFundingData.currency
-                                                    );
-                                                const maxAmount = balObj
-                                                    ? parseFloat(balObj.balance)
-                                                    : 0;
+                                                const cur =
+                                                    withdrawFundingData.currency;
+                                                const balVal =
+                                                    fundingFiatBalances &&
+                                                    fundingFiatBalances[cur];
+                                                const maxAmount = parseFloat(
+                                                    balVal || "0",
+                                                );
+
                                                 const currentAmount =
                                                     parseFloat(
                                                         withdrawFundingData.amount ||
-                                                            0
+                                                            0,
                                                     );
                                                 const isExceeding =
                                                     currentAmount > maxAmount;
@@ -3001,10 +3091,10 @@ export default function CryptoDetail({
                                                                     setWithdrawFundingData(
                                                                         "amount",
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-orange-500 focus:ring-orange-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 border-gray-300 focus:border-orange-500 focus:ring-orange-500 sm:text-lg font-bold ${
                                                                     isExceeding
                                                                         ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
                                                                         : ""
@@ -3013,7 +3103,19 @@ export default function CryptoDetail({
                                                                 min="0.01"
                                                                 step="any"
                                                             />
-                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setWithdrawFundingData(
+                                                                            "amount",
+                                                                            maxAmount,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded hover:bg-orange-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isExceeding
@@ -3052,7 +3154,7 @@ export default function CryptoDetail({
                                                 className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
                                                 onClick={() =>
                                                     setIsWithdrawFundingModalOpen(
-                                                        false
+                                                        false,
                                                     )
                                                 }
                                             >
@@ -3065,15 +3167,16 @@ export default function CryptoDetail({
                                                     !withdrawFundingData.amount ||
                                                     parseFloat(
                                                         withdrawFundingData.amount ||
-                                                            0
+                                                            0,
                                                     ) >
-                                                        (allCurrencyBalances.find(
-                                                            (b) =>
-                                                                b.wallet_type.toLowerCase() ===
-                                                                    "funding" &&
-                                                                b.currency ===
-                                                                    withdrawFundingData.currency
-                                                        )?.balance || 0)
+                                                        parseFloat(
+                                                            (fundingFiatBalances &&
+                                                                fundingFiatBalances[
+                                                                    withdrawFundingData
+                                                                        .currency
+                                                                ]) ||
+                                                                "0",
+                                                        )
                                                 }
                                                 className="inline-flex justify-center items-center gap-2 rounded-xl border border-transparent bg-orange-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-orange-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:opacity-50 transition-all"
                                             >
@@ -3157,13 +3260,13 @@ export default function CryptoDetail({
                                         <button
                                             onClick={() => {
                                                 setIsDepositSelectionModalOpen(
-                                                    false
+                                                    false,
                                                 );
                                                 setIsDepositCryptoModalOpen(
-                                                    true
+                                                    true,
                                                 );
                                                 setSelectedDepositNetwork(
-                                                    blockchainNetworks[0].id
+                                                    blockchainNetworks[0].id,
                                                 );
                                             }}
                                             className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
@@ -3213,7 +3316,7 @@ export default function CryptoDetail({
                                         <button
                                             onClick={() => {
                                                 setIsDepositSelectionModalOpen(
-                                                    false
+                                                    false,
                                                 );
                                                 const defaultCurrency =
                                                     currency === "EUR"
@@ -3221,7 +3324,7 @@ export default function CryptoDetail({
                                                         : "USD";
                                                 setDepositData(
                                                     "currency",
-                                                    defaultCurrency
+                                                    defaultCurrency,
                                                 );
                                                 setIsDepositFiatModalOpen(true);
                                             }}
@@ -3276,7 +3379,7 @@ export default function CryptoDetail({
                                             className="w-full inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
                                             onClick={() =>
                                                 setIsDepositSelectionModalOpen(
-                                                    false
+                                                    false,
                                                 )
                                             }
                                         >
@@ -3365,7 +3468,7 @@ export default function CryptoDetail({
                                                     }
                                                     onChange={(e) =>
                                                         setSelectedDepositNetwork(
-                                                            e.target.value
+                                                            e.target.value,
                                                         )
                                                     }
                                                     className="block w-full rounded-xl border-gray-300 focus:border-orange-500 focus:ring-orange-500 py-3 font-medium text-gray-800 appearance-none bg-none"
@@ -3379,7 +3482,7 @@ export default function CryptoDetail({
                                                                 {" "}
                                                                 {net.name}{" "}
                                                             </option>
-                                                        )
+                                                        ),
                                                     )}
                                                 </select>
                                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
@@ -3415,11 +3518,11 @@ export default function CryptoDetail({
                                                     className="block w-full rounded-xl border-gray-300 bg-gray-50 py-3 pr-10 font-mono text-xs md:text-sm text-gray-600 truncate cursor-pointer hover:bg-gray-100"
                                                     onClick={(e) => {
                                                         navigator.clipboard.writeText(
-                                                            depositAddress
+                                                            depositAddress,
                                                         );
                                                         e.target.select();
                                                         alert(
-                                                            "Address copied to clipboard!"
+                                                            "Address copied to clipboard!",
                                                         );
                                                     }}
                                                 />
@@ -3427,10 +3530,10 @@ export default function CryptoDetail({
                                                     className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-600"
                                                     onClick={() => {
                                                         navigator.clipboard.writeText(
-                                                            depositAddress
+                                                            depositAddress,
                                                         );
                                                         alert(
-                                                            "Address copied to clipboard!"
+                                                            "Address copied to clipboard!",
                                                         );
                                                     }}
                                                 >
@@ -3457,7 +3560,7 @@ export default function CryptoDetail({
                                                 {blockchainNetworks.find(
                                                     (n) =>
                                                         n.id ===
-                                                        selectedDepositNetwork
+                                                        selectedDepositNetwork,
                                                 )?.delay || "10 mins"}{" "}
                                             </span>
                                         </div>
@@ -3468,7 +3571,7 @@ export default function CryptoDetail({
                                             className="w-full inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
                                             onClick={() =>
                                                 setIsDepositCryptoModalOpen(
-                                                    false
+                                                    false,
                                                 )
                                             }
                                         >
@@ -3529,10 +3632,10 @@ export default function CryptoDetail({
                                         <button
                                             onClick={() => {
                                                 setIsWithdrawSelectionModalOpen(
-                                                    false
+                                                    false,
                                                 );
                                                 setIsWithdrawBlockchainModalOpen(
-                                                    true
+                                                    true,
                                                 );
                                             }}
                                             className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
@@ -3581,7 +3684,7 @@ export default function CryptoDetail({
                                         <button
                                             onClick={() => {
                                                 setIsWithdrawSelectionModalOpen(
-                                                    false
+                                                    false,
                                                 );
                                                 // Prepare existing Fiat Withdraw modal state logic
                                                 const defaultCurrency =
@@ -3590,10 +3693,10 @@ export default function CryptoDetail({
                                                         : "USD";
                                                 setWithdrawFundingData(
                                                     "currency",
-                                                    defaultCurrency
+                                                    defaultCurrency,
                                                 );
                                                 setIsWithdrawFundingModalOpen(
-                                                    true
+                                                    true,
                                                 );
                                             }}
                                             className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors group"
@@ -3646,7 +3749,7 @@ export default function CryptoDetail({
                                             className="w-full inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
                                             onClick={() =>
                                                 setIsWithdrawSelectionModalOpen(
-                                                    false
+                                                    false,
                                                 )
                                             }
                                         >
@@ -3754,7 +3857,7 @@ export default function CryptoDetail({
                                                 onChange={(e) =>
                                                     setWithdrawBlockchainData(
                                                         "address",
-                                                        e.target.value
+                                                        e.target.value,
                                                     )
                                                 }
                                                 className="block w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-3 font-medium text-gray-800"
@@ -3788,7 +3891,7 @@ export default function CryptoDetail({
                                                     onChange={(e) =>
                                                         setWithdrawBlockchainData(
                                                             "network",
-                                                            e.target.value
+                                                            e.target.value,
                                                         )
                                                     }
                                                     className="block w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 py-3 font-medium text-gray-800 appearance-none bg-none"
@@ -3804,7 +3907,7 @@ export default function CryptoDetail({
                                                             >
                                                                 {net.name}
                                                             </option>
-                                                        )
+                                                        ),
                                                     )}
                                                 </select>
                                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
@@ -3824,7 +3927,7 @@ export default function CryptoDetail({
                                                         blockchainNetworks.find(
                                                             (n) =>
                                                                 n.id ===
-                                                                withdrawBlockchainData.network
+                                                                withdrawBlockchainData.network,
                                                         );
                                                     if (!selected) return null;
 
@@ -3866,9 +3969,9 @@ export default function CryptoDetail({
                                                     allCurrencyBalances.find(
                                                         (b) =>
                                                             b.wallet_type.toLowerCase() ===
-                                                                "funding" &&
+                                                                normalizedWalletType.toLowerCase() &&
                                                             b.currency ===
-                                                                currency
+                                                                currency,
                                                     );
                                                 const maxAmount = balObj
                                                     ? parseFloat(balObj.balance)
@@ -3876,7 +3979,7 @@ export default function CryptoDetail({
                                                 const currentAmount =
                                                     parseFloat(
                                                         withdrawBlockchainData.amount ||
-                                                            0
+                                                            0,
                                                     );
                                                 const isExceeding =
                                                     currentAmount > maxAmount;
@@ -3893,7 +3996,7 @@ export default function CryptoDetail({
                                                                     setWithdrawBlockchainData(
                                                                         "amount",
                                                                         e.target
-                                                                            .value
+                                                                            .value,
                                                                     )
                                                                 }
                                                                 className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
@@ -3922,9 +4025,9 @@ export default function CryptoDetail({
                                                                 {isExceeding
                                                                     ? "Insufficient balance"
                                                                     : feeValidationError
-                                                                    ? feeValidationError
-                                                                    : errorsWithdrawBlockchain.amount ||
-                                                                      ""}
+                                                                      ? feeValidationError
+                                                                      : errorsWithdrawBlockchain.amount ||
+                                                                        ""}
                                                             </span>
                                                             <span className="text-gray-500">
                                                                 Available:{" "}
@@ -3933,13 +4036,13 @@ export default function CryptoDetail({
                                                                     onClick={() =>
                                                                         setWithdrawBlockchainData(
                                                                             "amount",
-                                                                            maxAmount
+                                                                            maxAmount,
                                                                         )
                                                                     }
                                                                 >
                                                                     {formatNumber(
                                                                         maxAmount,
-                                                                        8
+                                                                        8,
                                                                     )}
                                                                 </span>
                                                             </span>
@@ -3957,14 +4060,14 @@ export default function CryptoDetail({
                                                     blockchainNetworks.find(
                                                         (n) =>
                                                             n.id ===
-                                                            withdrawBlockchainData.network
+                                                            withdrawBlockchainData.network,
                                                     );
                                                 const fee = selected
                                                     ? selected.fee
                                                     : 0;
                                                 const total =
                                                     parseFloat(
-                                                        withdrawBlockchainData.amount
+                                                        withdrawBlockchainData.amount,
                                                     ) - fee;
 
                                                 // Ensure user understands they receive less
@@ -3977,7 +4080,7 @@ export default function CryptoDetail({
                                                             {total > 0
                                                                 ? formatNumber(
                                                                       total,
-                                                                      8
+                                                                      8,
                                                                   )
                                                                 : 0}{" "}
                                                             {currency}
@@ -3992,7 +4095,7 @@ export default function CryptoDetail({
                                                 className="inline-flex justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 focus-visible:ring-offset-2 transition-colors"
                                                 onClick={() =>
                                                     setIsWithdrawBlockchainModalOpen(
-                                                        false
+                                                        false,
                                                     )
                                                 }
                                             >

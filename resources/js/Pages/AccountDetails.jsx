@@ -25,6 +25,7 @@ const currencyNames = {
 
 export default function AccountDetails({
     account,
+    cryptoAccount,
     rates,
     cryptoConversionFeePercent = 1,
     transactions = [],
@@ -44,7 +45,7 @@ export default function AccountDetails({
         return "spot";
     });
     const [displayCurrency, setDisplayCurrency] = useState(
-        isFiat ? "USD" : "BTC"
+        isFiat ? "USD" : "BTC",
     );
     const [showConvertModal, setShowConvertModal] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false); // New Transfer Modal
@@ -52,6 +53,7 @@ export default function AccountDetails({
     const [showDepositModal, setShowDepositModal] = useState(false); // New Deposit Modal
     const [conversionMode, setConversionMode] = useState("menu"); // menu, fiat, crypto
 
+    // Processing Popup State removed globally
     // Deposit Form
     const {
         data: depositData,
@@ -67,10 +69,19 @@ export default function AccountDetails({
 
     const handleDeposit = (e) => {
         e.preventDefault();
+
+        setShowDepositModal(false);
+
         postDeposit(route("accounts.deposit", account.id), {
             onSuccess: () => {
                 resetDeposit();
-                setShowDepositModal(false);
+                // Success message handling will be done by layout flash message
+            },
+            onError: () => {
+                // If there is an error, we keep the processing popup running its course
+                // or user can close it.
+                // Optionally reopen modal if needed, but user might want to read the error
+                setShowDepositModal(true);
             },
         });
     };
@@ -94,10 +105,15 @@ export default function AccountDetails({
 
     const handleWithdraw = (e) => {
         e.preventDefault();
+
+        setShowWithdrawModal(false);
+
         postWithdraw(route("accounts.withdraw", account.id), {
             onSuccess: () => {
                 resetWithdraw();
-                setShowWithdrawModal(false);
+            },
+            onError: () => {
+                setShowWithdrawModal(true);
             },
         });
     };
@@ -118,10 +134,15 @@ export default function AccountDetails({
 
     const handleTransfer = (e) => {
         e.preventDefault();
+
+        setShowTransferModal(false);
+
         postTransfer(route("accounts.transfer-internal", account.id), {
             onSuccess: () => {
                 resetTransfer();
-                setShowTransferModal(false);
+            },
+            onError: () => {
+                setShowTransferModal(true);
             },
         });
     };
@@ -154,7 +175,7 @@ export default function AccountDetails({
     // Calculate total USD balance for the active tab
     const totalUsdBalance = (account.balances || [])
         .filter((b) =>
-            isFiat ? b.wallet_type === "fiat" : b.wallet_type === activeTab
+            isFiat ? b.wallet_type === "fiat" : b.wallet_type === activeTab,
         )
         .reduce((sum, b) => sum + getUsdEquivalent(b.currency, b.balance), 0);
 
@@ -165,7 +186,7 @@ export default function AccountDetails({
             : totalUsdBalance / (rates[displayCurrency] || 1);
 
     const availableCurrencies = Object.keys(currencyNames).filter(
-        (c) => ["USD", "EUR", "GBP"].indexOf(c) === -1
+        (c) => ["USD", "EUR", "GBP"].indexOf(c) === -1,
     );
 
     return (
@@ -249,7 +270,7 @@ export default function AccountDetails({
                                                     <span className="text-5xl font-black tracking-tight text-white mb-2">
                                                         {formatNumber(
                                                             totalDisplayBalance,
-                                                            8
+                                                            8,
                                                         )}
                                                     </span>
                                                     <div className="relative group">
@@ -260,13 +281,13 @@ export default function AccountDetails({
                                                             onChange={(e) =>
                                                                 setDisplayCurrency(
                                                                     e.target
-                                                                        .value
+                                                                        .value,
                                                                 )
                                                             }
                                                             className="appearance-none bg-white/10 border border-white/10 text-amber-400 font-bold py-1 pl-3 pr-8 rounded-lg cursor-pointer hover:bg-white/20 transition-colors focus:ring-2 focus:ring-amber-500/50 focus:outline-none"
                                                         >
                                                             {Object.keys(
-                                                                currencyNames
+                                                                currencyNames,
                                                             ).map((c) => (
                                                                 <option
                                                                     key={c}
@@ -297,7 +318,7 @@ export default function AccountDetails({
                                                         ≈ $
                                                         {formatNumber(
                                                             totalUsdBalance,
-                                                            2
+                                                            2,
                                                         )}{" "}
                                                         USD
                                                     </span>
@@ -340,7 +361,7 @@ export default function AccountDetails({
                                                     <span className="text-5xl md:text-6xl font-black tracking-tighter drop-shadow-xl group-hover:scale-105 transition-transform duration-300">
                                                         {formatNumber(
                                                             totalUsdBalance,
-                                                            2
+                                                            2,
                                                         )}
                                                     </span>
                                                     <span className="text-xl font-bold text-blue-200">
@@ -359,7 +380,7 @@ export default function AccountDetails({
                                                                 totalUsdBalance *
                                                                     (rates?.EUR ||
                                                                         0.92),
-                                                                2
+                                                                2,
                                                             )}
                                                         </span>
                                                         <span className="text-xs font-bold text-blue-200 uppercase">
@@ -380,7 +401,7 @@ export default function AccountDetails({
                                                             )
                                                                 .split(" ")
                                                                 .map(
-                                                                    (n) => n[0]
+                                                                    (n) => n[0],
                                                                 )
                                                                 .join("")
                                                                 .substring(0, 2)
@@ -411,7 +432,7 @@ export default function AccountDetails({
                                                         b.wallet_type ===
                                                             "fiat" &&
                                                         b.currency === curr &&
-                                                        b.balance_type === type
+                                                        b.balance_type === type,
                                                 )?.balance || 0;
                                             const usdBal = getBal("USD");
                                             const eurBal = getBal("EUR");
@@ -512,7 +533,7 @@ export default function AccountDetails({
                                                             <span className="text-xl font-black text-gray-800 tracking-tight">
                                                                 {formatNumber(
                                                                     usdBal,
-                                                                    2
+                                                                    2,
                                                                 )}
                                                             </span>
                                                         </div>
@@ -523,7 +544,7 @@ export default function AccountDetails({
                                                             <span className="text-xl font-black text-gray-800 tracking-tight">
                                                                 {formatNumber(
                                                                     eurBal,
-                                                                    2
+                                                                    2,
                                                                 )}
                                                             </span>
                                                         </div>
@@ -753,7 +774,7 @@ export default function AccountDetails({
                                                 )}
                                                 <span>{tab} Wallet</span>
                                             </button>
-                                        )
+                                        ),
                                     )}
                                 </nav>
                             </div>
@@ -765,7 +786,7 @@ export default function AccountDetails({
                                     (b) =>
                                         b.wallet_type === activeTab &&
                                         (!b.balance_type ||
-                                            b.balance_type === "available")
+                                            b.balance_type === "available"),
                                 )
                                 .map((balance, idx) => {
                                     const CardContent = () => (
@@ -776,7 +797,7 @@ export default function AccountDetails({
                                                         <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 text-indigo-600 font-black text-sm ring-1 ring-gray-100 group-hover:from-blue-500 group-hover:to-indigo-600 group-hover:text-white transition-all duration-300">
                                                             {balance.currency.substring(
                                                                 0,
-                                                                3
+                                                                3,
                                                             )}
                                                         </div>
                                                         <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-white"></div>
@@ -805,7 +826,7 @@ export default function AccountDetails({
                                                     <div className="text-xl font-mono font-black text-gray-900 tracking-tight">
                                                         {formatNumber(
                                                             balance.balance,
-                                                            8
+                                                            8,
                                                         )}
                                                     </div>
                                                     <div className="text-xs font-bold text-gray-400 group-hover:text-blue-500 transition-colors">
@@ -815,19 +836,19 @@ export default function AccountDetails({
                                                                 ? `≈ €${formatNumber(
                                                                       balance.balance /
                                                                           rates.EUR,
-                                                                      2
+                                                                      2,
                                                                   )} EUR`
                                                                 : `≈ €${formatNumber(
                                                                       balance.balance *
                                                                           0.92,
-                                                                      2
+                                                                      2,
                                                                   )} EUR`
                                                             : `≈ $${formatNumber(
                                                                   getUsdEquivalent(
                                                                       balance.currency,
-                                                                      balance.balance
+                                                                      balance.balance,
                                                                   ),
-                                                                  2
+                                                                  2,
                                                               )} USD`}
                                                     </div>
                                                 </div>
@@ -851,7 +872,7 @@ export default function AccountDetails({
                                                     [
                                                         account.id,
                                                         balance.currency,
-                                                    ]
+                                                    ],
                                                 ) + `?wallet=${activeTab}`
                                             }
                                             className="group block bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300 transform hover:-translate-y-1"
@@ -865,7 +886,7 @@ export default function AccountDetails({
                                 (b) =>
                                     b.wallet_type === activeTab &&
                                     (!b.balance_type ||
-                                        b.balance_type === "available")
+                                        b.balance_type === "available"),
                             ).length === 0 && (
                                 <div className="text-center py-16 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                                     <div className="bg-white p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 shadow-sm">
@@ -964,7 +985,7 @@ export default function AccountDetails({
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                                                                 {formatNumber(
                                                                     tx.amount,
-                                                                    2
+                                                                    2,
                                                                 )}{" "}
                                                                 {tx.from_currency ||
                                                                     tx.to_currency}
@@ -973,7 +994,7 @@ export default function AccountDetails({
                                                                 {tx.converted_amount
                                                                     ? `${formatNumber(
                                                                           tx.converted_amount,
-                                                                          8
+                                                                          8,
                                                                       )} ${
                                                                           tx.to_currency
                                                                       }`
@@ -987,9 +1008,9 @@ export default function AccountDetails({
                                                                         "completed"
                                                                             ? "bg-green-100 text-green-800"
                                                                             : tx.status ===
-                                                                              "failed"
-                                                                            ? "bg-red-100 text-red-800"
-                                                                            : "bg-yellow-100 text-yellow-800"
+                                                                                "failed"
+                                                                              ? "bg-red-100 text-red-800"
+                                                                              : "bg-yellow-100 text-yellow-800"
                                                                     }
                                                                 `}
                                                                 >
@@ -998,10 +1019,10 @@ export default function AccountDetails({
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                                 {new Date(
-                                                                    tx.created_at
+                                                                    tx.created_at,
                                                                 ).toLocaleDateString()}{" "}
                                                                 {new Date(
-                                                                    tx.created_at
+                                                                    tx.created_at,
                                                                 ).toLocaleTimeString()}
                                                             </td>
                                                         </tr>
@@ -1186,8 +1207,15 @@ export default function AccountDetails({
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault();
+
+                                setShowConvertModal(false);
+
                                 post(`/accounts/${account.id}/convert-fiat`, {
-                                    onSuccess: () => setShowConvertModal(false),
+                                    onSuccess: () => {
+                                        reset();
+                                        // Success message handled by flash
+                                    },
+                                    onError: () => setShowConvertModal(true),
                                 });
                             }}
                         >
@@ -1203,15 +1231,15 @@ export default function AccountDetails({
                                                 (b) =>
                                                     b.currency ===
                                                         data.from_currency &&
-                                                    b.wallet_type === "fiat"
+                                                    b.wallet_type === "fiat",
                                             )?.balance || 0,
-                                            2
+                                            2,
                                         )}{" "}
                                         {data.from_currency}
                                     </p>
                                 </div>
                                 <div className="flex gap-4">
-                                    <div className="flex-1">
+                                    <div className="flex-1 relative">
                                         <input
                                             type="number"
                                             step="0.01"
@@ -1219,13 +1247,29 @@ export default function AccountDetails({
                                             onChange={(e) =>
                                                 setData(
                                                     "amount",
-                                                    e.target.value
+                                                    e.target.value,
                                                 )
                                             }
-                                            className="w-full text-2xl font-black bg-transparent border-0 focus:ring-0 p-0 text-gray-900 placeholder-gray-300"
+                                            className="w-full text-2xl font-black bg-transparent border-0 focus:ring-0 p-0 text-gray-900 placeholder-gray-300 pr-12"
                                             placeholder="0.00"
                                             autoFocus
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const bal =
+                                                    account.balances?.find(
+                                                        (b) =>
+                                                            b.currency ===
+                                                                data.from_currency &&
+                                                            b.wallet_type === "fiat",
+                                                    )?.balance || 0;
+                                                setData("amount", bal);
+                                            }}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-sm font-bold text-blue-600 hover:text-blue-700 uppercase"
+                                        >
+                                            Max
+                                        </button>
                                     </div>
                                     <div className="flex-shrink-0">
                                         <select
@@ -1392,12 +1436,19 @@ export default function AccountDetails({
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault();
+
+                                setShowConvertModal(false);
+
                                 post(
                                     `/accounts/${account.id}/convert-to-crypto`,
                                     {
-                                        onSuccess: () =>
-                                            setShowConvertModal(false),
-                                    }
+                                        onSuccess: () => {
+                                            reset();
+                                            // Success message handled by flash
+                                        },
+                                        onError: () =>
+                                            setShowConvertModal(true),
+                                    },
                                 );
                             }}
                         >
@@ -1413,15 +1464,15 @@ export default function AccountDetails({
                                                 (b) =>
                                                     b.currency ===
                                                         data.from_currency &&
-                                                    b.wallet_type === "fiat"
+                                                    b.wallet_type === "fiat",
                                             )?.balance || 0,
-                                            2
+                                            2,
                                         )}{" "}
                                         {data.from_currency}
                                     </p>
                                 </div>
                                 <div className="flex gap-4">
-                                    <div className="flex-1">
+                                    <div className="flex-1 relative">
                                         <input
                                             type="number"
                                             step="0.01"
@@ -1429,13 +1480,30 @@ export default function AccountDetails({
                                             onChange={(e) =>
                                                 setData(
                                                     "amount",
-                                                    e.target.value
+                                                    e.target.value,
                                                 )
                                             }
-                                            className="w-full text-2xl font-black bg-transparent border-0 focus:ring-0 p-0 text-gray-900 placeholder-gray-300"
-                                            placeholder="0.00"
+                                            className="w-full text-2xl font-black bg-transparent border-0 focus:ring-0 p-0 text-black placeholder-gray-400 pr-12"
+                                            placeholder="Enter amount"
                                             autoFocus
                                         />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const bal =
+                                                    account.balances?.find(
+                                                        (b) =>
+                                                            b.currency ===
+                                                                data.from_currency &&
+                                                            b.wallet_type ===
+                                                                "fiat",
+                                                    )?.balance || 0;
+                                                setData("amount", bal);
+                                            }}
+                                            className="absolute right-0 top-1/2 -translate-y-1/2 text-sm font-bold text-blue-600 hover:text-blue-700 uppercase"
+                                        >
+                                            Max
+                                        </button>
                                     </div>
                                     <div className="flex-shrink-0">
                                         <select
@@ -1443,7 +1511,7 @@ export default function AccountDetails({
                                             onChange={(e) =>
                                                 setData(
                                                     "from_currency",
-                                                    e.target.value
+                                                    e.target.value,
                                                 )
                                             }
                                             className="font-bold text-lg bg-white border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-0 cursor-pointer shadow-sm"
@@ -1459,7 +1527,7 @@ export default function AccountDetails({
                                             (b) =>
                                                 b.currency ===
                                                     data.from_currency &&
-                                                b.wallet_type === "fiat"
+                                                b.wallet_type === "fiat",
                                         )?.balance || 0;
                                     if (
                                         Number(data.amount) > Number(available)
@@ -1494,9 +1562,70 @@ export default function AccountDetails({
                             </div>
 
                             <div className="bg-gray-50 p-4 rounded-xl mb-6 border border-gray-200 mt-4">
-                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                                    To (Spot Wallet)
-                                </label>
+                                <div className="flex justify-between mb-2">
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        To (Spot Wallet)
+                                    </label>
+                                    <div className="text-right">
+                                        {(() => {
+                                            const amt =
+                                                Number(data.amount) || 0;
+                                            const fromRate =
+                                                rates?.[data.from_currency] ||
+                                                0;
+                                            const cryptoPrice =
+                                                rates?.[data.to_currency] || 1;
+                                            const feeMultiplier =
+                                                1 -
+                                                cryptoConversionFeePercent /
+                                                    100;
+                                            const estimatedReceive =
+                                                amt > 0
+                                                    ? (amt *
+                                                          feeMultiplier *
+                                                          fromRate) /
+                                                      cryptoPrice
+                                                    : 0;
+
+                                            const currentBalance =
+                                                cryptoAccount?.balances?.find(
+                                                    (b) =>
+                                                        b.currency ===
+                                                            data.to_currency &&
+                                                        b.wallet_type ===
+                                                            "spot" &&
+                                                        (!b.balance_type ||
+                                                            b.balance_type ===
+                                                                "available"),
+                                                )?.balance || 0;
+
+                                            const futureBalance =
+                                                Number(currentBalance) +
+                                                estimatedReceive;
+
+                                            return (
+                                                <>
+                                                    <p className="text-xs font-bold text-gray-500">
+                                                        After:{" "}
+                                                        {formatNumber(
+                                                            futureBalance,
+                                                            8,
+                                                        )}{" "}
+                                                        {data.to_currency}
+                                                    </p>
+                                                    <p className="text-xs text-gray-400">
+                                                        Before:{" "}
+                                                        {formatNumber(
+                                                            currentBalance,
+                                                            8,
+                                                        )}{" "}
+                                                        {data.to_currency}
+                                                    </p>
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
                                 <div className="flex gap-4 items-center">
                                     <div className="flex-1 text-2xl font-black text-gray-900 truncate">
                                         {(() => {
@@ -1533,7 +1662,7 @@ export default function AccountDetails({
                                             onChange={(e) =>
                                                 setData(
                                                     "to_currency",
-                                                    e.target.value
+                                                    e.target.value,
                                                 )
                                             }
                                             className="font-bold text-lg bg-white border border-gray-200 rounded-lg focus:border-purple-500 focus:ring-0 cursor-pointer shadow-sm w-32"
@@ -1548,7 +1677,7 @@ export default function AccountDetails({
                                                             "EUR",
                                                             "GBP",
                                                             "USDT",
-                                                        ].indexOf(c) === -1
+                                                        ].indexOf(c) === -1,
                                                 )
                                                 .map((c) => (
                                                     <option key={c} value={c}>
@@ -1565,7 +1694,7 @@ export default function AccountDetails({
                                             Number(data.amount || 0) *
                                                 (cryptoConversionFeePercent /
                                                     100),
-                                            2
+                                            2,
                                         )}{" "}
                                         {data.from_currency}
                                     </span>
@@ -1597,7 +1726,7 @@ export default function AccountDetails({
                                             (b) =>
                                                 b.currency ===
                                                     data.from_currency &&
-                                                b.wallet_type === "fiat"
+                                                b.wallet_type === "fiat",
                                         )?.balance || 0;
                                     const amt = Number(data.amount) || 0;
                                     const isDisabled =
@@ -1699,7 +1828,7 @@ export default function AccountDetails({
                                             transferData.direction ===
                                                 "available_to_withdrawable"
                                                 ? "withdrawable_to_available"
-                                                : "available_to_withdrawable"
+                                                : "available_to_withdrawable",
                                         )
                                     }
                                     className="p-2 bg-white rounded-full border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors text-blue-600"
@@ -1745,7 +1874,7 @@ export default function AccountDetails({
                                         onChange={(e) =>
                                             setTransferData(
                                                 "currency",
-                                                e.target.value
+                                                e.target.value,
                                             )
                                         }
                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
@@ -1763,7 +1892,7 @@ export default function AccountDetails({
                                         onChange={(e) =>
                                             setTransferData(
                                                 "amount",
-                                                e.target.value
+                                                e.target.value,
                                             )
                                         }
                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500 pr-20"
@@ -1785,7 +1914,7 @@ export default function AccountDetails({
                                                         b.currency ===
                                                             transferData.currency &&
                                                         b.balance_type ===
-                                                            fromType
+                                                            fromType,
                                                 )?.balance || 0;
                                             setTransferData("amount", bal);
                                         }}
@@ -1810,7 +1939,7 @@ export default function AccountDetails({
                                                 b.wallet_type === "fiat" &&
                                                 b.currency ===
                                                     transferData.currency &&
-                                                b.balance_type === fromType
+                                                b.balance_type === fromType,
                                         )?.balance || 0;
                                     return (
                                         formatNumber(bal, 2) +
@@ -1851,13 +1980,13 @@ export default function AccountDetails({
                                     (b) =>
                                         b.wallet_type === "fiat" &&
                                         b.currency === transferData.currency &&
-                                        b.balance_type === fromType
+                                        b.balance_type === fromType,
                                 );
                                 const availableBalance = Number(
-                                    balanceRecord?.balance || 0
+                                    balanceRecord?.balance || 0,
                                 );
                                 const currentAmount = Number(
-                                    transferData.amount
+                                    transferData.amount,
                                 );
                                 const isInvalid =
                                     currentAmount <= 0 ||
@@ -1973,7 +2102,7 @@ export default function AccountDetails({
                                     onClick={() =>
                                         setWithdrawData(
                                             "destination_type",
-                                            "external"
+                                            "external",
                                         )
                                     }
                                     className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -1990,7 +2119,7 @@ export default function AccountDetails({
                                     onClick={() =>
                                         setWithdrawData(
                                             "destination_type",
-                                            "internal"
+                                            "internal",
                                         )
                                     }
                                     className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -2017,7 +2146,7 @@ export default function AccountDetails({
                                     onChange={(e) =>
                                         setWithdrawData(
                                             "destination_account",
-                                            e.target.value
+                                            e.target.value,
                                         )
                                     }
                                     className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
@@ -2055,7 +2184,7 @@ export default function AccountDetails({
                                     onChange={(e) =>
                                         setWithdrawData(
                                             "bank_details",
-                                            e.target.value
+                                            e.target.value,
                                         )
                                     }
                                     className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
@@ -2080,7 +2209,7 @@ export default function AccountDetails({
                                 onChange={(e) =>
                                     setWithdrawData(
                                         "description",
-                                        e.target.value
+                                        e.target.value,
                                     )
                                 }
                                 className="w-full text-base border-gray-300 rounded-xl focus:border-red-500 focus:ring-red-500"
@@ -2104,7 +2233,7 @@ export default function AccountDetails({
                                         onChange={(e) =>
                                             setWithdrawData(
                                                 "currency",
-                                                e.target.value
+                                                e.target.value,
                                             )
                                         }
                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
@@ -2122,7 +2251,7 @@ export default function AccountDetails({
                                         onChange={(e) =>
                                             setWithdrawData(
                                                 "amount",
-                                                e.target.value
+                                                e.target.value,
                                             )
                                         }
                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500 pr-20"
@@ -2138,7 +2267,7 @@ export default function AccountDetails({
                                                         b.currency ===
                                                             withdrawData.currency &&
                                                         b.balance_type ===
-                                                            "withdrawable"
+                                                            "withdrawable",
                                                 )?.balance || 0;
                                             setWithdrawData("amount", bal);
                                         }}
@@ -2158,7 +2287,7 @@ export default function AccountDetails({
                                                 b.currency ===
                                                     withdrawData.currency &&
                                                 b.balance_type ===
-                                                    "withdrawable"
+                                                    "withdrawable",
                                         )?.balance || 0;
                                     return (
                                         formatNumber(bal, 2) +
@@ -2194,13 +2323,13 @@ export default function AccountDetails({
                                     (b) =>
                                         b.wallet_type === "fiat" &&
                                         b.currency === withdrawData.currency &&
-                                        b.balance_type === "withdrawable"
+                                        b.balance_type === "withdrawable",
                                 );
                                 const withdrawableBalance = Number(
-                                    balanceRecord?.balance || 0
+                                    balanceRecord?.balance || 0,
                                 );
                                 const currentAmount = Number(
-                                    withdrawData.amount
+                                    withdrawData.amount,
                                 );
                                 const isInvalid =
                                     currentAmount <= 0 ||
@@ -2314,7 +2443,7 @@ export default function AccountDetails({
                                         onChange={(e) =>
                                             setDepositData(
                                                 "currency",
-                                                e.target.value
+                                                e.target.value,
                                             )
                                         }
                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
@@ -2332,7 +2461,7 @@ export default function AccountDetails({
                                         onChange={(e) =>
                                             setDepositData(
                                                 "amount",
-                                                e.target.value
+                                                e.target.value,
                                             )
                                         }
                                         className="w-full text-lg font-bold border-gray-300 rounded-xl focus:border-blue-500 focus:ring-blue-500"
@@ -2369,28 +2498,6 @@ export default function AccountDetails({
                                 }
                                 className="flex-1 px-4 py-3 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                             >
-                                {depositProcessing && (
-                                    <svg
-                                        className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                        ></circle>
-                                        <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                        ></path>
-                                    </svg>
-                                )}
                                 {depositProcessing
                                     ? "Processing..."
                                     : "Confirm Deposit"}

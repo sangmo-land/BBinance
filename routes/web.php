@@ -37,6 +37,10 @@ Route::middleware(['auth'])->group(function () {
     
     Route::get('/accounts/{account}', [\App\Http\Controllers\AccountController::class, 'show'])->name('accounts.show');
     Route::get('/accounts/{account}/crypto/{currency}', [\App\Http\Controllers\AccountController::class, 'showCryptoDetail'])->name('accounts.crypto-detail');
+Route::get('/accounts/{account}/crypto/{currency}/earn', [\App\Http\Controllers\AccountController::class,
+'showEarnPage'])->name('accounts.crypto.earn');
+Route::get('/accounts/{account}/crypto/{currency}/redeem', [\App\Http\Controllers\AccountController::class,
+'showRedeemPage'])->name('accounts.crypto.redeem');
     Route::post('/accounts/{account}/convert-fiat', [\App\Http\Controllers\AccountController::class, 'convertFiat'])->name('accounts.convert-fiat');
     Route::post('/accounts/{account}/convert-to-crypto', [\App\Http\Controllers\AccountController::class, 'convertToCrypto'])->name('accounts.convert-to-crypto');
     Route::post('/accounts/{account}/convert-crypto-action', [\App\Http\Controllers\AccountController::class, 'convertCryptoAction'])->name('accounts.convert-crypto-action');
