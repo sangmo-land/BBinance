@@ -379,19 +379,20 @@ export default function Welcome() {
 
     const structuredData = {
         "@context": "https://schema.org",
-        "@type": "FinancialService",
-        "name": "HSBC",
-        "description": "Secure, instant multi-currency transfers with competitive exchange rates.",
-        "areaServed": "Worldwide",
-        "serviceType": "Digital Banking",
+        "@type": "SoftwareApplication",
+        name: "AppDemo",
+        description:
+            "A demonstration of a digital banking application. Not for real financial transactions.",
+        applicationCategory: "FinanceApplication",
+        genre: "demo",
     };
 
     return (
         <AppLayout>
             <SEOHead
-                title="HSBC | Secure Multi‑Currency Digital Banking"
-                description="HSBC makes moving money simple: instant transfers, multi‑currency accounts, and bank‑grade security."
-                keywords="digital banking, multi-currency, money transfer, exchange rates, fintech"
+                title="AppDemo"
+                description="AppDemo is a demonstration project for digital banking features. This application is for educational and testing purposes only, not for real financial transactions."
+                keywords="digital banking demo, fintech prototype, react laravel demo, banking app template, educational purpose"
                 structuredData={structuredData}
             />
 
@@ -402,16 +403,21 @@ export default function Welcome() {
                             ✓ Fast • Secure • Multi‑Currency
                         </div>
                         <h1 className="text-5xl sm:text-6xl font-black text-gray-900 tracking-tight">
-                            The future of <span className="text-indigo-700">digital banking</span>
+                            The future of{" "}
+                            <span className="text-indigo-700">
+                                digital banking
+                            </span>
                         </h1>
                         <p className="mt-5 text-lg text-gray-600 max-w-xl">
-                            Send and receive funds across accounts instantly, with transparent exchange rates and a clean, modern experience.
+                            Send and receive funds across accounts instantly,
+                            with transparent exchange rates and a clean, modern
+                            experience.
                         </p>
 
                         <div className="mt-8 flex flex-col sm:flex-row gap-3">
                             {isAuthed ? (
                                 <Link
-                                    href={route('dashboard')}
+                                    href={route("dashboard")}
                                     className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-200 text-center"
                                 >
                                     Go to Dashboard
@@ -419,13 +425,13 @@ export default function Welcome() {
                             ) : (
                                 <>
                                     <Link
-                                        href={route('register')}
+                                        href={route("register")}
                                         className="px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 transform hover:scale-[1.02] transition-all duration-200 text-center"
                                     >
                                         Get started
                                     </Link>
                                     <Link
-                                        href={route('login')}
+                                        href={route("login")}
                                         className="px-6 py-3 text-sm font-semibold text-gray-700 bg-white rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200 text-center"
                                     >
                                         Sign in
@@ -436,38 +442,74 @@ export default function Welcome() {
 
                         <div className="mt-8 grid grid-cols-3 gap-4 max-w-md">
                             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                                <div className="text-xs font-semibold text-gray-500">Uptime</div>
-                                <div className="mt-1 text-xl font-black text-gray-900">99.98%</div>
+                                <div className="text-xs font-semibold text-gray-500">
+                                    Uptime
+                                </div>
+                                <div className="mt-1 text-xl font-black text-gray-900">
+                                    99.98%
+                                </div>
                             </div>
                             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                                <div className="text-xs font-semibold text-gray-500">Fees</div>
-                                <div className="mt-1 text-xl font-black text-gray-900">0 hidden</div>
+                                <div className="text-xs font-semibold text-gray-500">
+                                    Fees
+                                </div>
+                                <div className="mt-1 text-xl font-black text-gray-900">
+                                    0 hidden
+                                </div>
                             </div>
                             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-                                <div className="text-xs font-semibold text-gray-500">Security</div>
-                                <div className="mt-1 text-xl font-black text-gray-900">Bank‑grade</div>
+                                <div className="text-xs font-semibold text-gray-500">
+                                    Security
+                                </div>
+                                <div className="mt-1 text-xl font-black text-gray-900">
+                                    Bank‑grade
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
-                            <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">1</div>
-                            <h2 className="mt-4 text-xl font-bold text-gray-900">Multi‑currency accounts</h2>
-                            <p className="mt-2 text-sm text-gray-600">Hold balances across currencies and keep your transfers organized.</p>
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">
+                                1
+                            </div>
+                            <h2 className="mt-4 text-xl font-bold text-gray-900">
+                                Multi‑currency accounts
+                            </h2>
+                            <p className="mt-2 text-sm text-gray-600">
+                                Hold balances across currencies and keep your
+                                transfers organized.
+                            </p>
                         </div>
                         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6">
-                            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">2</div>
-                            <h2 className="mt-4 text-xl font-bold text-gray-900">Instant transfers</h2>
-                            <p className="mt-2 text-sm text-gray-600">Move money between accounts in seconds with a simple flow.</p>
+                            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black">
+                                2
+                            </div>
+                            <h2 className="mt-4 text-xl font-bold text-gray-900">
+                                Instant transfers
+                            </h2>
+                            <p className="mt-2 text-sm text-gray-600">
+                                Move money between accounts in seconds with a
+                                simple flow.
+                            </p>
                         </div>
                         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:col-span-2">
-                            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-black">3</div>
-                            <h2 className="mt-4 text-xl font-bold text-gray-900">Admin controls (Filament)</h2>
-                            <p className="mt-2 text-sm text-gray-600">Manage accounts, currencies, and exports with a powerful admin panel.</p>
+                            <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-black">
+                                3
+                            </div>
+                            <h2 className="mt-4 text-xl font-bold text-gray-900">
+                                Admin controls (Filament)
+                            </h2>
+                            <p className="mt-2 text-sm text-gray-600">
+                                Manage accounts, currencies, and exports with a
+                                powerful admin panel.
+                            </p>
                             {isAuthed && auth?.user?.is_admin && (
                                 <div className="mt-4">
-                                    <Link href="/admin" className="inline-flex items-center text-sm font-semibold text-indigo-700 hover:text-indigo-800">
+                                    <Link
+                                        href="/admin"
+                                        className="inline-flex items-center text-sm font-semibold text-indigo-700 hover:text-indigo-800"
+                                    >
                                         Open admin →
                                     </Link>
                                 </div>
@@ -490,33 +532,77 @@ export default function Welcome() {
                     <div className="grid md:grid-cols-3 gap-8">
                         <div className="text-center">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-4">
-                                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <svg
+                                    className="w-8 h-8 text-blue-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">Competitive Rates</h3>
-                            <p className="text-gray-600 text-sm">Real-time exchange rates with transparent pricing</p>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                Competitive Rates
+                            </h3>
+                            <p className="text-gray-600 text-sm">
+                                Real-time exchange rates with transparent
+                                pricing
+                            </p>
                         </div>
 
                         <div className="text-center group">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 rounded-2xl mb-4 group-hover:bg-purple-200 transition-colors duration-300 relative overflow-hidden">
                                 <div className="absolute inset-0 bg-yellow-400 opacity-0 group-hover:opacity-20 animate-pulse"></div>
-                                <svg className="w-8 h-8 text-purple-600 relative z-10 transform group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" className="drop-shadow-[0_0_8px_rgba(255,255,0,0.5)]" />
+                                <svg
+                                    className="w-8 h-8 text-purple-600 relative z-10 transform group-hover:scale-110 transition-transform duration-300"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                        className="drop-shadow-[0_0_8px_rgba(255,255,0,0.5)]"
+                                    />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">Lightning Fast</h3>
-                            <p className="text-gray-600 text-sm">Instant transfers that complete in seconds</p>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                Lightning Fast
+                            </h3>
+                            <p className="text-gray-600 text-sm">
+                                Instant transfers that complete in seconds
+                            </p>
                         </div>
 
                         <div className="text-center">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-2xl mb-4">
-                                <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                <svg
+                                    className="w-8 h-8 text-emerald-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                    />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">Bank-Grade Security</h3>
-                            <p className="text-gray-600 text-sm">Advanced encryption and security protocols</p>
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">
+                                Bank-Grade Security
+                            </h3>
+                            <p className="text-gray-600 text-sm">
+                                Advanced encryption and security protocols
+                            </p>
                         </div>
                     </div>
                 </div>
