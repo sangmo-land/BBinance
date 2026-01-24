@@ -598,20 +598,20 @@ export default function AppLayout({ children }) {
                             </h3>
                             <ul className="space-y-2">
                                 <li>
-                                    <a
-                                        href="#"
+                                    <Link
+                                        href={route("privacy-policy")}
                                         className="text-sm hover:text-blue-400 transition-colors"
                                     >
                                         Privacy Policy
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
-                                    <a
-                                        href="#"
+                                    <Link
+                                        href={route("terms-of-service")}
                                         className="text-sm hover:text-blue-400 transition-colors"
                                     >
                                         Terms of Service
-                                    </a>
+                                    </Link>
                                 </li>
                                 <li>
                                     <a

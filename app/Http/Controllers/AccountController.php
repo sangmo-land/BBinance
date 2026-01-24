@@ -80,13 +80,21 @@ $recipientAccounts = \App\Models\Account::where('account_type', 'fiat')
 
         $query = $account->balances()->where('currency', $currency);
         
-        if ($walletType) {
-// Normalize for DB (lowercase seems to be used: spot, funding, earning)
+if ($walletType) {
 $w = strtolower($walletType);
-if ($w === 'earn') {
-$w = 'earning';
+$types = [$w];
+
+// Handle specific aliases and casing
+if ($w === 'earn' || $w === 'earning') {
+$types = ['earn', 'Earn', 'earning', 'Earning'];
+} elseif ($w === 'spot') {
+$types = ['spot', 'Spot'];
+} elseif ($w === 'funding') {
+$types = ['funding', 'Funding'];
+} else {
+$types[] = ucfirst($w);
 }
-$query->where('wallet_type', $w);
+$query->whereIn('wallet_type', array_unique($types));
         }
 
         $balances = $query->get();
@@ -145,15 +153,19 @@ $query->where('wallet_type', $w);
             ->values();
 
         // Fetch all spot balances for trading validations
-        $spotBalances = $account->balances()->where('wallet_type', 'Spot')->get();
+$spotBalances = $account->balances()->whereIn('wallet_type', ['Spot', 'spot'])->get();
         
         // Fetch all balances for this currency (for Transfer modal)
         $allCurrencyBalances = $account->balances()->where('currency', $currency)->get();
 
 // Fetch Funding Fiat Balances (USD/EUR) for Withdraw Funding
+// Handle case sensitivity for wallet_type (Funding vs funding) and filter by available balance
 $fundingFiatBalances = \App\Models\AccountBalance::where('account_id', $account->id)
-->where('wallet_type', 'funding')
+->where(function($q) {
+$q->where('wallet_type', 'funding')->orWhere('wallet_type', 'Funding');
+})
 ->whereIn('currency', ['USD', 'EUR'])
+->where('balance_type', 'available')
 ->pluck('balance', 'currency')
 ->toArray();
         // Fetch Trading Fee
@@ -1065,7 +1077,9 @@ return back();
             // The $account passed is the Crypto Account
             
             $fundingBalance = $account->balances()
-                ->where('wallet_type', 'funding')
+->where(function ($q) {
+                $q->where('wallet_type', 'funding')->orWhere('wallet_type', 'Funding');
+                })
                 ->where('currency', $currency)
 ->where('balance_type', 'available')
                 ->lockForUpdate()
@@ -1088,8 +1102,10 @@ return back();
 // 3. Move to Locked in Funding Wallet (Holding for approval)
             $fundingBalance->decrement('balance', $amount);
             
+// Use same casing as source to avoid creating duplicate wallet rows
+            $walletType = $fundingBalance->wallet_type;
             $fundingLocked = $account->balances()->firstOrCreate(
-            ['wallet_type' => 'funding', 'currency' => $currency, 'balance_type' => 'locked'],
+['wallet_type' => $walletType, 'currency' => $currency, 'balance_type' => 'locked'],
                 ['balance' => 0]
             );
 $fundingLocked->increment('balance', $amount);

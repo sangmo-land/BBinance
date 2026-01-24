@@ -131,6 +131,14 @@ export default function CryptoDetail({
         return w.charAt(0).toUpperCase() + w.slice(1);
     }, [walletType]);
 
+    // Check for Funding Wallet + Fiat restriction (Can only transfer to Earn)
+    const isRestrictedFundingFiat = React.useMemo(() => {
+        return (
+            normalizedWalletType === "Funding" &&
+            ["USD", "EUR"].includes(currency)
+        );
+    }, [normalizedWalletType, currency]);
+
     // Form handling for Transfer
     const {
         data: transferData,
@@ -149,11 +157,13 @@ export default function CryptoDetail({
     // Update form default if URL changes while component is mounted
     useEffect(() => {
         setTransferData("from_wallet", normalizedWalletType);
-        setTransferData(
-            "to_wallet",
-            normalizedWalletType === "Spot" ? "Funding" : "Spot",
-        );
-    }, [normalizedWalletType]);
+
+        let targetWallet = normalizedWalletType === "Spot" ? "Funding" : "Spot";
+        if (isRestrictedFundingFiat) {
+            targetWallet = "Earn";
+        }
+        setTransferData("to_wallet", targetWallet);
+    }, [normalizedWalletType, isRestrictedFundingFiat]);
 
     // Form handling for Convert
     const {
@@ -475,10 +485,12 @@ export default function CryptoDetail({
             setIsSellModalOpen(true);
         } else if (actionName === "Transfer") {
             // Reset form data for Transfer when opening modal
-            setTransferData(
-                "to_wallet",
-                normalizedWalletType === "Spot" ? "Funding" : "Spot",
-            );
+            let targetWallet =
+                normalizedWalletType === "Spot" ? "Funding" : "Spot";
+            if (isRestrictedFundingFiat) {
+                targetWallet = "Earn";
+            }
+            setTransferData("to_wallet", targetWallet);
             setTransferData("amount", "");
             setIsTransferModalOpen(true);
         } else if (actionName === "Convert") {
@@ -957,11 +969,18 @@ export default function CryptoDetail({
                                                             "Transfer" ||
                                                         tx.type === "transfer"
                                                     ) {
-                                                        // Try to parse "from X to Y"
-                                                        const match =
+                                                        // Try to parse "from X to Y" OR "[X->Y]"
+                                                        let match =
                                                             tx.description?.match(
                                                                 /from (\w+) to (\w+)/i,
                                                             );
+                                                        if (!match) {
+                                                            match =
+                                                                tx.description?.match(
+                                                                    /\[(\w+)->(\w+)\]/,
+                                                                );
+                                                        }
+
                                                         if (match) {
                                                             const fromWallet =
                                                                 match[1]; // e.g. Spot
@@ -1052,9 +1071,17 @@ export default function CryptoDetail({
                                                             <div className="flex items-center gap-3">
                                                                 <div
                                                                     className={`p-2 rounded-full ${
-                                                                        isInflow
-                                                                            ? "bg-green-100 text-green-600"
-                                                                            : "bg-red-100 text-red-600"
+                                                                        tx.status ===
+                                                                            "rejected" ||
+                                                                        tx.status ===
+                                                                            "failed"
+                                                                            ? "bg-red-100 text-red-600"
+                                                                            : tx.status ===
+                                                                                "pending"
+                                                                              ? "bg-yellow-100 text-yellow-600"
+                                                                              : isInflow
+                                                                                ? "bg-green-100 text-green-600"
+                                                                                : "bg-red-100 text-red-600"
                                                                     }`}
                                                                 >
                                                                     <svg
@@ -1089,9 +1116,28 @@ export default function CryptoDetail({
                                                                         {
                                                                             tx.type
                                                                         }{" "}
-                                                                        {isInflow
-                                                                            ? "Received"
-                                                                            : "Sent"}
+                                                                        {(() => {
+                                                                            const s =
+                                                                                (
+                                                                                    tx.status ||
+                                                                                    ""
+                                                                                ).toLowerCase();
+                                                                            if (
+                                                                                s ===
+                                                                                "pending"
+                                                                            )
+                                                                                return "Pending";
+                                                                            if (
+                                                                                s ===
+                                                                                    "rejected" ||
+                                                                                s ===
+                                                                                    "failed"
+                                                                            )
+                                                                                return "Rejected";
+                                                                            return isInflow
+                                                                                ? "Received"
+                                                                                : "Sent";
+                                                                        })()}
                                                                     </p>
                                                                     <p className="text-xs text-gray-400">
                                                                         {new Date(
@@ -1111,9 +1157,17 @@ export default function CryptoDetail({
                                                             <div className="text-right">
                                                                 <p
                                                                     className={`text-sm font-bold ${
-                                                                        isInflow
-                                                                            ? "text-green-600"
-                                                                            : "text-gray-900"
+                                                                        tx.status ===
+                                                                            "rejected" ||
+                                                                        tx.status ===
+                                                                            "failed"
+                                                                            ? "text-red-600"
+                                                                            : tx.status ===
+                                                                                "pending"
+                                                                              ? "text-yellow-600"
+                                                                              : isInflow
+                                                                                ? "text-green-600"
+                                                                                : "text-gray-900"
                                                                     }`}
                                                                 >
                                                                     {isInflow
@@ -1450,7 +1504,7 @@ export default function CryptoDetail({
                                                                 Available:{" "}
                                                                 {formatNumber(
                                                                     spendingBalance,
-                                                                    2,
+                                                                    8,
                                                                 )}{" "}
                                                                 {
                                                                     spendingCurrency
@@ -1794,7 +1848,7 @@ export default function CryptoDetail({
                                                                 Available:{" "}
                                                                 {formatNumber(
                                                                     spendingBalance,
-                                                                    2,
+                                                                    8,
                                                                 )}{" "}
                                                                 {
                                                                     spendingCurrency
@@ -2151,18 +2205,25 @@ export default function CryptoDetail({
                                                         "Spot",
                                                         "Funding",
                                                         "Earn",
-                                                    ].map((w) => (
-                                                        <option
-                                                            key={w}
-                                                            value={w}
-                                                            disabled={
-                                                                w ===
-                                                                transferData.from_wallet
-                                                            }
-                                                        >
-                                                            {w}
-                                                        </option>
-                                                    ))}
+                                                    ].map((w) => {
+                                                        if (
+                                                            isRestrictedFundingFiat &&
+                                                            w === "Spot"
+                                                        )
+                                                            return null;
+                                                        return (
+                                                            <option
+                                                                key={w}
+                                                                value={w}
+                                                                disabled={
+                                                                    w ===
+                                                                    transferData.from_wallet
+                                                                }
+                                                            >
+                                                                {w}
+                                                            </option>
+                                                        );
+                                                    })}
                                                 </select>
                                             </div>
                                         </div>
@@ -2772,7 +2833,7 @@ export default function CryptoDetail({
                                                         fiatBalances[
                                                             depositData.currency
                                                         ] || 0,
-                                                        2,
+                                                        8,
                                                     )}
                                                 </span>
                                             </div>
@@ -3049,7 +3110,7 @@ export default function CryptoDetail({
 
                                                         return `Available: ${formatNumber(
                                                             bal,
-                                                            2,
+                                                            8,
                                                         )}`;
                                                     })()}
                                                 </span>
@@ -3999,7 +4060,7 @@ export default function CryptoDetail({
                                                                             .value,
                                                                     )
                                                                 }
-                                                                className={`block w-full rounded-xl pl-4 pr-12 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
+                                                                className={`block w-full rounded-xl pl-4 pr-24 py-3 border-gray-300 focus:border-blue-500 focus:ring-blue-500 sm:text-lg font-bold ${
                                                                     isExceeding
                                                                         ? "border-red-300 text-red-900 focus:border-red-500 focus:ring-red-500"
                                                                         : ""
@@ -4008,7 +4069,19 @@ export default function CryptoDetail({
                                                                 min="0.00000001"
                                                                 step="any"
                                                             />
-                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                            <div className="absolute inset-y-0 right-0 flex items-center pr-4 gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setWithdrawBlockchainData(
+                                                                            "amount",
+                                                                            maxAmount,
+                                                                        )
+                                                                    }
+                                                                    className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
+                                                                >
+                                                                    MAX
+                                                                </button>
                                                                 <span
                                                                     className={`${
                                                                         isExceeding

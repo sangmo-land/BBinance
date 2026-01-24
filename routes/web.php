@@ -18,6 +18,13 @@ Route::get('/sitemap-index.xml', [SitemapController::class, 'sitemapIndex'])->na
 Route::get('/contacts', function () {
 return Inertia::render('Contact');
 })->name('contacts');
+Route::get('/privacy-policy', function () {
+return Inertia::render('PrivacyPolicy');
+})->name('privacy-policy');
+
+Route::get('/terms-of-service', function () {
+return Inertia::render('TermsOfService');
+})->name('terms-of-service');
 // Admin Approval Link (Signed)
 Route::get('/admin/users/{user}/approve', [\App\Http\Controllers\Admin\UserApprovalController::class, 'approve'])
 ->middleware('signed')
