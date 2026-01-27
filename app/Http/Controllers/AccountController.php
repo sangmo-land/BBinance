@@ -152,6 +152,14 @@ $query->whereIn('wallet_type', array_unique($types));
             ->filter(fn($p) => $p['rate'] > 0)
             ->values();
 
+// Fetch all exchange rates for conversion modal (including fiat)
+        $allExchangeRates = \App\Models\ExchangeRate::all()->map(function ($rate) {
+        return [
+        'from' => $rate->from_currency,
+        'to' => $rate->to_currency,
+        'rate' => (float)$rate->rate,
+        ];
+        });
         // Fetch all spot balances for trading validations
 $spotBalances = $account->balances()->whereIn('wallet_type', ['Spot', 'spot'])->get();
         
@@ -216,6 +224,7 @@ $q->where('description', 'LIKE', '%[Earn%')
             'rateToUsd' => $rateToUsd,
             'walletType' => $walletType,
             'tradingPairs' => $tradingPairs,
+'allExchangeRates' => $allExchangeRates,
             'tradingFeePercent' => $tradingFeePercent,
             'transactions' => $transactions,
             'fiatBalances' => $user->fiatAccount 

@@ -51,6 +51,37 @@ function formatNumber(value, fractionDigits = 8) {
     });
 }
 
+// Format small amounts to show significant figures (useful for fees on small amounts)
+function formatSmallAmount(value, minSignificantDigits = 2) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n === 0) return "0";
+    
+    const absValue = Math.abs(n);
+    
+    // For values >= 0.00000001 (8 decimals), use standard formatting
+    if (absValue >= 0.00000001) {
+        // Calculate how many decimal places we need to show significant figures
+        if (absValue >= 1) {
+            return formatNumber(n, 8);
+        }
+        
+        // For small decimals, find the first significant digit
+        const log = Math.floor(Math.log10(absValue));
+        const decimalsNeeded = Math.max(8, Math.abs(log) + minSignificantDigits - 1);
+        
+        // Cap at 12 decimals for display
+        const cappedDecimals = Math.min(decimalsNeeded, 12);
+        
+        return n.toLocaleString("en-US", {
+            minimumFractionDigits: cappedDecimals,
+            maximumFractionDigits: cappedDecimals,
+        });
+    }
+    
+    // For extremely small values, use scientific notation
+    return n.toExponential(minSignificantDigits);
+}
+
 export default function CryptoDetail({
     account,
     currency,
@@ -60,6 +91,7 @@ export default function CryptoDetail({
     rateToUsd,
     walletType,
     tradingPairs = [],
+    allExchangeRates = [],
     tradingFeePercent = 0.1,
     transactions = [],
     fiatBalances = {},
@@ -83,6 +115,88 @@ export default function CryptoDetail({
         .reduce((sum, b) => sum + Number(b.balance), 0);
 
     const usdEquivalent = totalBalance * (rateToUsd || 0);
+
+    // Helper function to find conversion rate between two currencies
+    const findConversionRate = (fromCurrency, toCurrency) => {
+        if (fromCurrency === toCurrency) return 1;
+        
+        // Treat stablecoins as equivalent to USD
+        const stablecoins = ['USD', 'USDT', 'USDC'];
+        if (stablecoins.includes(fromCurrency) && stablecoins.includes(toCurrency)) {
+            return 1;
+        }
+        
+        // First check tradingPairs (optimized for current currency)
+        const tradingPair = tradingPairs.find((p) => p.from === toCurrency);
+        if (tradingPair) {
+            return 1 / tradingPair.rate;
+        }
+        
+        // Then check allExchangeRates for direct rate
+        const directRate = allExchangeRates.find(
+            (r) => r.from === fromCurrency && r.to === toCurrency
+        );
+        if (directRate) {
+            return directRate.rate;
+        }
+        
+        // Check reverse rate
+        const reverseRate = allExchangeRates.find(
+            (r) => r.from === toCurrency && r.to === fromCurrency
+        );
+        if (reverseRate && reverseRate.rate > 0) {
+            return 1 / reverseRate.rate;
+        }
+        
+        // Try to convert through USD as intermediary
+        let fromToUsd = null;
+        let usdToTarget = null;
+        
+        // Get rate from source currency to USD
+        if (stablecoins.includes(fromCurrency)) {
+            fromToUsd = 1;
+        } else {
+            const fromUsdDirect = allExchangeRates.find(
+                (r) => r.from === fromCurrency && stablecoins.includes(r.to)
+            );
+            if (fromUsdDirect) {
+                fromToUsd = fromUsdDirect.rate;
+            } else {
+                const fromUsdReverse = allExchangeRates.find(
+                    (r) => stablecoins.includes(r.from) && r.to === fromCurrency
+                );
+                if (fromUsdReverse && fromUsdReverse.rate > 0) {
+                    fromToUsd = 1 / fromUsdReverse.rate;
+                }
+            }
+        }
+        
+        // Get rate from USD to target currency
+        if (stablecoins.includes(toCurrency)) {
+            usdToTarget = 1;
+        } else {
+            const usdTargetDirect = allExchangeRates.find(
+                (r) => stablecoins.includes(r.from) && r.to === toCurrency
+            );
+            if (usdTargetDirect) {
+                usdToTarget = usdTargetDirect.rate;
+            } else {
+                const usdTargetReverse = allExchangeRates.find(
+                    (r) => r.from === toCurrency && stablecoins.includes(r.to)
+                );
+                if (usdTargetReverse && usdTargetReverse.rate > 0) {
+                    usdToTarget = 1 / usdTargetReverse.rate;
+                }
+            }
+        }
+        
+        // Calculate through USD intermediary
+        if (fromToUsd !== null && usdToTarget !== null) {
+            return fromToUsd * usdToTarget;
+        }
+        
+        return null; // Rate not found
+    };
 
     // Sort pairs to prioritize ones where this currency is the Quote (e.g. BTC/USDT if we are on USDT page)
     const sortedPairs = [...tradingPairs].sort((a, b) => {
@@ -1253,9 +1367,8 @@ export default function CryptoDetail({
                                                                     </span>
                                                                     <span className="font-bold text-red-500">
                                                                         -
-                                                                        {formatNumber(
+                                                                        {formatSmallAmount(
                                                                             feeAmount,
-                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             tx.to_currency
@@ -1621,9 +1734,8 @@ export default function CryptoDetail({
                                                                     </span>
                                                                     <span className="font-mono">
                                                                         -
-                                                                        {formatNumber(
+                                                                        {formatSmallAmount(
                                                                             feeAmount,
-                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -1964,9 +2076,8 @@ export default function CryptoDetail({
                                                                     </span>
                                                                     <span className="font-mono">
                                                                         -
-                                                                        {formatNumber(
+                                                                        {formatSmallAmount(
                                                                             feeAmount,
-                                                                            8,
                                                                         )}{" "}
                                                                         {
                                                                             activeDetails.receiving
@@ -2685,28 +2796,20 @@ export default function CryptoDetail({
                                                         </span>
                                                     </div>
                                                     {(() => {
-                                                        // Find the pair to calculate conversion
-                                                        // tradingPairs: {from: OTHER, to: CURRENT, rate: CURRENT_PER_OTHER}
-                                                        // We convert CURRENT -> OTHER
-                                                        // 1 CURRENT = (1/rate) OTHER
-                                                        const pair =
-                                                            tradingPairs.find(
-                                                                (p) =>
-                                                                    p.from ===
-                                                                    convertData.to_currency,
-                                                            );
+                                                        // Use the helper function to find conversion rate
+                                                        const conversionRate = findConversionRate(
+                                                            currency,
+                                                            convertData.to_currency
+                                                        );
 
-                                                        if (!pair) {
+                                                        if (conversionRate === null) {
                                                             return (
-                                                                <div className="text-center text-gray-500 text-sm">
-                                                                    Rate not
-                                                                    available
+                                                                <div className="text-center text-red-500 text-sm py-2">
+                                                                    ⚠️ Rate not available for this conversion
                                                                 </div>
                                                             );
                                                         }
 
-                                                        const conversionRate =
-                                                            1 / pair.rate;
                                                         const inputAmount =
                                                             parseFloat(
                                                                 convertData.amount,
@@ -2776,9 +2879,8 @@ export default function CryptoDetail({
                                                                         </span>
                                                                         <span>
                                                                             -
-                                                                            {formatNumber(
+                                                                            {formatSmallAmount(
                                                                                 feeAmount,
-                                                                                8,
                                                                             )}{" "}
                                                                             {
                                                                                 currency
@@ -2809,11 +2911,16 @@ export default function CryptoDetail({
                                                     parseFloat(
                                                         convertData.amount || 0,
                                                     );
+                                                // Check if rate is available
+                                                const hasValidRate = convertData.to_currency
+                                                    ? findConversionRate(currency, convertData.to_currency) !== null
+                                                    : false;
                                                 const isValid =
                                                     !processingConvert &&
                                                     convertData.to_currency &&
                                                     currentAmount > 0 &&
-                                                    currentAmount <= maxAmount;
+                                                    currentAmount <= maxAmount &&
+                                                    hasValidRate;
 
                                                 return (
                                                     <button
