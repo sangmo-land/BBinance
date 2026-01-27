@@ -119,82 +119,86 @@ export default function CryptoDetail({
     // Helper function to find conversion rate between two currencies
     const findConversionRate = (fromCurrency, toCurrency) => {
         if (fromCurrency === toCurrency) return 1;
-        
+
         // Treat stablecoins as equivalent to USD
-        const stablecoins = ['USD', 'USDT', 'USDC'];
-        if (stablecoins.includes(fromCurrency) && stablecoins.includes(toCurrency)) {
+        const stablecoins = ["USD", "USDT", "USDC"];
+        if (
+            stablecoins.includes(fromCurrency) &&
+            stablecoins.includes(toCurrency)
+        ) {
             return 1;
         }
-        
+
         // First check tradingPairs (optimized for current currency)
         const tradingPair = tradingPairs.find((p) => p.from === toCurrency);
         if (tradingPair) {
             return 1 / tradingPair.rate;
         }
-        
+
         // Then check allExchangeRates for direct rate
         const directRate = allExchangeRates.find(
-            (r) => r.from === fromCurrency && r.to === toCurrency
+            (r) => r.from === fromCurrency && r.to === toCurrency,
         );
         if (directRate) {
             return directRate.rate;
         }
-        
+
         // Check reverse rate
         const reverseRate = allExchangeRates.find(
-            (r) => r.from === toCurrency && r.to === fromCurrency
+            (r) => r.from === toCurrency && r.to === fromCurrency,
         );
         if (reverseRate && reverseRate.rate > 0) {
             return 1 / reverseRate.rate;
         }
-        
+
         // Try to convert through USD as intermediary
         let fromToUsd = null;
         let usdToTarget = null;
-        
+
         // Get rate from source currency to USD
         if (stablecoins.includes(fromCurrency)) {
             fromToUsd = 1;
         } else {
             const fromUsdDirect = allExchangeRates.find(
-                (r) => r.from === fromCurrency && stablecoins.includes(r.to)
+                (r) => r.from === fromCurrency && stablecoins.includes(r.to),
             );
             if (fromUsdDirect) {
                 fromToUsd = fromUsdDirect.rate;
             } else {
                 const fromUsdReverse = allExchangeRates.find(
-                    (r) => stablecoins.includes(r.from) && r.to === fromCurrency
+                    (r) =>
+                        stablecoins.includes(r.from) && r.to === fromCurrency,
                 );
                 if (fromUsdReverse && fromUsdReverse.rate > 0) {
                     fromToUsd = 1 / fromUsdReverse.rate;
                 }
             }
         }
-        
+
         // Get rate from USD to target currency
         if (stablecoins.includes(toCurrency)) {
             usdToTarget = 1;
         } else {
             const usdTargetDirect = allExchangeRates.find(
-                (r) => stablecoins.includes(r.from) && r.to === toCurrency
+                (r) => stablecoins.includes(r.from) && r.to === toCurrency,
             );
             if (usdTargetDirect) {
                 usdToTarget = usdTargetDirect.rate;
             } else {
                 const usdTargetReverse = allExchangeRates.find(
-                    (r) => r.from === toCurrency && stablecoins.includes(r.to)
+                    (r) => r.from === toCurrency && stablecoins.includes(r.to),
                 );
                 if (usdTargetReverse && usdTargetReverse.rate > 0) {
                     usdToTarget = 1 / usdTargetReverse.rate;
                 }
             }
         }
-        
+
         // Calculate through USD intermediary
         if (fromToUsd !== null && usdToTarget !== null) {
             return fromToUsd * usdToTarget;
         }
-        
+
         return null; // Rate not found
     };
 
@@ -2797,15 +2801,22 @@ export default function CryptoDetail({
                                                     </div>
                                                     {(() => {
                                                         // Use the helper function to find conversion rate
-                                                        const conversionRate = findConversionRate(
-                                                            currency,
-                                                            convertData.to_currency
-                                                        );
+                                                        const conversionRate =
+                                                            findConversionRate(
+                                                                currency,
+                                                                convertData.to_currency,
+                                                            );
 
-                                                        if (conversionRate === null) {
+                                                        if (
+                                                            conversionRate ===
+                                                            null
+                                                        ) {
                                                             return (
                                                                 <div className="text-center text-red-500 text-sm py-2">
-                                                                    ⚠️ Rate not available for this conversion
+                                                                    ⚠️ Rate not
+                                                                    available
+                                                                    for this
+                                                                    conversion
                                                                 </div>
                                                             );
                                                         }
@@ -2912,14 +2923,19 @@ export default function CryptoDetail({
                                                         convertData.amount || 0,
                                                     );
                                                 // Check if rate is available
-                                                const hasValidRate = convertData.to_currency
-                                                    ? findConversionRate(currency, convertData.to_currency) !== null
-                                                    : false;
+                                                const hasValidRate =
+                                                    convertData.to_currency
+                                                        ? findConversionRate(
+                                                              currency,
+                                                              convertData.to_currency,
+                                                          ) !== null
+                                                        : false;
                                                 const isValid =
                                                     !processingConvert &&
                                                     convertData.to_currency &&
                                                     currentAmount > 0 &&
-                                                    currentAmount <= maxAmount &&
+                                                    currentAmount <=
+                                                        maxAmount &&
                                                     hasValidRate;
 
                                                 return (
