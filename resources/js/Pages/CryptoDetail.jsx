@@ -2672,6 +2672,126 @@ export default function CryptoDetail({
                                             })()}
                                         </div>
 
+                                        {/* You Will Receive Section */}
+                                        {convertData.to_currency &&
+                                            convertData.amount > 0 && (
+                                                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <label className="text-xs font-bold text-purple-600 uppercase">
+                                                            You Will Receive
+                                                        </label>
+                                                        <span className="text-xs text-gray-500">
+                                                            (Estimated)
+                                                        </span>
+                                                    </div>
+                                                    {(() => {
+                                                        // Find the pair to calculate conversion
+                                                        // tradingPairs: {from: OTHER, to: CURRENT, rate: CURRENT_PER_OTHER}
+                                                        // We convert CURRENT -> OTHER
+                                                        // 1 CURRENT = (1/rate) OTHER
+                                                        const pair =
+                                                            tradingPairs.find(
+                                                                (p) =>
+                                                                    p.from ===
+                                                                    convertData.to_currency,
+                                                            );
+
+                                                        if (!pair) {
+                                                            return (
+                                                                <div className="text-center text-gray-500 text-sm">
+                                                                    Rate not
+                                                                    available
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        const conversionRate =
+                                                            1 / pair.rate;
+                                                        const inputAmount =
+                                                            parseFloat(
+                                                                convertData.amount,
+                                                            ) || 0;
+                                                        const feePercent =
+                                                            tradingFeePercent ||
+                                                            0.1;
+                                                        const feeAmount =
+                                                            inputAmount *
+                                                            (feePercent / 100);
+                                                        const amountAfterFee =
+                                                            inputAmount -
+                                                            feeAmount;
+                                                        const receivedAmount =
+                                                            amountAfterFee *
+                                                            conversionRate;
+
+                                                        return (
+                                                            <>
+                                                                <div className="flex justify-between items-center">
+                                                                    <span className="text-2xl font-bold text-purple-700">
+                                                                        {formatNumber(
+                                                                            receivedAmount,
+                                                                            receivedAmount <
+                                                                                1
+                                                                                ? 8
+                                                                                : 4,
+                                                                        )}
+                                                                    </span>
+                                                                    <span className="text-lg font-bold text-purple-600">
+                                                                        {
+                                                                            convertData.to_currency
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                                <div className="mt-2 pt-2 border-t border-purple-200 space-y-1">
+                                                                    <div className="flex justify-between text-xs text-gray-600">
+                                                                        <span>
+                                                                            Rate
+                                                                        </span>
+                                                                        <span>
+                                                                            1{" "}
+                                                                            {
+                                                                                currency
+                                                                            }{" "}
+                                                                            ={" "}
+                                                                            {formatNumber(
+                                                                                conversionRate,
+                                                                                conversionRate <
+                                                                                    1
+                                                                                    ? 6
+                                                                                    : 2,
+                                                                            )}{" "}
+                                                                            {
+                                                                                convertData.to_currency
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex justify-between text-xs text-gray-600">
+                                                                        <span>
+                                                                            Fee
+                                                                            (
+                                                                            {
+                                                                                feePercent
+                                                                            }
+                                                                            %)
+                                                                        </span>
+                                                                        <span>
+                                                                            -
+                                                                            {formatNumber(
+                                                                                feeAmount,
+                                                                                8,
+                                                                            )}{" "}
+                                                                            {
+                                                                                currency
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+
                                         <div className="mt-6 flex gap-3">
                                             {(() => {
                                                 const sourceWallet =
