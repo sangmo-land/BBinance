@@ -403,15 +403,16 @@ export default function Welcome() {
                             ✓ Fast • Secure • Multi‑Currency
                         </div>
                         <h1 className="text-5xl sm:text-6xl font-black text-gray-900 tracking-tight">
-                            The future of{" "}
+                            Experience a{" "}
                             <span className="text-indigo-700">
-                                digital banking
+                                Digital Banking Demo
                             </span>
                         </h1>
                         <p className="mt-5 text-lg text-gray-600 max-w-xl">
-                            Send and receive funds across accounts instantly,
-                            with transparent exchange rates and a clean, modern
-                            experience.
+                            Explore a simulated banking environment with instant
+                            fund transfers, real-time exchange rate simulations,
+                            and a modern interface designed for educational
+                            purposes.
                         </p>
 
                         <div className="mt-8 flex flex-col sm:flex-row gap-3">
