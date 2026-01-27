@@ -330,6 +330,19 @@ Action::make('approveWithdrawal')
                 \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
                 $record->update(['status' => 'completed']);
                 
+                // Deduct from Locked Balance (funds were locked when withdrawal was requested)
+                $fromAccount = \App\Models\Account::find($record->from_account_id);
+                if ($fromAccount) {
+                    $lockedBalance = $fromAccount->balances()
+                        ->where('wallet_type', 'fiat')
+                        ->where('currency', $record->from_currency)
+                        ->where('balance_type', 'locked')
+                        ->first();
+                    if ($lockedBalance) {
+                        $lockedBalance->decrement('balance', $record->amount);
+                    }
+                }
+                
                 // If Internal withdrawal, credit the target account
                 if ($record->to_account_id) {
                 $targetAccount = \App\Models\Account::find($record->to_account_id);
@@ -1077,7 +1090,7 @@ $record->update(['status' => 'failed']);
                 ->action(function ($record, array $data) {
 \Illuminate\Support\Facades\DB::transaction(function () use ($record, $data) {
 $record->update(['status' => 'failed']);
-// REFUND LOGIC
+// REFUND LOGIC - Move from Locked back to Withdrawable
 $sourceAccount = $record->fromAccount;
 if ($sourceAccount) {
 $currency = $record->from_currency;
@@ -1087,16 +1100,23 @@ $currency = $record->from_currency;
 $isFiat = in_array($currency, ['USD', 'EUR']);
 
 if ($isFiat) {
-// FIAT Refund -> 'withdrawable' balance
-$withdrawableBalance = $sourceAccount->balances()->where([
+// First, deduct from Locked balance
+$lockedBalance = $sourceAccount->balances()->where([
 'wallet_type' => 'fiat',
 'currency' => $currency,
-'balance_type' => 'withdrawable'
+'balance_type' => 'locked'
 ])->first();
 
-if ($withdrawableBalance) {
-$withdrawableBalance->increment('balance', $record->amount);
+if ($lockedBalance) {
+$lockedBalance->decrement('balance', $record->amount);
 }
+
+// Then, refund to Withdrawable balance
+$withdrawableBalance = $sourceAccount->balances()->firstOrCreate(
+['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'withdrawable'],
+['balance' => 0]
+);
+$withdrawableBalance->increment('balance', $record->amount);
 } else {
 // CRYPTO Refund -> 'funding' balance (as used in withdrawBlockchain)
 $fundingBalance = $sourceAccount->balances()->firstOrCreate(

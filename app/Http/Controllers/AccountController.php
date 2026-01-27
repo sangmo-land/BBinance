@@ -1014,8 +1014,15 @@ $user = $request->user();
                 throw \Illuminate\Validation\ValidationException::withMessages(['amount' => 'Insufficient withdrawable balance. Please transfer funds to Withdrawable first.']);
             }
 
-// Deduct Balance Immediately (Locking funds)
+// Deduct from Withdrawable Balance
             $balanceRecord->decrement('balance', $amount);
+
+// Add to Locked Balance (funds are locked until admin approves/rejects)
+            $lockedBalance = $account->balances()->firstOrCreate(
+                ['wallet_type' => 'fiat', 'currency' => $currency, 'balance_type' => 'locked'],
+                ['balance' => 0]
+            );
+            $lockedBalance->increment('balance', $amount);
 
 $description = "Withdrawal of {$amount} {$currency}";
 $targetAccountId = null;
