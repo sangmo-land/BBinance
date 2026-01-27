@@ -154,16 +154,13 @@ export default function AppLayout({ children }) {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
             <AdminMessages messages={auth?.unreadMessages} />
             {/* Navigation */}
-            <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-200/50">
+            <nav className="sticky top-0 z-50 bg-white shadow-sm border-b border-gray-200" style={{ willChange: 'transform' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center py-4">
                         {/* Logo & Brand */}
                         <div className="flex items-center space-x-8">
                             <Link href="/" className="flex items-center group">
                                 <div className="relative flex-shrink-0 flex items-center">
-                                    {/* Animated background glow */}
-                                    <div className="absolute inset-0 bg-blue-400 rounded-lg blur-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
-
                                     {/* Logo */}
                                     <div className="relative transform group-hover:scale-105 transition-transform duration-200">
                                         <img
