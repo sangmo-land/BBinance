@@ -16,7 +16,10 @@ Route::get('/sitemap-mobile.xml', [SitemapController::class, 'mobile'])->name('s
 Route::get('/sitemap-index.xml', [SitemapController::class, 'sitemapIndex'])->name('sitemap.index-file');
 
 Route::get('/contacts', function () {
-return Inertia::render('Contact');
+$contact = \App\Models\Contact::getActive();
+    return Inertia::render('Contact', [
+    'contact' => $contact,
+    ]);
 })->name('contacts');
 Route::get('/privacy-policy', function () {
 return Inertia::render('PrivacyPolicy');

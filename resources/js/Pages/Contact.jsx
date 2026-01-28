@@ -1,7 +1,18 @@
 import { Head, Link } from '@inertiajs/react';
 import ApplicationLogo from "@/Components/ApplicationLogo";
 
-export default function Contact({ auth }) {
+export default function Contact({ auth, contact }) {
+    // Format street address for display (convert \n to line breaks)
+    const formatAddress = (address) => {
+        if (!address) return null;
+        return address.split("\n").map((line, index) => (
+            <span key={index}>
+                {line}
+                {index < address.split("\n").length - 1 && <br />}
+            </span>
+        ));
+    };
+
     return (
         <>
             <Head title="Contact Us" />
@@ -75,15 +86,14 @@ export default function Contact({ auth }) {
                                             </div>
                                             <div>
                                                 <p className="font-medium text-gray-900 dark:text-white">
-                                                    Paris Office
+                                                    {contact?.office_name ||
+                                                        "Office"}
                                                 </p>
                                                 <p className="mt-2 text-gray-600 dark:text-gray-400">
-                                                    103 Avenue des
-                                                    Champs-Élysées
-                                                    <br />
-                                                    75008 Paris
-                                                    <br />
-                                                    France
+                                                    {formatAddress(
+                                                        contact?.street_address,
+                                                    ) ||
+                                                        "Address not available"}
                                                 </p>
                                             </div>
                                         </div>
@@ -112,7 +122,8 @@ export default function Contact({ auth }) {
                                                     </svg>
                                                 </div>
                                                 <span className="text-gray-600 dark:text-gray-400">
-                                                    +33 1 40 70 12 34
+                                                    {contact?.phone ||
+                                                        "Phone not available"}
                                                 </span>
                                             </div>
                                             <div className="flex items-center space-x-4">
@@ -133,7 +144,8 @@ export default function Contact({ auth }) {
                                                     </svg>
                                                 </div>
                                                 <span className="text-gray-600 dark:text-gray-400">
-                                                    service.client@hsbc.fr
+                                                    {contact?.email ||
+                                                        "Email not available"}
                                                 </span>
                                             </div>
                                         </div>

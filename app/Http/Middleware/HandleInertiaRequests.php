@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Contact;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -30,7 +31,7 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        $admin = User::where('is_admin', true)->first(['email', 'phone']);
+$contact = Contact::getActive();
         
         $unreadMessages = [];
         if ($request->user()) {
@@ -52,8 +53,8 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'), // Or 'errors' bag if using validate()
             ],
             'adminContact' => [
-'email' => $admin?->email ?? 'support@civicon.com',
-                'phone' => $admin?->phone ?? '+1 (555) 123-4567',
+'email' => $contact?->email ?? 'support@example.com',
+                'phone' => $contact?->phone ?? '+1 (555) 123-4567',
             ],
         ];
     }
