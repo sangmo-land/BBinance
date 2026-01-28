@@ -4,7 +4,7 @@
     <title>Registration Received</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-<h1 style="color: #2c3e50;">Welcome to Civicon Exchange, {{ $user->name }}!</h1>
+<h1 style="color: #2c3e50;">Welcome to HSBC, {{ $user->name }}!</h1>
     
     <p>Thank you for registering with us.</p>
     
@@ -16,6 +16,6 @@
     
     <p>You will receive another email automatically once your account has been approved and activated.</p>
     
-<p>Thank you for choosing Civicon Exchange.</p>
+<p>Thank you for choosing HSBC.</p>
 </body>
 </html>

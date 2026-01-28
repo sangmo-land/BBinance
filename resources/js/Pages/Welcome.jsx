@@ -390,7 +390,7 @@ export default function Welcome() {
     return (
         <AppLayout>
             <SEOHead
-                title="AppDemo"
+                title="HSBC"
                 description="AppDemo is a demonstration project for digital banking features. This application is for educational and testing purposes only, not for real financial transactions."
                 keywords="digital banking demo, fintech prototype, react laravel demo, banking app template, educational purpose"
                 structuredData={structuredData}
