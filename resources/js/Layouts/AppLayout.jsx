@@ -31,8 +31,11 @@ export default function AppLayout({ children }) {
             // However, distinguishing is hard. We can rely on a custom header convention.
             const isGet = visit.method.toLowerCase() === "get";
             const isBackground = visit.headers?.["X-No-Global-Loading"];
+            const isLogout =
+                visit.url.pathname === "/logout" ||
+                visit.url.href?.includes("/logout");
 
-            if (!isGet && !isBackground) {
+            if (!isGet && !isBackground && !isLogout) {
                 processingStartTime = Date.now();
                 setIsGlobalProcessing(true);
             }
