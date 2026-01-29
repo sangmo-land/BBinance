@@ -17,12 +17,12 @@
     
     <p>Please review their details and approve their account.</p>
     
-    <p style="margin-top: 30px;">
+{{-- <p style="margin-top: 30px;">
         <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('admin.users.approve-link', ['user' => $user->id]) }}" 
            style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
            Approve User Immediately
         </a>
-    </p>
+</p> --}}
     
     <p style="margin-top: 20px; font-size: 0.9em; color: #7f8c8d;">
         Note: If you need to check identity documents first, please log in to the <a href="{{ url('/admin') }}">Admin Panel</a>.
